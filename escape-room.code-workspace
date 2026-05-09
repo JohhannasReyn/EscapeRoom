@@ -1,0 +1,12 @@
+{
+	"folders": [
+		{
+			"path": "escape-room-pico"
+		},
+		{
+			"name": "raspberry-pi-controller",
+			"path": "raspberry-pi-controller"
+		}
+	],
+	"settings": {}
+}
