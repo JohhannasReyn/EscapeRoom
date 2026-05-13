@@ -39,7 +39,7 @@ EscapeRoom/
 
 ### `escape-room-pico`
 
-This project runs on the Raspberry Pi Pico WH.
+This project runs on a Raspberry Pi Pico WH near the entry puzzle area.
 
 Responsibilities:
 
@@ -49,14 +49,67 @@ Responsibilities:
 * Connect to WiFi
 * Publish MQTT events to the Raspberry Pi
 
-Current prototype behavior:
+Current behavior:
 
 ```text
 Copper/contact puzzle solved
 → Pico detects GPIO input
 → Pico publishes:
    escape/puzzle/copper/solved
+
+Stairs trigger activated
+→ Pico detects GPIO input
+→ Pico publishes:
+   escape/puzzle/stairs/triggered
 ```
+
+### Pico project grouping
+
+There are six deployable Pico WH projects. Puzzles are grouped by physical proximity so the wiring stays local and each Pico still has GPIO headroom for reset buttons, status LEDs, and future inputs.
+
+```text
+escape-room-pico/
+  Pico 1: entry area
+  Inputs: copper puzzle, stairs trigger
+  Publishes:
+    escape/puzzle/copper/solved
+    escape/puzzle/stairs/triggered
+
+pico-cabinet-dowels-wine/
+  Pico 2: cabinet/table area
+  Inputs: dowels puzzle, wine puzzle
+  Publishes:
+    escape/puzzle/dowels/solved
+    escape/puzzle/wine/solved
+
+pico-kitchen-blender-fireplace/
+  Pico 3: kitchen/hearth area
+  Inputs: blender flour puzzle, fireplace log puzzle
+  Publishes:
+    escape/puzzle/blender/solved
+    escape/puzzle/fireplace/solved
+
+pico-phone-prop/
+  Pico 4: phone prop
+  Inputs: phone puzzle
+  Publishes:
+    escape/puzzle/phone/solved
+
+pico-cubby-controller/
+  Pico 5: cubby outputs
+  Subscribes:
+    escape/cubby/1/light_on
+    escape/cubby/2/unlock
+
+pico-reveal-effects/
+  Pico 6: reveal/effects outputs
+  Subscribes:
+    escape/pdlc/on
+    escape/smoke/burst
+    escape/tv/play_intro
+```
+
+The two output-heavy Pico projects should use relay modules, MOSFET driver modules, or isolated driver boards. If the number of cubby lights, locks, or reveal effects grows, add an I2C GPIO expander such as an MCP23017 instead of trying to crowd every device onto direct Pico GPIO.
 
 ---
 
@@ -80,6 +133,22 @@ escape/puzzle/copper/solved
 When received:
 → print event info
 → play crash sound
+```
+
+Controller code layout:
+
+```text
+src/main.cpp
+  Sets up MQTT and forwards incoming messages to the game controller.
+
+src/GameController.*
+  Owns puzzle modules and routes MQTT topics to the matching class.
+
+src/puzzles/
+  Contains one class per puzzle topic. CopperPuzzle is the working prototype.
+
+src/effects/
+  Contains reusable output actions such as audio playback.
 ```
 
 ---
@@ -437,12 +506,11 @@ escape/tv/play_intro
 Future folders may include:
 
 ```text
-dowel-puzzle/
-phone-puzzle/
-rfid-cubby-controller/
-pdlc-reveal/
-fireplace-log-puzzle/
-blender-flour-puzzle/
+pico-cabinet-dowels-wine/
+pico-kitchen-blender-fireplace/
+pico-phone-prop/
+pico-cubby-controller/
+pico-reveal-effects/
 docs/
 assets/
 ```

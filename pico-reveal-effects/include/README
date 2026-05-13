@@ -1,0 +1,13 @@
+Reveal/effects Pico project.
+
+Default pins:
+- GPIO 15: PDLC smart film relay/driver input
+- GPIO 16: smoke burst relay/driver input
+- GPIO 17: TV intro trigger driver input
+
+MQTT commands:
+- escape/pdlc/on
+- escape/smoke/burst
+- escape/tv/play_intro
+
+Use relay, MOSFET, or isolated driver modules. Do not switch mains power directly from Pico hardware.

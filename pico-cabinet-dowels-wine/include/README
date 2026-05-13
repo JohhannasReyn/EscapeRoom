@@ -1,0 +1,8 @@
+Cabinet dowels/wine Pico project.
+
+Default pins:
+- GPIO 15: dowels puzzle solved input
+- GPIO 16: wine puzzle solved input
+- GPIO 14: reset button to GND, using internal pull-up
+
+Sensor inputs assume external pull-down wiring. Use relay/MOSFET driver boards for any powered devices.

@@ -19,35 +19,36 @@
 #endif
 
 #ifndef MQTT_CLIENT_ID
-#define MQTT_CLIENT_ID "pico_copper_puzzle"
-#endif
-
-#ifndef MQTT_TOPIC_SOLVED
-#define MQTT_TOPIC_SOLVED "escape/puzzle/copper/solved"
+#define MQTT_CLIENT_ID "pico_entry_copper_stairs"
 #endif
 
 constexpr int LED_PIN = LED_BUILTIN;
 
-// Copper puzzle input.
-// 3.3V -> Copper Pad A
-// Copper Pad B -> GPIO 15
-// GPIO 15 -> 10k resistor -> GND
-constexpr int PUZ_PIN = 15;
+struct DigitalPuzzle {
+    const char* name;
+    const char* topic;
+    const char* payload;
+    int pin;
+    bool solved;
+    int lastState;
+    unsigned long stableStart;
+};
 
-// Optional reset button.
-// Button from GPIO 14 to GND.
-// Uses internal pull-up.
+constexpr int COPPER_PIN = 15;
+constexpr int STAIRS_PIN = 16;
 constexpr int RST_PIN = 14;
 
 WiFiClient wifiClient;
 PubSubClient mqtt(wifiClient);
 
-bool solved = false;
-int lastState = LOW;
-unsigned long stableStart = 0;
-
 constexpr unsigned long DEBOUNCE_MS = 750;
 constexpr unsigned long MQTT_RETRY_MS = 3000;
+constexpr int PUZZLE_COUNT = 2;
+
+DigitalPuzzle puzzles[PUZZLE_COUNT] = {
+    {"Copper puzzle", "escape/puzzle/copper/solved", "copper puzzle solved", COPPER_PIN, false, LOW, 0},
+    {"Stairs trigger", "escape/puzzle/stairs/triggered", "stairs triggered", STAIRS_PIN, false, LOW, 0},
+};
 
 void blink(int count, int delayMs = 150) {
     for (int i = 0; i < count; ++i) {
@@ -113,13 +114,13 @@ void connectMQTT() {
     }
 }
 
-void publishSolved() {
-    const char* msg = "copper puzzle solved";
+void publishSolved(const DigitalPuzzle& puzzle) {
+    Serial.print("Publishing event: ");
+    Serial.print(puzzle.topic);
+    Serial.print(" -> ");
+    Serial.println(puzzle.payload);
 
-    Serial.print("Publishing solved event: ");
-    Serial.println(msg);
-
-    bool ok = mqtt.publish(MQTT_TOPIC_SOLVED, msg);
+    bool ok = mqtt.publish(puzzle.topic, puzzle.payload);
 
     if (ok) {
         Serial.println("MQTT publish successful.");
@@ -135,22 +136,29 @@ void setup() {
     delay(1500);
 
     pinMode(LED_PIN, OUTPUT);
-    pinMode(PUZ_PIN, INPUT);
     pinMode(RST_PIN, INPUT_PULLUP);
 
     digitalWrite(LED_PIN, LOW);
 
     Serial.println();
-    Serial.println("Escape Room Copper Puzzle Controller");
-    Serial.println("------------------------------------");
+    Serial.println("Escape Room Entry Pico Controller");
+    Serial.println("---------------------------------");
 
     connectWiFi();
     connectMQTT();
 
-    lastState = digitalRead(PUZ_PIN);
-    stableStart = millis();
+    for (int i = 0; i < PUZZLE_COUNT; ++i) {
+        pinMode(puzzles[i].pin, INPUT);
+        puzzles[i].lastState = digitalRead(puzzles[i].pin);
+        puzzles[i].stableStart = millis();
 
-    Serial.println("Waiting for copper puzzle contact...");
+        Serial.print("Watching ");
+        Serial.print(puzzles[i].name);
+        Serial.print(" on GPIO ");
+        Serial.println(puzzles[i].pin);
+    }
+
+    Serial.println("Waiting for entry puzzle events...");
 }
 
 void loop() {
@@ -165,26 +173,35 @@ void loop() {
     mqtt.loop();
 
     if (digitalRead(RST_PIN) == LOW) {
-        solved = false;
+        for (int i = 0; i < PUZZLE_COUNT; ++i) {
+            puzzles[i].solved = false;
+            puzzles[i].lastState = digitalRead(puzzles[i].pin);
+            puzzles[i].stableStart = millis();
+        }
+
         digitalWrite(LED_PIN, LOW);
-        Serial.println("Puzzle reset.");
+        Serial.println("Entry Pico puzzles reset.");
         delay(500);
     }
 
-    int state = digitalRead(PUZ_PIN);
     unsigned long now = millis();
 
-    if (state != lastState) {
-        lastState = state;
-        stableStart = now;
-    }
+    for (int i = 0; i < PUZZLE_COUNT; ++i) {
+        int state = digitalRead(puzzles[i].pin);
 
-    unsigned long stableMs = now - stableStart;
+        if (state != puzzles[i].lastState) {
+            puzzles[i].lastState = state;
+            puzzles[i].stableStart = now;
+        }
 
-    if (state == HIGH && !solved && stableMs >= DEBOUNCE_MS) {
-        solved = true;
-        Serial.println("Puzzle solved!");
-        publishSolved();
+        unsigned long stableMs = now - puzzles[i].stableStart;
+
+        if (state == HIGH && !puzzles[i].solved && stableMs >= DEBOUNCE_MS) {
+            puzzles[i].solved = true;
+            Serial.print(puzzles[i].name);
+            Serial.println(" solved!");
+            publishSolved(puzzles[i]);
+        }
     }
 
     delay(50);

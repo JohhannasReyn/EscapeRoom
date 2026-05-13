@@ -1,0 +1,7 @@
+Phone prop Pico project.
+
+Default pins:
+- GPIO 15: phone puzzle solved input
+- GPIO 14: reset button to GND, using internal pull-up
+
+Sensor input assumes external pull-down wiring.

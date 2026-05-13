@@ -1,0 +1,11 @@
+Cubby controller Pico project.
+
+Default pins:
+- GPIO 15: cubby 1 light driver input
+- GPIO 16: cubby 2 lock relay driver input
+
+MQTT commands:
+- escape/cubby/1/light_on
+- escape/cubby/2/unlock
+
+Use relay, MOSFET, or isolated driver modules. Do not drive locks or LED strips directly from Pico GPIO.
