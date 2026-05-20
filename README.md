@@ -26,7 +26,11 @@ EscapeRoom/
 │   ├── platformio.ini
 │   └── src/
 │       └── main.cpp
-│
+├── pico-cabinet-dowels-wine/
+├── pico-fireplace-reveal-effects/
+├── pico-tv-wall/
+├── pico-phone-window-props/
+├── pico-back-room-blender-final/
 └── raspberry-pi-controller/
     ├── platformio.ini
     └── src/
@@ -39,7 +43,7 @@ EscapeRoom/
 
 ### `escape-room-pico`
 
-This project runs on a Raspberry Pi Pico WH near the entry puzzle area.
+This project runs on a Raspberry Pi Pico WH near the stair/cubby/entry area.
 
 Responsibilities:
 
@@ -61,6 +65,18 @@ Stairs trigger activated
 → Pico detects GPIO input
 → Pico publishes:
    escape/puzzle/stairs/triggered
+
+Cubby commands received
+→ Pico receives MQTT command
+→ Pico turns individual cubby LED-strip segments or lock relay driver on/off
+
+Startup/POST lights
+→ Pico sweeps cubbies 1 through 6
+→ Pico holds all cubbies white
+→ Raspberry Pi asks every Pico to report whether its puzzle is ready or still completed
+→ Raspberry Pi marks ready puzzle cubbies green and completed puzzle cubbies red
+→ When every cubby has reported ready, Raspberry Pi sends ready/off command
+→ Pico clears lights and waits for gameplay
 ```
 
 ### Pico project grouping
@@ -69,47 +85,134 @@ There are six deployable Pico WH projects. Puzzles are grouped by physical proxi
 
 ```text
 escape-room-pico/
-  Pico 1: entry area
-  Inputs: copper puzzle, stairs trigger
+  Pico 1: stair / under-stair / entry zone
+  Inputs: copper solved contact, optional copper begun contact, stairs laser distance sensor
+  Outputs: addressable cubby LED strip, cubby lock relay driver
   Publishes:
+    escape/puzzle/copper/begun
     escape/puzzle/copper/solved
     escape/puzzle/stairs/triggered
+  Subscribes:
+    escape/cubby/1/light_on
+    escape/cubby/2/light_on
+    escape/cubby/3/light_on
+    escape/cubby/4/light_on
+    escape/cubby/5/light_on
+    escape/cubby/6/light_on
+    escape/cubby/1/status
+    escape/cubby/2/status
+    escape/cubby/3/status
+    escape/cubby/4/status
+    escape/cubby/5/status
+    escape/cubby/6/status
+    escape/cubby/all/status
+    escape/cubby/2/unlock
+    escape/post/query
+    escape/game/reset
 
 pico-cabinet-dowels-wine/
-  Pico 2: cabinet/table area
+  Pico 2: left wall shelf / cabinet area
   Inputs: dowels puzzle, wine puzzle
   Publishes:
     escape/puzzle/dowels/solved
     escape/puzzle/wine/solved
-
-pico-kitchen-blender-fireplace/
-  Pico 3: kitchen/hearth area
-  Inputs: blender flour puzzle, fireplace log puzzle
-  Publishes:
-    escape/puzzle/blender/solved
-    escape/puzzle/fireplace/solved
-
-pico-phone-prop/
-  Pico 4: phone prop
-  Inputs: phone puzzle
-  Publishes:
-    escape/puzzle/phone/solved
-
-pico-cubby-controller/
-  Pico 5: cubby outputs
   Subscribes:
-    escape/cubby/1/light_on
-    escape/cubby/2/unlock
+    escape/game/reset
 
-pico-reveal-effects/
-  Pico 6: reveal/effects outputs
+pico-fireplace-reveal-effects/
+  Pico 3: fireplace / reveal zone
+  Inputs: fireplace log puzzle
+  Outputs: PDLC smart film, smoke burst, electric lock trigger
+  Publishes:
+    escape/puzzle/fireplace/solved
   Subscribes:
     escape/pdlc/on
     escape/smoke/burst
+    escape/lock/trigger
+    escape/game/reset
+
+pico-tv-wall/
+  Pico 4: TV wall
+  Outputs: TV intro trigger
+  Subscribes:
     escape/tv/play_intro
+    escape/game/reset
+
+pico-phone-window-props/
+  Pico 5: right wall / window props
+  Inputs: phone puzzle, right-wall/window prop
+  Publishes:
+    escape/puzzle/phone/solved
+    escape/puzzle/window/triggered
+  Subscribes:
+    escape/game/reset
+
+pico-back-room-blender-final/
+  Pico 6: back room / final zone
+  Inputs: blender flour puzzle
+  Outputs: final win-condition relay/driver
+  Publishes:
+    escape/puzzle/blender/solved
+  Subscribes:
+    escape/game/win
+    escape/game/reset
 ```
 
-The two output-heavy Pico projects should use relay modules, MOSFET driver modules, or isolated driver boards. If the number of cubby lights, locks, or reveal effects grows, add an I2C GPIO expander such as an MCP23017 instead of trying to crowd every device onto direct Pico GPIO.
+The output-heavy Pico projects should use relay modules, MOSFET driver modules, or isolated driver boards. If the number of cubby lights, locks, window props, or reveal effects grows, add an I2C GPIO expander such as an MCP23017 instead of trying to crowd every device onto direct Pico GPIO.
+
+Pico 1 uses one continuous addressable LED strip for the cubbies. The firmware has setup constants near the top of `escape-room-pico/src/main.cpp`:
+
+```cpp
+constexpr int CUBBY_COUNT = 6;
+constexpr int LEDS_PER_CUBBY = 30;
+constexpr int LEDS_BETWEEN_CUBBIES = 3;
+constexpr int CUBBY_LED_BRIGHTNESS = 80;
+constexpr int CUBBY_ACTIVE_DISTANCE_MM = 650;
+constexpr int STARTUP_CUBBY_STEP_MS = 300;
+constexpr int STARTUP_ALL_WHITE_MS = 800;
+```
+
+After the lights are physically installed, count the real LEDs in one cubby and the real LEDs in each gap, then update those values.
+
+On Pico startup, the cubbies sweep on in order, then all turn white. The Raspberry Pi uses the same strip as a startup POST display by asking every Pico to report its puzzle state on `escape/post/query`.
+
+Each Pico replies with one or more cubby state reports:
+
+```text
+escape/post/cubby/1/state -> ready or completed
+escape/post/cubby/2/state -> ready or completed
+escape/post/cubby/3/state -> ready or completed
+escape/post/cubby/4/state -> ready or completed
+escape/post/cubby/5/state -> ready or completed
+escape/post/cubby/6/state -> ready or completed
+```
+
+The Raspberry Pi turns a cubby green when the reported state is `ready` and red when the reported state is `completed`. Red means the operator should physically return that puzzle to its ready state, then press that Pico's local reset button. The Pico will publish its updated POST state after the local reset.
+
+The operator can also press the Raspberry Pi whole-room reset button after returning the physical puzzle to its ready state. The Pi publishes `escape/game/reset`, waits briefly, and repeats the POST query. When all six cubbies have reported `ready`, the Pi sends `escape/cubby/all/status` with `off`; that clears the strip and puts Pico 1 into its ready state. The stairs distance sensor is ignored until this ready command arrives.
+
+### Room Reset Button
+
+The Raspberry Pi controller can host a physical whole-room reset button. Wire the button like this:
+
+```text
+Raspberry Pi GPIO 23 -> reset button -> GND
+```
+
+The controller requests GPIO 23 with an internal pull-up through `libgpiod`, so the button reads:
+
+```text
+not pressed = HIGH
+pressed     = LOW
+```
+
+Hold the button for one second to publish:
+
+```text
+escape/game/reset
+```
+
+Every Pico subscribes to that topic. When received, each Pico clears local solved-state flags and turns off local outputs that it owns.
 
 ---
 
@@ -213,6 +316,67 @@ src/effects/
 
 ---
 
+## Dependency Setup
+
+This project has two kinds of dependencies.
+
+### Pico projects
+
+The Pico WH projects use Arduino libraries that PlatformIO can download from the PlatformIO Library Registry.
+
+Each Pico project has this in its `platformio.ini`:
+
+```ini
+lib_deps =
+    knolleary/PubSubClient@^2.8
+```
+
+When the student opens a Pico project and builds/uploads it with PlatformIO, PlatformIO downloads `PubSubClient` automatically if it is not already installed.
+
+Pico 1 also uses addressable LEDs and a VL53L0X-style laser distance sensor:
+
+```ini
+lib_deps =
+    knolleary/PubSubClient@^2.8
+    adafruit/Adafruit NeoPixel@^1.12.5
+    pololu/VL53L0X@^1.3.1
+```
+
+PlatformIO will download these from the PlatformIO Library Registry during the first build.
+
+### Raspberry Pi controller
+
+The Raspberry Pi controller is different. It is a native Linux C++ program, so its MQTT and GPIO dependencies are Raspberry Pi OS packages, not Arduino libraries.
+
+These packages cannot be replaced by PlatformIO `lib_deps`:
+
+```text
+mosquitto
+mosquitto-clients
+libmosquitto-dev
+libgpiod-dev
+```
+
+Install them on the Raspberry Pi before building the controller:
+
+```bash
+sudo apt update
+sudo apt install -y mosquitto mosquitto-clients libmosquitto-dev libgpiod-dev
+```
+
+The controller `platformio.ini` should only link the installed system libraries:
+
+```ini
+build_flags =
+    -std=c++17
+    -lmosquitto
+    -lgpiod
+```
+
+Do not put Debian package names such as `libmosquitto-dev` or `mosquitto-clients` in `build_flags`; PlatformIO will treat them like linker flags, not install commands.
+
+---
+
 ## MQTT Event Flow
 
 The Pico and Raspberry Pi communicate using MQTT.
@@ -247,14 +411,28 @@ Audio/light/effect trigger
 Copper puzzle input:
 
 ```text
-Pico 3.3V  → Copper Pad A
+Pico 3.3V -> copper solved contact side A
 
-Copper Pad B → GPIO 15
+copper solved contact side B -> GPIO 15
 
-GPIO 15 → 10kΩ resistor → GND
+GPIO 15 -> 10k ohm resistor -> GND
 ```
 
-When the copper puzzle piece bridges Copper Pad A and Copper Pad B, GPIO 15 reads HIGH.
+When the copper puzzle piece bridges the solved contact, GPIO 15 reads HIGH and publishes `escape/puzzle/copper/solved`.
+
+Optional copper begun input:
+
+```text
+Pico 3.3V -> copper begun contact side A
+copper begun contact side B -> GPIO 19
+GPIO 19 -> 10k ohm resistor -> GND
+```
+
+If the begun contact is not installed, set this near the top of `escape-room-pico/src/main.cpp`:
+
+```cpp
+constexpr bool COPPER_STARTED_INPUT_ENABLED = false;
+```
 
 Optional reset button:
 
@@ -263,6 +441,258 @@ GPIO 14 → Button → GND
 ```
 
 GPIO 14 uses the Pico internal pull-up resistor.
+
+---
+
+## Room Wiring Guide
+
+These wiring notes match the current project code. Pin numbers below are **GPIO numbers**, not physical header pin numbers, unless a physical pin is explicitly stated.
+
+### Common Pico Input Pattern
+
+Use this pattern for contact sensors, reed switches, pressure mats, simple prop switches, and solved-state outputs from another low-voltage circuit:
+
+```text
+Pico 3.3V -> switch/contact/sensor -> Pico GPIO input
+Pico GPIO input -> 10k ohm resistor -> Pico GND
+```
+
+When the switch closes, the GPIO reads `HIGH`. When open, the 10k resistor pulls the GPIO to `LOW`.
+
+Use this pattern for:
+
+```text
+GPIO 15: copper, dowels, blender, phone, or TV trigger depending on project
+GPIO 16: stairs, wine, final output, or window prop depending on project
+GPIO 17: fireplace puzzle input on the fireplace Pico
+```
+
+### Common Pico Local Reset Button
+
+Most Pico puzzle projects also support a local reset button:
+
+```text
+Pico GPIO 14 -> reset button -> Pico GND
+```
+
+GPIO 14 uses the Pico internal pull-up resistor:
+
+```text
+not pressed = HIGH
+pressed     = LOW
+```
+
+The whole-room reset button is different. It is wired to the Raspberry Pi and sends `escape/game/reset` over MQTT to every Pico.
+
+### Common Pico Output Pattern
+
+Do not power locks, LED strips, smart film, smoke effects, or other high-current devices directly from Pico GPIO.
+
+Use a relay module, MOSFET module, or isolated driver board:
+
+```text
+Pico GPIO output -> driver module IN
+Pico GND         -> driver module GND
+Driver VCC       -> driver logic voltage, usually 3.3V or 5V depending on module
+External supply  -> powered device through relay/MOSFET output side
+```
+
+If the driver module uses a separate external supply, make sure the Pico and driver input side share a common ground unless the module is optically isolated and documented otherwise.
+
+### Raspberry Pi Whole-Room Reset Button
+
+Wire the whole-room reset button to the Raspberry Pi:
+
+```text
+Raspberry Pi BCM GPIO 23 / physical pin 16 -> reset button -> GND
+```
+
+Convenient Raspberry Pi GND pins include physical pin 6, 9, 14, 20, 25, 30, 34, or 39.
+
+The controller uses an internal pull-up through `libgpiod`, so no external resistor is required for the Pi reset button. Hold the button for one second to publish:
+
+```text
+escape/game/reset
+```
+
+### Pico 1: `escape-room-pico`
+
+Stair / under-stair / entry zone.
+
+```text
+GPIO 14 -> local reset button -> GND
+GPIO 15 -> copper solved input
+GPIO 17 -> cubby addressable LED strip data input
+GPIO 18 -> cubby 2 lock relay driver IN
+GPIO 19 -> optional copper begun input
+```
+
+Stairs laser distance sensor:
+
+```text
+Sensor VCC   -> Pico 3.3V, unless the exact sensor board requires 5V
+Sensor GND   -> Pico GND
+Sensor SDA   -> Pico I2C SDA, usually GPIO 4
+Sensor SCL   -> Pico I2C SCL, usually GPIO 5
+Sensor XSHUT -> GPIO 6
+Sensor GPIO1 -> GPIO 7, wired for future interrupt use but not required by current code
+```
+
+Cubby addressable LED strip:
+
+```text
+5V 3A supply + -> LED strip 5V
+5V 3A supply - -> LED strip GND
+5V 3A supply - -> Pico GND
+Pico GPIO 17   -> LED strip DIN, preferably through a 330-470 ohm resistor
+```
+
+Recommended LED strip protection:
+
+```text
+1000uF capacitor across LED strip 5V and GND near the strip input
+Keep brightness low at first
+Do not power the LED strip from the Pico
+```
+
+MQTT:
+
+```text
+Publishes:  escape/puzzle/copper/begun
+Publishes:  escape/puzzle/copper/solved
+Publishes:  escape/puzzle/stairs/triggered
+Subscribes: escape/cubby/1/light_on
+Subscribes: escape/cubby/2/light_on
+Subscribes: escape/cubby/3/light_on
+Subscribes: escape/cubby/4/light_on
+Subscribes: escape/cubby/5/light_on
+Subscribes: escape/cubby/6/light_on
+Subscribes: escape/cubby/1/status
+Subscribes: escape/cubby/2/status
+Subscribes: escape/cubby/3/status
+Subscribes: escape/cubby/4/status
+Subscribes: escape/cubby/5/status
+Subscribes: escape/cubby/6/status
+Subscribes: escape/cubby/all/status
+Subscribes: escape/cubby/2/unlock
+Subscribes: escape/post/query
+Subscribes: escape/game/reset
+Publishes:  escape/post/cubby/1/state
+```
+
+### Pico 2: `pico-cabinet-dowels-wine`
+
+Left wall shelf / cabinet zone.
+
+```text
+GPIO 14 -> local reset button -> GND
+GPIO 15 -> dowels puzzle input
+GPIO 16 -> wine puzzle input
+```
+
+MQTT:
+
+```text
+Publishes:  escape/puzzle/dowels/solved
+Publishes:  escape/puzzle/wine/solved
+Publishes:  escape/post/cubby/2/state
+Publishes:  escape/post/cubby/3/state
+Subscribes: escape/post/query
+Subscribes: escape/game/reset
+```
+
+### Pico 3: `pico-fireplace-reveal-effects`
+
+Fireplace / reveal zone.
+
+```text
+GPIO 14 -> local reset button -> GND
+GPIO 15 -> PDLC smart film relay/driver IN
+GPIO 16 -> smoke burst relay/driver IN
+GPIO 17 -> fireplace puzzle input
+GPIO 18 -> electric lock relay/driver IN
+```
+
+MQTT:
+
+```text
+Publishes:  escape/puzzle/fireplace/solved
+Publishes:  escape/post/cubby/4/state
+Subscribes: escape/pdlc/on
+Subscribes: escape/smoke/burst
+Subscribes: escape/lock/trigger
+Subscribes: escape/post/query
+Subscribes: escape/game/reset
+```
+
+### Pico 4: `pico-tv-wall`
+
+TV wall zone.
+
+```text
+GPIO 15 -> TV intro trigger relay/driver/input interface
+```
+
+MQTT:
+
+```text
+Subscribes: escape/tv/play_intro
+Subscribes: escape/game/reset
+```
+
+### Pico 5: `pico-phone-window-props`
+
+Right wall / window prop zone.
+
+```text
+GPIO 14 -> local reset button -> GND
+GPIO 15 -> phone puzzle input
+GPIO 16 -> right-wall/window prop input
+```
+
+MQTT:
+
+```text
+Publishes:  escape/puzzle/phone/solved
+Publishes:  escape/puzzle/window/triggered
+Publishes:  escape/post/cubby/5/state
+Subscribes: escape/post/query
+Subscribes: escape/game/reset
+```
+
+### Pico 6: `pico-back-room-blender-final`
+
+Back room / final zone.
+
+```text
+GPIO 14 -> local reset button -> GND
+GPIO 15 -> blender flour puzzle input
+GPIO 16 -> final win-condition relay/driver IN
+```
+
+MQTT:
+
+```text
+Publishes:  escape/puzzle/blender/solved
+Publishes:  escape/post/cubby/6/state
+Subscribes: escape/game/win
+Subscribes: escape/post/query
+Subscribes: escape/game/reset
+```
+
+### Power Notes
+
+Use the Pico 3.3V pin only for small sensors and logic inputs. Use a separate power supply for locks, LED strips, smart film, smoke devices, motors, or anything with meaningful current draw.
+
+For player-facing wiring, prefer low voltage:
+
+```text
+3.3V for Pico logic
+5V for compatible relay/driver logic
+12V for LED strips or locks only through proper driver hardware
+```
+
+Do not switch mains voltage unless someone with appropriate electrical experience handles that part of the build.
 
 ---
 
@@ -320,7 +750,7 @@ Install required Raspberry Pi packages:
 
 ```bash
 sudo apt update
-sudo apt install -y mosquitto mosquitto-clients libmosquitto-dev
+sudo apt install -y mosquitto mosquitto-clients libmosquitto-dev libgpiod-dev
 ```
 
 Enable and start Mosquitto:
@@ -411,6 +841,16 @@ If the audio file exists, the Raspberry Pi should attempt to play it.
 
 ## First Prototype Test Plan
 
+### Host-side code audit
+
+Before uploading firmware, run the host-side tests from the repository root:
+
+```powershell
+.\tools\run-host-tests.ps1
+```
+
+This checks the Raspberry Pi controller routing, POST red/green logic, cubby LED math, debounce timing, and relay pulse timing without requiring Pico hardware.
+
 ### Step 1: Test Pico upload
 
 Upload a simple blink program to the Pico WH.
@@ -482,17 +922,40 @@ escape/puzzle/copper/solved
 Planned future topics:
 
 ```text
+escape/puzzle/copper/begun
 escape/puzzle/stairs/triggered
 escape/puzzle/dowels/solved
 escape/puzzle/wine/solved
 escape/puzzle/blender/solved
 escape/puzzle/fireplace/solved
 escape/puzzle/phone/solved
+escape/puzzle/window/triggered
 escape/game/win
+escape/game/reset
 
 escape/cubby/1/light_on
 escape/cubby/2/unlock
+escape/cubby/2/light_on
+escape/cubby/3/light_on
+escape/cubby/4/light_on
+escape/cubby/5/light_on
+escape/cubby/6/light_on
+escape/cubby/1/status
+escape/cubby/2/status
+escape/cubby/3/status
+escape/cubby/4/status
+escape/cubby/5/status
+escape/cubby/6/status
+escape/cubby/all/status
+escape/post/query
+escape/post/cubby/1/state
+escape/post/cubby/2/state
+escape/post/cubby/3/state
+escape/post/cubby/4/state
+escape/post/cubby/5/state
+escape/post/cubby/6/state
 escape/pdlc/on
+escape/lock/trigger
 escape/audio/crash
 escape/audio/ralph_01
 escape/smoke/burst
@@ -507,10 +970,10 @@ Future folders may include:
 
 ```text
 pico-cabinet-dowels-wine/
-pico-kitchen-blender-fireplace/
-pico-phone-prop/
-pico-cubby-controller/
-pico-reveal-effects/
+pico-fireplace-reveal-effects/
+pico-tv-wall/
+pico-phone-window-props/
+pico-back-room-blender-final/
 docs/
 assets/
 ```
@@ -557,6 +1020,11 @@ For simplicity, open each PlatformIO project folder separately in VS Code:
 ```text
 Open this for Pico work:
 EscapeRoom/escape-room-pico
+EscapeRoom/pico-cabinet-dowels-wine
+EscapeRoom/pico-fireplace-reveal-effects
+EscapeRoom/pico-tv-wall
+EscapeRoom/pico-phone-window-props
+EscapeRoom/pico-back-room-blender-final
 
 Open this for Raspberry Pi controller work:
 EscapeRoom/raspberry-pi-controller
@@ -598,18 +1066,3 @@ Once that works, every additional escape-room puzzle is just another version of 
 Build one puzzle.
 Test it.
 Then add the next one.
-
-````
-
-Then from PowerShell, create it quickly with:
-
-```powershell
-notepad README.md
-````
-
-Paste the content, save, then:
-
-```powershell
-git add README.md
-git commit -m "Add project README"
-```

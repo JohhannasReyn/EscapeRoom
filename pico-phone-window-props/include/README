@@ -1,0 +1,19 @@
+Phone/right-wall window props Pico project.
+
+Default pins:
+- GPIO 14: reset button to GND, using internal pull-up
+- GPIO 15: phone puzzle solved input
+- GPIO 16: right-wall/window prop input
+
+MQTT publish:
+- escape/puzzle/phone/solved
+- escape/puzzle/window/triggered
+- escape/post/cubby/5/state = ready or completed
+
+MQTT commands:
+- escape/post/query
+- escape/game/reset
+
+When the local reset button is pressed, the Pico republishes its POST state.
+
+Sensor inputs assume external pull-down wiring.

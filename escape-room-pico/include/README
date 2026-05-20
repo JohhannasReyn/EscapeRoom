@@ -1,37 +1,48 @@
+Entry/stairs/cubby/copper Pico project.
 
-This directory is intended for project header files.
+Default pins:
+- GPIO 14: reset button to GND, using internal pull-up
+- GPIO 15: copper puzzle solved input
+- GPIO 17: addressable cubby LED strip data
+- GPIO 18: cubby 2 lock relay/driver input
+- GPIO 19: optional copper puzzle begun input
+- GPIO 6: laser distance sensor XSHUT
+- GPIO 7: laser distance sensor GPIO1, reserved for future interrupt use
+- I2C SDA/SCL: laser distance sensor SDA/SCL, usually GPIO 4/GPIO 5
 
-A header file is a file containing C declarations and macro definitions
-to be shared between several project source files. You request the use of a
-header file in your project source file (C, C++, etc) located in `src` folder
-by including it, with the C preprocessing directive `#include'.
+MQTT publish:
+- escape/puzzle/copper/begun
+- escape/puzzle/copper/solved
+- escape/puzzle/stairs/triggered
 
-```src/main.c
+MQTT commands:
+- escape/cubby/1/light_on
+- escape/cubby/2/light_on
+- escape/cubby/3/light_on
+- escape/cubby/4/light_on
+- escape/cubby/5/light_on
+- escape/cubby/6/light_on
+- escape/cubby/1/status
+- escape/cubby/2/status
+- escape/cubby/3/status
+- escape/cubby/4/status
+- escape/cubby/5/status
+- escape/cubby/6/status
+- escape/cubby/all/status
+- escape/cubby/2/unlock
+- escape/post/query
+- escape/game/reset
 
-#include "header.h"
+MQTT POST publish:
+- escape/post/cubby/1/state = ready or completed
 
-int main (void)
-{
- ...
-}
-```
+Startup behavior:
+- Pico sweeps the cubbies on in order.
+- Pico holds all cubbies white for Raspberry Pi startup checks.
+- Raspberry Pi queries puzzle states with escape/post/query.
+- Raspberry Pi turns ready cubbies green and completed cubbies red.
+- Raspberry Pi sends escape/cubby/all/status = off after all cubbies report ready.
+- Pico clears the strip and waits for the stairs distance sensor.
 
-Including a header file produces the same results as copying the header file
-into each source file that needs it. Such copying would be time-consuming
-and error-prone. With a header file, the related declarations appear
-in only one place. If they need to be changed, they can be changed in one
-place, and programs that include the header file will automatically use the
-new version when next recompiled. The header file eliminates the labor of
-finding and changing all the copies as well as the risk that a failure to
-find one copy will result in inconsistencies within a program.
-
-In C, the convention is to give header files names that end with `.h'.
-
-Read more about using header files in official GCC documentation:
-
-* Include Syntax
-* Include Operation
-* Once-Only Headers
-* Computed Includes
-
-https://gcc.gnu.org/onlinedocs/cpp/Header-Files.html
+Use a separate 5V supply for the cubby LED strip and share ground with the Pico.
+Use relay, MOSFET, or isolated driver modules for locks and non-addressable powered lighting.

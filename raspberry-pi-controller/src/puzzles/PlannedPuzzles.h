@@ -67,4 +67,9 @@ public:
     PhonePuzzle() : PlannedPuzzle("Phone puzzle", "escape/puzzle/phone/solved") {}
 };
 
+class WindowPuzzle : public PlannedPuzzle {
+public:
+    WindowPuzzle() : PlannedPuzzle("Right wall/window prop", "escape/puzzle/window/triggered") {}
+};
+
 #endif

@@ -1,7 +1,7 @@
 {
 	"folders": [
 		{
-			"name": "pico-entry-copper-stairs",
+			"name": "pico-entry-stairs-cubby-copper",
 			"path": "escape-room-pico"
 		},
 		{
@@ -9,20 +9,20 @@
 			"path": "pico-cabinet-dowels-wine"
 		},
 		{
-			"name": "pico-kitchen-blender-fireplace",
-			"path": "pico-kitchen-blender-fireplace"
+			"name": "pico-fireplace-reveal-effects",
+			"path": "pico-fireplace-reveal-effects"
 		},
 		{
-			"name": "pico-phone-prop",
-			"path": "pico-phone-prop"
+			"name": "pico-tv-wall",
+			"path": "pico-tv-wall"
 		},
 		{
-			"name": "pico-cubby-controller",
-			"path": "pico-cubby-controller"
+			"name": "pico-phone-window-props",
+			"path": "pico-phone-window-props"
 		},
 		{
-			"name": "pico-reveal-effects",
-			"path": "pico-reveal-effects"
+			"name": "pico-back-room-blender-final",
+			"path": "pico-back-room-blender-final"
 		},
 		{
 			"name": "raspberry-pi-controller",

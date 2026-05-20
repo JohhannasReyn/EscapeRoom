@@ -14,28 +14,51 @@
 #define MQTT_BROKER "192.168.1.42"
 #endif
 
-#ifndef MQTT_PORT
-#define MQTT_PORT 1883
+#ifndef MQTT_BROKER_PORT
+#define MQTT_BROKER_PORT 1883
 #endif
 
 #ifndef MQTT_CLIENT_ID
-#define MQTT_CLIENT_ID "pico_phone_prop"
+#define MQTT_CLIENT_ID "pico_tv_wall"
 #endif
 
 constexpr int LED_PIN = LED_BUILTIN;
-constexpr int PHONE_PIN = 15;
-constexpr int RST_PIN = 14;
-constexpr unsigned long DEBOUNCE_MS = 750;
+constexpr int TV_TRIGGER_PIN = 15;
 constexpr unsigned long MQTT_RETRY_MS = 3000;
-constexpr const char* PHONE_TOPIC = "escape/puzzle/phone/solved";
-constexpr const char* PHONE_PAYLOAD = "phone puzzle solved";
+constexpr unsigned long TV_TRIGGER_MS = 500;
 
 WiFiClient wifiClient;
 PubSubClient mqtt(wifiClient);
 
-bool solved = false;
-int lastState = LOW;
-unsigned long stableStart = 0;
+unsigned long tvOffAt = 0;
+
+void pulseTvTrigger() {
+    digitalWrite(TV_TRIGGER_PIN, HIGH);
+    digitalWrite(LED_PIN, HIGH);
+    tvOffAt = millis() + TV_TRIGGER_MS;
+}
+
+void handleMessage(char* topic, byte* payload, unsigned int length) {
+    String message;
+
+    for (unsigned int i = 0; i < length; ++i) {
+        message += static_cast<char>(payload[i]);
+    }
+
+    Serial.print("Command received: ");
+    Serial.print(topic);
+    Serial.print(" -> ");
+    Serial.println(message);
+
+    if (String(topic) == "escape/game/reset") {
+        tvOffAt = 0;
+        digitalWrite(TV_TRIGGER_PIN, LOW);
+        digitalWrite(LED_PIN, LOW);
+        Serial.println("TV wall reset.");
+    } else if (String(topic) == "escape/tv/play_intro") {
+        pulseTvTrigger();
+    }
+}
 
 void blink(int count, int delayMs = 150) {
     for (int i = 0; i < count; ++i) {
@@ -64,7 +87,8 @@ void connectWiFi() {
 }
 
 void connectMQTT() {
-    mqtt.setServer(MQTT_BROKER, MQTT_PORT);
+    mqtt.setServer(MQTT_BROKER, MQTT_BROKER_PORT);
+    mqtt.setCallback(handleMessage);
 
     while (!mqtt.connected()) {
         Serial.print("Connecting to MQTT broker: ");
@@ -72,6 +96,8 @@ void connectMQTT() {
 
         if (mqtt.connect(MQTT_CLIENT_ID)) {
             Serial.println("MQTT connected.");
+            mqtt.subscribe("escape/tv/play_intro");
+            mqtt.subscribe("escape/game/reset");
             blink(3);
             return;
         }
@@ -87,16 +113,14 @@ void setup() {
     delay(1500);
 
     pinMode(LED_PIN, OUTPUT);
-    pinMode(PHONE_PIN, INPUT);
-    pinMode(RST_PIN, INPUT_PULLUP);
+    pinMode(TV_TRIGGER_PIN, OUTPUT);
 
-    Serial.println("Phone Prop Pico Controller");
+    digitalWrite(TV_TRIGGER_PIN, LOW);
+
+    Serial.println("TV Wall Pico");
 
     connectWiFi();
     connectMQTT();
-
-    lastState = digitalRead(PHONE_PIN);
-    stableStart = millis();
 }
 
 void loop() {
@@ -110,29 +134,9 @@ void loop() {
 
     mqtt.loop();
 
-    if (digitalRead(RST_PIN) == LOW) {
-        solved = false;
-        lastState = digitalRead(PHONE_PIN);
-        stableStart = millis();
+    if (tvOffAt != 0 && millis() >= tvOffAt) {
+        digitalWrite(TV_TRIGGER_PIN, LOW);
         digitalWrite(LED_PIN, LOW);
-        Serial.println("Phone puzzle reset.");
-        delay(500);
+        tvOffAt = 0;
     }
-
-    int state = digitalRead(PHONE_PIN);
-    unsigned long now = millis();
-
-    if (state != lastState) {
-        lastState = state;
-        stableStart = now;
-    }
-
-    if (state == HIGH && !solved && now - stableStart >= DEBOUNCE_MS) {
-        solved = true;
-        Serial.println("Phone puzzle solved!");
-        mqtt.publish(PHONE_TOPIC, PHONE_PAYLOAD);
-        digitalWrite(LED_PIN, HIGH);
-    }
-
-    delay(50);
 }

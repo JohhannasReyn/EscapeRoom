@@ -2,6 +2,8 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
 
+#include "../../shared/PostState.h"
+
 #ifndef WIFI_SSID
 #define WIFI_SSID "YOUR_WIFI_NAME"
 #endif
@@ -14,12 +16,12 @@
 #define MQTT_BROKER "192.168.1.42"
 #endif
 
-#ifndef MQTT_PORT
-#define MQTT_PORT 1883
+#ifndef MQTT_BROKER_PORT
+#define MQTT_BROKER_PORT 1883
 #endif
 
 #ifndef MQTT_CLIENT_ID
-#define MQTT_CLIENT_ID "pico_kitchen_blender_fireplace"
+#define MQTT_CLIENT_ID "pico_phone_window_props"
 #endif
 
 constexpr int LED_PIN = LED_BUILTIN;
@@ -38,12 +40,47 @@ struct DigitalPuzzle {
 };
 
 DigitalPuzzle puzzles[] = {
-    {"Blender flour puzzle", "escape/puzzle/blender/solved", "blender puzzle solved", 15, false, LOW, 0},
-    {"Fireplace log puzzle", "escape/puzzle/fireplace/solved", "fireplace puzzle solved", 16, false, LOW, 0},
+    {"Phone puzzle", "escape/puzzle/phone/solved", "phone puzzle solved", 15, false, LOW, 0},
+    {"Right wall/window prop", "escape/puzzle/window/triggered", "window prop triggered", 16, false, LOW, 0},
 };
 
 WiFiClient wifiClient;
 PubSubClient mqtt(wifiClient);
+
+void publishPostState();
+
+void resetPuzzles() {
+    for (DigitalPuzzle& puzzle : puzzles) {
+        puzzle.solved = false;
+        puzzle.lastState = digitalRead(puzzle.pin);
+        puzzle.stableStart = millis();
+    }
+
+    digitalWrite(LED_PIN, LOW);
+    if (mqtt.connected()) {
+        publishPostState();
+    }
+    Serial.println("Phone/window props reset.");
+}
+
+void handleMessage(char* topic, byte* payload, unsigned int length) {
+    String message;
+
+    for (unsigned int i = 0; i < length; ++i) {
+        message += static_cast<char>(payload[i]);
+    }
+
+    Serial.print("Command received: ");
+    Serial.print(topic);
+    Serial.print(" -> ");
+    Serial.println(message);
+
+    if (String(topic) == "escape/post/query") {
+        publishPostState();
+    } else if (String(topic) == "escape/game/reset") {
+        resetPuzzles();
+    }
+}
 
 void blink(int count, int delayMs = 150) {
     for (int i = 0; i < count; ++i) {
@@ -72,7 +109,8 @@ void connectWiFi() {
 }
 
 void connectMQTT() {
-    mqtt.setServer(MQTT_BROKER, MQTT_PORT);
+    mqtt.setServer(MQTT_BROKER, MQTT_BROKER_PORT);
+    mqtt.setCallback(handleMessage);
 
     while (!mqtt.connected()) {
         Serial.print("Connecting to MQTT broker: ");
@@ -80,6 +118,8 @@ void connectMQTT() {
 
         if (mqtt.connect(MQTT_CLIENT_ID)) {
             Serial.println("MQTT connected.");
+            mqtt.subscribe("escape/post/query");
+            mqtt.subscribe("escape/game/reset");
             blink(3);
             return;
         }
@@ -101,6 +141,20 @@ void publishSolved(const DigitalPuzzle& puzzle) {
     digitalWrite(LED_PIN, HIGH);
 }
 
+void publishPostState() {
+    std::string topic = postStateTopic(5);
+    const char* payload = postStatePayload(digitalRead(15) == HIGH || digitalRead(16) == HIGH);
+
+    Serial.print("Publishing POST state: ");
+    Serial.print(topic.c_str());
+    Serial.print(" -> ");
+    Serial.println(payload);
+
+    if (!mqtt.publish(topic.c_str(), payload)) {
+        Serial.println("MQTT publish failed.");
+    }
+}
+
 void setup() {
     Serial.begin(115200);
     delay(1500);
@@ -108,16 +162,16 @@ void setup() {
     pinMode(LED_PIN, OUTPUT);
     pinMode(RST_PIN, INPUT_PULLUP);
 
-    Serial.println("Kitchen Blender/Fireplace Pico Controller");
-
-    connectWiFi();
-    connectMQTT();
+    Serial.println("Phone/Window Props Pico");
 
     for (DigitalPuzzle& puzzle : puzzles) {
         pinMode(puzzle.pin, INPUT);
         puzzle.lastState = digitalRead(puzzle.pin);
         puzzle.stableStart = millis();
     }
+
+    connectWiFi();
+    connectMQTT();
 }
 
 void loop() {
@@ -132,13 +186,7 @@ void loop() {
     mqtt.loop();
 
     if (digitalRead(RST_PIN) == LOW) {
-        for (DigitalPuzzle& puzzle : puzzles) {
-            puzzle.solved = false;
-            puzzle.lastState = digitalRead(puzzle.pin);
-            puzzle.stableStart = millis();
-        }
-        digitalWrite(LED_PIN, LOW);
-        Serial.println("Kitchen puzzles reset.");
+        resetPuzzles();
         delay(500);
     }
 

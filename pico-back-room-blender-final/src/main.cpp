@@ -21,46 +21,29 @@
 #endif
 
 #ifndef MQTT_CLIENT_ID
-#define MQTT_CLIENT_ID "pico_cabinet_dowels_wine"
+#define MQTT_CLIENT_ID "pico_back_room_blender_final"
 #endif
 
 constexpr int LED_PIN = LED_BUILTIN;
 constexpr int RST_PIN = 14;
+constexpr int BLENDER_PIN = 15;
+constexpr int FINAL_OUTPUT_PIN = 16;
 constexpr unsigned long DEBOUNCE_MS = 750;
 constexpr unsigned long MQTT_RETRY_MS = 3000;
-
-struct DigitalPuzzle {
-    const char* name;
-    const char* topic;
-    const char* payload;
-    int pin;
-    bool solved;
-    int lastState;
-    unsigned long stableStart;
-};
-
-DigitalPuzzle puzzles[] = {
-    {"Dowels puzzle", "escape/puzzle/dowels/solved", "dowels puzzle solved", 15, false, LOW, 0},
-    {"Wine puzzle", "escape/puzzle/wine/solved", "wine puzzle solved", 16, false, LOW, 0},
-};
 
 WiFiClient wifiClient;
 PubSubClient mqtt(wifiClient);
 
+bool blenderSolved = false;
+int blenderLastState = LOW;
+unsigned long blenderStableStart = 0;
+
+void resetBlenderAndOutputs();
 void publishPostState();
 
-void resetPuzzles() {
-    for (DigitalPuzzle& puzzle : puzzles) {
-        puzzle.solved = false;
-        puzzle.lastState = digitalRead(puzzle.pin);
-        puzzle.stableStart = millis();
-    }
-
-    digitalWrite(LED_PIN, LOW);
-    if (mqtt.connected()) {
-        publishPostState();
-    }
-    Serial.println("Cabinet puzzles reset.");
+void setFinalOutput(bool on) {
+    digitalWrite(FINAL_OUTPUT_PIN, on ? HIGH : LOW);
+    digitalWrite(LED_PIN, on ? HIGH : LOW);
 }
 
 void handleMessage(char* topic, byte* payload, unsigned int length) {
@@ -78,7 +61,9 @@ void handleMessage(char* topic, byte* payload, unsigned int length) {
     if (String(topic) == "escape/post/query") {
         publishPostState();
     } else if (String(topic) == "escape/game/reset") {
-        resetPuzzles();
+        resetBlenderAndOutputs();
+    } else if (String(topic) == "escape/game/win") {
+        setFinalOutput(message != "off");
     }
 }
 
@@ -118,6 +103,7 @@ void connectMQTT() {
 
         if (mqtt.connect(MQTT_CLIENT_ID)) {
             Serial.println("MQTT connected.");
+            mqtt.subscribe("escape/game/win");
             mqtt.subscribe("escape/post/query");
             mqtt.subscribe("escape/game/reset");
             blink(3);
@@ -130,20 +116,23 @@ void connectMQTT() {
     }
 }
 
-void publishSolved(const DigitalPuzzle& puzzle) {
-    Serial.print("Publishing event: ");
-    Serial.println(puzzle.topic);
+void publishBlenderSolved() {
+    const char* topic = "escape/puzzle/blender/solved";
+    const char* payload = "blender puzzle solved";
 
-    if (!mqtt.publish(puzzle.topic, puzzle.payload)) {
+    Serial.print("Publishing event: ");
+    Serial.println(topic);
+
+    if (!mqtt.publish(topic, payload)) {
         Serial.println("MQTT publish failed.");
     }
 
     digitalWrite(LED_PIN, HIGH);
 }
 
-void publishPostReport(int cubbyNumber, bool completed) {
-    std::string topic = postStateTopic(cubbyNumber);
-    const char* payload = postStatePayload(completed);
+void publishPostState() {
+    std::string topic = postStateTopic(6);
+    const char* payload = postStatePayload(digitalRead(BLENDER_PIN) == HIGH);
 
     Serial.print("Publishing POST state: ");
     Serial.print(topic.c_str());
@@ -155,9 +144,16 @@ void publishPostReport(int cubbyNumber, bool completed) {
     }
 }
 
-void publishPostState() {
-    publishPostReport(2, digitalRead(15) == HIGH);
-    publishPostReport(3, digitalRead(16) == HIGH);
+void resetBlenderAndOutputs() {
+    blenderSolved = false;
+    blenderLastState = digitalRead(BLENDER_PIN);
+    blenderStableStart = millis();
+    setFinalOutput(false);
+    digitalWrite(LED_PIN, LOW);
+    if (mqtt.connected()) {
+        publishPostState();
+    }
+    Serial.println("Back room blender/final zone reset.");
 }
 
 void setup() {
@@ -166,14 +162,15 @@ void setup() {
 
     pinMode(LED_PIN, OUTPUT);
     pinMode(RST_PIN, INPUT_PULLUP);
+    pinMode(BLENDER_PIN, INPUT);
+    pinMode(FINAL_OUTPUT_PIN, OUTPUT);
 
-    Serial.println("Cabinet Dowels/Wine Pico Controller");
+    digitalWrite(FINAL_OUTPUT_PIN, LOW);
 
-    for (DigitalPuzzle& puzzle : puzzles) {
-        pinMode(puzzle.pin, INPUT);
-        puzzle.lastState = digitalRead(puzzle.pin);
-        puzzle.stableStart = millis();
-    }
+    Serial.println("Back Room Blender/Final Pico");
+
+    blenderLastState = digitalRead(BLENDER_PIN);
+    blenderStableStart = millis();
 
     connectWiFi();
     connectMQTT();
@@ -191,26 +188,22 @@ void loop() {
     mqtt.loop();
 
     if (digitalRead(RST_PIN) == LOW) {
-        resetPuzzles();
+        resetBlenderAndOutputs();
         delay(500);
     }
 
+    int state = digitalRead(BLENDER_PIN);
     unsigned long now = millis();
 
-    for (DigitalPuzzle& puzzle : puzzles) {
-        int state = digitalRead(puzzle.pin);
+    if (state != blenderLastState) {
+        blenderLastState = state;
+        blenderStableStart = now;
+    }
 
-        if (state != puzzle.lastState) {
-            puzzle.lastState = state;
-            puzzle.stableStart = now;
-        }
-
-        if (state == HIGH && !puzzle.solved && now - puzzle.stableStart >= DEBOUNCE_MS) {
-            puzzle.solved = true;
-            Serial.print(puzzle.name);
-            Serial.println(" solved!");
-            publishSolved(puzzle);
-        }
+    if (state == HIGH && !blenderSolved && now - blenderStableStart >= DEBOUNCE_MS) {
+        blenderSolved = true;
+        Serial.println("Blender puzzle solved!");
+        publishBlenderSolved();
     }
 
     delay(50);

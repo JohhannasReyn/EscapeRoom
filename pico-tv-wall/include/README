@@ -1,0 +1,10 @@
+TV wall Pico project.
+
+Default pins:
+- GPIO 15: TV intro trigger driver input
+
+MQTT commands:
+- escape/tv/play_intro
+- escape/game/reset
+
+Use a safe input interface for the TV/media device. Do not wire Pico GPIO directly to unknown voltage inputs.

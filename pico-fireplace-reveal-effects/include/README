@@ -1,0 +1,23 @@
+Fireplace/reveal effects Pico project.
+
+Default pins:
+- GPIO 14: reset button to GND, using internal pull-up
+- GPIO 15: PDLC smart film relay/driver input
+- GPIO 16: smoke burst relay/driver input
+- GPIO 17: fireplace puzzle solved input
+- GPIO 18: electric lock relay/driver input
+
+MQTT publish:
+- escape/puzzle/fireplace/solved
+- escape/post/cubby/4/state = ready or completed
+
+MQTT commands:
+- escape/pdlc/on
+- escape/smoke/burst
+- escape/lock/trigger
+- escape/post/query
+- escape/game/reset
+
+When the local reset button is pressed, the Pico republishes its POST state.
+
+Use relay, MOSFET, or isolated driver modules. Do not switch mains power directly from Pico hardware.

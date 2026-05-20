@@ -1,0 +1,19 @@
+Back room blender/final outputs Pico project.
+
+Default pins:
+- GPIO 14: reset button to GND, using internal pull-up
+- GPIO 15: blender flour puzzle solved input
+- GPIO 16: final output relay/driver input
+
+MQTT publish:
+- escape/puzzle/blender/solved
+- escape/post/cubby/6/state = ready or completed
+
+MQTT commands:
+- escape/game/win
+- escape/post/query
+- escape/game/reset
+
+When the local reset button is pressed, the Pico republishes its POST state.
+
+Use relay, MOSFET, or isolated driver modules for locks, lights, or powered props.

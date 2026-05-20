@@ -5,4 +5,14 @@ Default pins:
 - GPIO 16: wine puzzle solved input
 - GPIO 14: reset button to GND, using internal pull-up
 
+MQTT commands:
+- escape/post/query
+- escape/game/reset
+
+MQTT POST publish:
+- escape/post/cubby/2/state = ready or completed
+- escape/post/cubby/3/state = ready or completed
+
+When the local reset button is pressed, the Pico republishes these POST states.
+
 Sensor inputs assume external pull-down wiring. Use relay/MOSFET driver boards for any powered devices.
