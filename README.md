@@ -1,18 +1,18 @@
 # Escape Room Electronics Project
 
-This repository contains the electronics and controller code for a modular escape room project.
+This repository contains the electronics and controller code for a modular escape room project built around one Raspberry Pi controller and six Raspberry Pi Pico WH puzzle controllers.
 
-The first working prototype is a copper/contact puzzle:
+The core pattern is:
 
 ```text
-Copper/contact puzzle piece
-→ Pico WH detects completed circuit
-→ Pico WH publishes MQTT event over WiFi
-→ Raspberry Pi receives event
-→ Raspberry Pi plays audio or triggers an effect
-````
+Physical puzzle/sensor
+-> local Pico WH detects the state
+-> Pico publishes an MQTT event over WiFi
+-> Raspberry Pi controller receives the event
+-> Raspberry Pi publishes the next command or triggers an effect
+```
 
-The long-term goal is to build a full escape room using multiple physical puzzles, sensors, lights, locks, audio cues, smart film, and themed props.
+The room currently includes contact puzzles, a distance-sensor stair trigger, cubby LEDs, POST/reset behavior, smart film, smoke/lock outputs, phone/window props, a blender/final output, and an oven dial final puzzle.
 (**June 6th Deadline**)
 
 ---
@@ -21,19 +21,60 @@ The long-term goal is to build a full escape room using multiple physical puzzle
 
 ```text
 EscapeRoom/
+├── assets/
+│   └── .gitkeep
+├── docs/
+│   └── .gitkeep
 ├── README.md
+├── escape-room.code-workspace
 ├── escape-room-pico/
 │   ├── platformio.ini
+│   ├── include/
+│   ├── lib/
 │   └── src/
+│       ├── CubbyLedLayout.h
 │       └── main.cpp
 ├── pico-cabinet-dowels-wine/
+│   ├── platformio.ini
+│   └── src/main.cpp
 ├── pico-fireplace-reveal-effects/
+│   ├── platformio.ini
+│   └── src/main.cpp
 ├── pico-tv-wall/
+│   ├── platformio.ini
+│   └── src/main.cpp
 ├── pico-phone-window-props/
+│   ├── platformio.ini
+│   └── src/main.cpp
 ├── pico-back-room-blender-final/
+│   ├── platformio.ini
+│   └── src/main.cpp
+├── shared/
+│   ├── EncoderDial.h
+│   ├── LedPowerBudget.h
+│   ├── PostState.h
+│   ├── PulseTimer.h
+│   └── PuzzleDebounce.h
+├── tests/
+│   ├── README.md
+│   ├── encoder_dial_test.cpp
+│   ├── led_power_budget_test.cpp
+│   ├── pico_post_mapping_test.cpp
+│   ├── post_state_test.cpp
+│   ├── pulse_timer_test.cpp
+│   └── puzzle_debounce_test.cpp
+├── tools/
+│   └── run-host-tests.ps1
 └── raspberry-pi-controller/
     ├── platformio.ini
+    ├── test/
     └── src/
+        ├── GameController.cpp
+        ├── GameController.h
+        ├── PuzzleModule.h
+        ├── ResetControl.h
+        ├── effects/
+        ├── puzzles/
         └── main.cpp
 ```
 
@@ -78,6 +119,30 @@ Startup/POST lights
 → When every cubby has reported ready, Raspberry Pi sends ready/off command
 → Pico clears lights and waits for gameplay
 ```
+
+---
+
+## Current Puzzle Inventory
+
+These are the active puzzle/effect modules represented in the current project folders.
+
+| Zone | Project | Puzzle or Effect | Main MQTT Topics |
+| --- | --- | --- | --- |
+| Entry / stairs / cubbies | `escape-room-pico` | Copper begun contact | `escape/puzzle/copper/begun` |
+| Entry / stairs / cubbies | `escape-room-pico` | Copper solved contact | `escape/puzzle/copper/solved` |
+| Entry / stairs / cubbies | `escape-room-pico` | Stairs distance trigger | `escape/puzzle/stairs/triggered` |
+| Entry / stairs / cubbies | `escape-room-pico` | Cubby addressable LEDs and cubby 2 lock | `escape/cubby/#/light_on`, `escape/cubby/#/status`, `escape/cubby/2/unlock` |
+| Cabinet / shelf | `pico-cabinet-dowels-wine` | Dowels puzzle | `escape/puzzle/dowels/solved` |
+| Cabinet / shelf | `pico-cabinet-dowels-wine` | Wine puzzle | `escape/puzzle/wine/solved` |
+| Fireplace / reveal | `pico-fireplace-reveal-effects` | Fireplace puzzle | `escape/puzzle/fireplace/solved` |
+| Fireplace / reveal | `pico-fireplace-reveal-effects` | Smart film, smoke burst, electromagnetic lock | `escape/pdlc/on`, `escape/smoke/burst`, `escape/lock/trigger` |
+| Fireplace / reveal | `pico-fireplace-reveal-effects` | Oven dial final puzzle | `escape/oven/enable`, `escape/oven/degrees`, `escape/puzzle/oven/solved` |
+| TV wall | `pico-tv-wall` | TV intro trigger | `escape/tv/play_intro` |
+| Right wall / window | `pico-phone-window-props` | Phone puzzle | `escape/puzzle/phone/solved` |
+| Right wall / window | `pico-phone-window-props` | Window/right-wall prop | `escape/puzzle/window/triggered` |
+| Back room / final | `pico-back-room-blender-final` | Blender flour puzzle | `escape/puzzle/blender/solved` |
+| Back room / final | `pico-back-room-blender-final` | Final win-condition output | `escape/game/win` |
+| Whole room | all Picos + Raspberry Pi | POST and reset | `escape/post/query`, `escape/post/cubby/#/state`, `escape/game/reset` |
 
 ### Pico project grouping
 
@@ -235,28 +300,45 @@ Responsibilities:
 * Trigger audio, video, lights, locks, smart film, smoke effects, or other outputs
 * Track game state as the room grows
 
-Current prototype behavior:
+Current behavior:
 
 ```text
-Raspberry Pi listens for:
-escape/puzzle/copper/solved
+On startup:
+-> connect to local Mosquitto broker
+-> subscribe to every registered puzzle topic
+-> subscribe to POST reports and oven dial telemetry
+-> query every Pico with escape/post/query
 
-When received:
-→ print event info
-→ play crash sound
+During POST:
+-> completed puzzle reports turn matching cubbies red
+-> ready puzzle reports turn matching cubbies green
+-> when all six cubbies report ready, Pi sends escape/cubby/all/status -> off
+
+During gameplay:
+-> copper solved triggers the crash audio effect
+-> dowels, wine, fireplace, phone, and blender events light the matching cubbies
+-> after all required puzzles are solved, Pi unlocks/enables the oven dial
+-> oven solved publishes escape/game/win
+
+Whole-room reset:
+-> hold Raspberry Pi GPIO 23 reset button for one second
+-> Pi publishes escape/game/reset
+-> Pi repeats POST query so the operator can see any still-completed puzzle in red
 ```
 
 Controller code layout:
 
 ```text
 src/main.cpp
-  Sets up MQTT and forwards incoming messages to the game controller.
+  Sets up Mosquitto MQTT, subscribes to puzzle topics, watches the Pi reset button,
+  and publishes queued commands from the game controller.
 
 src/GameController.*
-  Owns puzzle modules and routes MQTT topics to the matching class.
+  Owns puzzle modules, routes MQTT topics to the matching class, tracks POST state,
+  stores oven dial telemetry, gates the oven unlock, and queues outgoing commands.
 
 src/puzzles/
-  Contains one class per puzzle topic. CopperPuzzle is the working prototype.
+  Contains the copper puzzle module plus one topic class for each planned/current puzzle.
 
 src/effects/
   Contains reusable output actions such as audio playback.
@@ -959,14 +1041,11 @@ Raspberry Pi plays sound or triggers effect.
 
 ## Current MQTT Topics
 
-```text
-escape/puzzle/copper/solved
-```
-
-Planned future topics:
+Puzzle event topics:
 
 ```text
 escape/puzzle/copper/begun
+escape/puzzle/copper/solved
 escape/puzzle/stairs/triggered
 escape/puzzle/dowels/solved
 escape/puzzle/wine/solved
@@ -975,9 +1054,11 @@ escape/puzzle/fireplace/solved
 escape/puzzle/oven/solved
 escape/puzzle/phone/solved
 escape/puzzle/window/triggered
-escape/game/win
-escape/game/reset
+```
 
+Cubby light and POST topics:
+
+```text
 escape/cubby/1/light_on
 escape/cubby/2/unlock
 escape/cubby/2/light_on
@@ -999,30 +1080,44 @@ escape/post/cubby/3/state
 escape/post/cubby/4/state
 escape/post/cubby/5/state
 escape/post/cubby/6/state
+```
+
+Effect, prop, and whole-room command topics:
+
+```text
+escape/game/reset
+escape/game/win
 escape/pdlc/on
 escape/lock/trigger
 escape/oven/enable
-escape/oven/degrees
-escape/audio/crash
-escape/audio/ralph_01
 escape/smoke/burst
 escape/tv/play_intro
 ```
 
----
-
-## Planned Puzzle Modules
-
-Future folders may include:
+Telemetry topics:
 
 ```text
-pico-cabinet-dowels-wine/
-pico-fireplace-reveal-effects/
-pico-tv-wall/
-pico-phone-window-props/
-pico-back-room-blender-final/
-docs/
-assets/
+escape/oven/degrees
+```
+
+---
+
+## Shared Host-Side Logic
+
+Reusable logic that can be compiled on the desktop lives in `shared/`:
+
+```text
+EncoderDial.h       Oven dial degree normalization, wraparound, and target tolerance checks
+LedPowerBudget.h    WS2812-style current estimates and automatic brightness capping math
+PostState.h         POST cubby state topic/payload helpers
+PulseTimer.h        Relay/output pulse timing helper
+PuzzleDebounce.h    Debounced digital input helper
+```
+
+Host-side tests live in `tests/` and can be run without Pico or Raspberry Pi hardware:
+
+```powershell
+.\tools\run-host-tests.ps1
 ```
 
 ---
