@@ -103,5 +103,85 @@ int main() {
     assert(controller.handleMessage("escape/puzzle/window/triggered", "right wall prop") == true);
     assert(controller.handleMessage("escape/puzzle/not-real/solved", "ignored") == false);
 
+    GameController earlyOvenController;
+    earlyOvenController.addPuzzle(std::make_unique<CopperPuzzle>(effect));
+    earlyOvenController.addPuzzle(std::make_unique<StairsPuzzle>());
+    earlyOvenController.addPuzzle(std::make_unique<DowelsPuzzle>());
+    earlyOvenController.addPuzzle(std::make_unique<WinePuzzle>());
+    earlyOvenController.addPuzzle(std::make_unique<BlenderPuzzle>());
+    earlyOvenController.addPuzzle(std::make_unique<FireplacePuzzle>());
+    earlyOvenController.addPuzzle(std::make_unique<PhonePuzzle>());
+    earlyOvenController.addPuzzle(std::make_unique<WindowPuzzle>());
+    earlyOvenController.addPuzzle(std::make_unique<OvenPuzzle>());
+
+    assert(earlyOvenController.handleMessage("escape/puzzle/copper/solved", "ok") == true);
+    assert(earlyOvenController.handleMessage("escape/puzzle/stairs/triggered", "ok") == true);
+    assert(earlyOvenController.handleMessage("escape/puzzle/dowels/solved", "ok") == true);
+    assert(earlyOvenController.handleMessage("escape/puzzle/wine/solved", "ok") == true);
+    assert(earlyOvenController.handleMessage("escape/puzzle/fireplace/solved", "ok") == true);
+    assert(earlyOvenController.handleMessage("escape/puzzle/phone/solved", "ok") == true);
+    assert(earlyOvenController.handleMessage("escape/puzzle/window/triggered", "ok") == true);
+
+    while (earlyOvenController.pendingCommandCount() > 0) {
+        MqttCommand command = earlyOvenController.takeNextPendingCommand();
+        assert(command.topic != "escape/lock/trigger");
+        assert(command.topic != "escape/oven/enable");
+    }
+
+    GameController finalController;
+    finalController.addPuzzle(std::make_unique<CopperPuzzle>(effect));
+    finalController.addPuzzle(std::make_unique<StairsPuzzle>());
+    finalController.addPuzzle(std::make_unique<DowelsPuzzle>());
+    finalController.addPuzzle(std::make_unique<WinePuzzle>());
+    finalController.addPuzzle(std::make_unique<BlenderPuzzle>());
+    finalController.addPuzzle(std::make_unique<FireplacePuzzle>());
+    finalController.addPuzzle(std::make_unique<PhonePuzzle>());
+    finalController.addPuzzle(std::make_unique<WindowPuzzle>());
+    finalController.addPuzzle(std::make_unique<OvenPuzzle>());
+
+    assert(finalController.handleMessage("escape/puzzle/copper/solved", "ok") == true);
+    assert(finalController.handleMessage("escape/puzzle/stairs/triggered", "ok") == true);
+    assert(finalController.handleMessage("escape/puzzle/dowels/solved", "ok") == true);
+    assert(finalController.handleMessage("escape/puzzle/wine/solved", "ok") == true);
+    assert(finalController.handleMessage("escape/puzzle/fireplace/solved", "ok") == true);
+    assert(finalController.handleMessage("escape/puzzle/phone/solved", "ok") == true);
+    assert(finalController.handleMessage("escape/puzzle/window/triggered", "ok") == true);
+    assert(finalController.handleMessage("escape/puzzle/blender/solved", "ok") == true);
+
+    bool sawLockTrigger = false;
+    bool sawOvenEnable = false;
+    while (finalController.pendingCommandCount() > 0) {
+        MqttCommand command = finalController.takeNextPendingCommand();
+        sawLockTrigger = sawLockTrigger || (command.topic == "escape/lock/trigger" && command.payload == "on");
+        sawOvenEnable = sawOvenEnable || (command.topic == "escape/oven/enable" && command.payload == "on");
+    }
+
+    assert(sawLockTrigger == true);
+    assert(sawOvenEnable == true);
+    assert(finalController.handleMessage("escape/puzzle/blender/solved", "duplicate") == true);
+
+    while (finalController.pendingCommandCount() > 0) {
+        MqttCommand command = finalController.takeNextPendingCommand();
+        assert(command.topic != "escape/lock/trigger");
+        assert(command.topic != "escape/oven/enable");
+    }
+
+    assert(finalController.handleMessage("escape/oven/degrees", "370") == true);
+    assert(finalController.lastOvenDegrees() == 10);
+    assert(finalController.handleMessage("escape/oven/degrees", "-1") == true);
+    assert(finalController.lastOvenDegrees() == 359);
+    assert(finalController.handleMessage("escape/oven/degrees", "720") == true);
+    assert(finalController.lastOvenDegrees() == 0);
+    assert(finalController.handleMessage("escape/oven/degrees", "120abc") == true);
+    assert(finalController.lastOvenDegrees() == 0);
+    assert(finalController.handleMessage("escape/oven/degrees", "not a number") == true);
+    assert(finalController.lastOvenDegrees() == 0);
+
+    assert(finalController.handleMessage("escape/puzzle/oven/solved", "350 degrees") == true);
+    assert(finalController.pendingCommandCount() == 1);
+    MqttCommand winCommand = finalController.takeNextPendingCommand();
+    assert(winCommand.topic == "escape/game/win");
+    assert(winCommand.payload == "on");
+
     return 0;
 }

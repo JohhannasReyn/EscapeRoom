@@ -6,18 +6,30 @@ Default pins:
 - GPIO 16: smoke burst relay/driver input
 - GPIO 17: fireplace puzzle solved input
 - GPIO 18: electric lock relay/driver input
+- GPIO 19: oven rotary encoder CLK
+- GPIO 20: oven rotary encoder DT
+- GPIO 21: oven rotary encoder SW
 
 MQTT publish:
 - escape/puzzle/fireplace/solved
+- escape/puzzle/oven/solved
+- escape/oven/degrees
 - escape/post/cubby/4/state = ready or completed
 
 MQTT commands:
 - escape/pdlc/on
 - escape/smoke/burst
 - escape/lock/trigger
+- escape/oven/enable
 - escape/post/query
 - escape/game/reset
 
 When the local reset button is pressed, the Pico republishes its POST state.
+
+The oven dial is enabled by the Raspberry Pi after every other puzzle is solved. The lock should open at the same time with escape/lock/trigger. The encoder is treated as relative; start the knob at 0/off before enabling, then turn to the configured 350-degree target.
+
+The Pico publishes the current pretend oven temperature to escape/oven/degrees when the dial is enabled and every time the encoder moves. The Raspberry Pi stores the latest value so a display or LED feedback prop can be added later.
+
+The lock output is pulsed for 100 ms by default so a spring-loaded dial compartment can release. Adjust OVEN_LOCK_RELEASE_MS in src/main.cpp if the lock hardware needs a different timing.
 
 Use relay, MOSFET, or isolated driver modules. Do not switch mains power directly from Pico hardware.

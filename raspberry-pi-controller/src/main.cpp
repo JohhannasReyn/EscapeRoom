@@ -182,6 +182,14 @@ void on_connect(struct mosquitto* mosq, void* userdata, int rc) {
             std::cout << "Subscribe failed for POST state reports. Error code: " << post_rc << std::endl;
         }
 
+        int oven_degrees_rc = mosquitto_subscribe(mosq, nullptr, "escape/oven/degrees", 0);
+
+        if (oven_degrees_rc == MOSQ_ERR_SUCCESS) {
+            std::cout << "Subscribed to topic: escape/oven/degrees" << std::endl;
+        } else {
+            std::cout << "Subscribe failed for oven dial degrees. Error code: " << oven_degrees_rc << std::endl;
+        }
+
         controller->queuePostQueryCommand();
         publish_pending_commands(mosq, *controller);
     } else {
@@ -234,6 +242,7 @@ int main() {
     controller.addPuzzle(std::make_unique<FireplacePuzzle>());
     controller.addPuzzle(std::make_unique<PhonePuzzle>());
     controller.addPuzzle(std::make_unique<WindowPuzzle>());
+    controller.addPuzzle(std::make_unique<OvenPuzzle>());
 
     std::cout << "Escape Room Raspberry Pi Game Controller" << std::endl;
     std::cout << "----------------------------------------" << std::endl;

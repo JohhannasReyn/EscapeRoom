@@ -72,4 +72,9 @@ public:
     WindowPuzzle() : PlannedPuzzle("Right wall/window prop", "escape/puzzle/window/triggered") {}
 };
 
+class OvenPuzzle : public PlannedPuzzle {
+public:
+    OvenPuzzle() : PlannedPuzzle("Oven dial puzzle", "escape/puzzle/oven/solved") {}
+};
+
 #endif

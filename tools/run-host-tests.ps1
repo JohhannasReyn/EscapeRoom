@@ -2,6 +2,7 @@ $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $buildDir = Join-Path $repoRoot "tests\build"
+$runId = [DateTime]::UtcNow.Ticks
 New-Item -ItemType Directory -Force -Path $buildDir | Out-Null
 
 $tests = @(
@@ -35,6 +36,16 @@ $tests = @(
         Includes = @("shared")
     },
     @{
+        Name = "led_power_budget_test"
+        Sources = @("tests\led_power_budget_test.cpp")
+        Includes = @("shared")
+    },
+    @{
+        Name = "encoder_dial_test"
+        Sources = @("tests\encoder_dial_test.cpp")
+        Includes = @("shared")
+    },
+    @{
         Name = "pico_post_mapping_test"
         Sources = @("tests\pico_post_mapping_test.cpp")
         Includes = @("shared")
@@ -44,7 +55,7 @@ $tests = @(
 foreach ($test in $tests) {
     Write-Host "Building $($test.Name)..."
 
-    $exe = Join-Path $buildDir "$($test.Name).exe"
+    $exe = Join-Path $buildDir "$($test.Name)-$runId.exe"
     $sourceArgs = @($test.Sources | ForEach-Object { Join-Path $repoRoot $_ })
     $includeArgs = @()
     foreach ($include in $test.Includes) {
@@ -53,9 +64,35 @@ foreach ($test in $tests) {
     }
 
     & g++ -std=c++17 @includeArgs @sourceArgs -o $exe
+    if ($LASTEXITCODE -ne 0) {
+        throw "Build failed for $($test.Name)."
+    }
 
-    Write-Host "Running $($test.Name)..."
-    & $exe
+    $ran = $false
+    for ($attempt = 1; $attempt -le 2 -and -not $ran; $attempt++) {
+        if ($attempt -gt 1) {
+            $exe = Join-Path $buildDir "$($test.Name)-$runId-retry$attempt.exe"
+            & g++ -std=c++17 @includeArgs @sourceArgs -o $exe
+            if ($LASTEXITCODE -ne 0) {
+                throw "Build failed for $($test.Name) retry $attempt."
+            }
+        }
+
+        Write-Host "Running $($test.Name)..."
+        try {
+            & $exe
+            if ($LASTEXITCODE -ne 0) {
+                throw "Test failed: $($test.Name)."
+            }
+            $ran = $true
+        } catch {
+            if ($attempt -ge 2) {
+                throw
+            }
+
+            Write-Host "Retrying $($test.Name) after local execution policy blocked the first executable..."
+        }
+    }
 }
 
 Write-Host "All host-side tests passed."

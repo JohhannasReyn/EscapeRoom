@@ -1,7 +1,9 @@
 #include "GameController.h"
 
+#include "../../shared/EncoderDial.h"
 #include "../../shared/PostState.h"
 
+#include <cctype>
 #include <iostream>
 #include <stdexcept>
 #include <utility>
@@ -15,8 +17,13 @@ bool GameController::handleMessage(const std::string& topic, const std::string& 
         return true;
     }
 
+    if (handleOvenDegreesReport(topic, payload)) {
+        return true;
+    }
+
     for (const auto& puzzle : puzzles) {
         if (puzzle->handle(topic, payload)) {
+            markPuzzleSolved(topic);
             queueCommandsForTopic(topic);
             return true;
         }
@@ -52,6 +59,10 @@ MqttCommand GameController::takeNextPendingCommand() {
     MqttCommand command = pendingCommands.front();
     pendingCommands.pop_front();
     return command;
+}
+
+int GameController::lastOvenDegrees() const {
+    return ovenDegrees;
 }
 
 void GameController::queuePostQueryCommand() {
@@ -114,6 +125,32 @@ bool GameController::handlePostStateReport(const std::string& topic, const std::
     return true;
 }
 
+bool GameController::handleOvenDegreesReport(const std::string& topic, const std::string& payload) {
+    if (topic != "escape/oven/degrees") {
+        return false;
+    }
+
+    try {
+        std::size_t parsedLength = 0;
+        int parsedDegrees = std::stoi(payload, &parsedLength);
+
+        while (parsedLength < payload.size() && std::isspace(static_cast<unsigned char>(payload[parsedLength]))) {
+            ++parsedLength;
+        }
+
+        if (parsedLength != payload.size()) {
+            throw std::invalid_argument("trailing characters");
+        }
+
+        ovenDegrees = normalizeDegrees(parsedDegrees);
+        std::cout << "Oven dial degrees: " << ovenDegrees << std::endl;
+    } catch (const std::exception&) {
+        std::cout << "Ignoring malformed oven degrees payload: " << payload << std::endl;
+    }
+
+    return true;
+}
+
 void GameController::queueCommandsForTopic(const std::string& topic) {
     struct Route {
         const char* puzzleTopic;
@@ -134,4 +171,39 @@ void GameController::queueCommandsForTopic(const std::string& topic) {
             return;
         }
     }
+
+    if (topic == "escape/puzzle/oven/solved") {
+        pendingCommands.push_back({"escape/game/win", "on"});
+    }
+}
+
+void GameController::markPuzzleSolved(const std::string& topic) {
+    solvedTopics.insert(topic);
+
+    if (!ovenEnabled && allOvenPrerequisitesSolved()) {
+        ovenEnabled = true;
+        pendingCommands.push_back({"escape/lock/trigger", "on"});
+        pendingCommands.push_back({"escape/oven/enable", "on"});
+    }
+}
+
+bool GameController::allOvenPrerequisitesSolved() const {
+    static const char* requiredTopics[] = {
+        "escape/puzzle/copper/solved",
+        "escape/puzzle/stairs/triggered",
+        "escape/puzzle/dowels/solved",
+        "escape/puzzle/wine/solved",
+        "escape/puzzle/fireplace/solved",
+        "escape/puzzle/phone/solved",
+        "escape/puzzle/window/triggered",
+        "escape/puzzle/blender/solved",
+    };
+
+    for (const char* topic : requiredTopics) {
+        if (solvedTopics.find(topic) == solvedTopics.end()) {
+            return false;
+        }
+    }
+
+    return true;
 }

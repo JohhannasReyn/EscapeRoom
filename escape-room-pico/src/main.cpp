@@ -7,6 +7,7 @@
 
 #include "CubbyLedLayout.h"
 #include "../../shared/PostState.h"
+#include "../../shared/LedPowerBudget.h"
 
 #ifndef WIFI_SSID
 #define WIFI_SSID "YOUR_WIFI_NAME"
@@ -46,6 +47,10 @@ constexpr int CUBBY_LED_BRIGHTNESS = 80;
 constexpr int CUBBY_ACTIVE_DISTANCE_MM = 650;
 constexpr int STARTUP_CUBBY_STEP_MS = 300;
 constexpr int STARTUP_ALL_WHITE_MS = 800;
+constexpr int LED_SUPPLY_MA = 3000;
+constexpr int LED_POWER_HEADROOM_MA = 500;
+constexpr int LED_CURRENT_BUDGET_MA = LED_SUPPLY_MA - LED_POWER_HEADROOM_MA;
+constexpr int LED_FULL_WHITE_CURRENT_MA = 60;
 
 constexpr unsigned long DEBOUNCE_MS = 750;
 constexpr unsigned long MQTT_RETRY_MS = 3000;
@@ -77,6 +82,7 @@ bool distanceSensorReady = false;
 bool stairsTriggered = false;
 bool readyForGameplay = false;
 unsigned long lastDistanceRead = 0;
+RgbColor cubbyColors[CUBBY_COUNT] = {};
 
 void resetPuzzles(bool readyAfterReset = true);
 void setCubbyLight(int cubbyNumber, bool on);
@@ -87,12 +93,66 @@ void setOutput(int pin, bool on) {
     digitalWrite(LED_PIN, on ? HIGH : LOW);
 }
 
-void clearCubbyLights() {
-    cubbyStrip.clear();
-    cubbyStrip.show();
+uint32_t toStripColor(RgbColor color) {
+    return cubbyStrip.Color(color.r, color.g, color.b);
 }
 
-void setCubbySegmentColor(int cubbyNumber, uint32_t color) {
+int estimateCubbyStripCurrentMa() {
+    int estimatedCurrent = 0;
+
+    for (int cubbyNumber = 1; cubbyNumber <= CUBBY_COUNT; ++cubbyNumber) {
+        estimatedCurrent += estimateSegmentCurrentMa(
+            cubbyColors[cubbyNumber - 1],
+            LEDS_PER_CUBBY,
+            CUBBY_LED_BRIGHTNESS,
+            LED_FULL_WHITE_CURRENT_MA
+        );
+    }
+
+    return estimatedCurrent;
+}
+
+void applyCubbyLights() {
+    int estimatedCurrent = estimateCubbyStripCurrentMa();
+    int cappedBrightness = cappedBrightnessForBudget(
+        CUBBY_LED_BRIGHTNESS,
+        estimatedCurrent,
+        LED_CURRENT_BUDGET_MA
+    );
+
+    cubbyStrip.setBrightness(cappedBrightness);
+
+    for (int cubbyNumber = 1; cubbyNumber <= CUBBY_COUNT; ++cubbyNumber) {
+        CubbyLedSegment segment = cubbySegment(cubbyNumber, LEDS_PER_CUBBY, LEDS_BETWEEN_CUBBIES);
+        uint32_t stripColor = toStripColor(cubbyColors[cubbyNumber - 1]);
+
+        for (int offset = 0; offset < segment.count; ++offset) {
+            cubbyStrip.setPixelColor(segment.start + offset, stripColor);
+        }
+    }
+
+    cubbyStrip.show();
+
+    if (estimatedCurrent > LED_CURRENT_BUDGET_MA) {
+        Serial.print("LED brightness capped to ");
+        Serial.print(cappedBrightness);
+        Serial.print("/");
+        Serial.print(CUBBY_LED_BRIGHTNESS);
+        Serial.print(" for ");
+        Serial.print(estimatedCurrent);
+        Serial.println(" mA estimated request.");
+    }
+}
+
+void clearCubbyLights() {
+    for (int cubbyNumber = 0; cubbyNumber < CUBBY_COUNT; ++cubbyNumber) {
+        cubbyColors[cubbyNumber] = {0, 0, 0};
+    }
+
+    applyCubbyLights();
+}
+
+void setCubbySegmentColor(int cubbyNumber, RgbColor color) {
     CubbyLedSegment segment = cubbySegment(cubbyNumber, LEDS_PER_CUBBY, LEDS_BETWEEN_CUBBIES);
 
     if (cubbyNumber < 1 || cubbyNumber > CUBBY_COUNT || segment.count == 0) {
@@ -101,39 +161,32 @@ void setCubbySegmentColor(int cubbyNumber, uint32_t color) {
         return;
     }
 
-    for (int offset = 0; offset < segment.count; ++offset) {
-        cubbyStrip.setPixelColor(segment.start + offset, color);
-    }
-
-    cubbyStrip.show();
+    cubbyColors[cubbyNumber - 1] = color;
+    applyCubbyLights();
 }
 
-void setAllCubbySegments(uint32_t color) {
+void setAllCubbySegments(RgbColor color) {
     for (int cubbyNumber = 1; cubbyNumber <= CUBBY_COUNT; ++cubbyNumber) {
-        CubbyLedSegment segment = cubbySegment(cubbyNumber, LEDS_PER_CUBBY, LEDS_BETWEEN_CUBBIES);
-
-        for (int offset = 0; offset < segment.count; ++offset) {
-            cubbyStrip.setPixelColor(segment.start + offset, color);
-        }
+        cubbyColors[cubbyNumber - 1] = color;
     }
 
-    cubbyStrip.show();
+    applyCubbyLights();
 }
 
 void setCubbyLight(int cubbyNumber, bool on) {
-    setCubbySegmentColor(cubbyNumber, on ? cubbyStrip.Color(255, 210, 120) : 0);
+    setCubbySegmentColor(cubbyNumber, on ? RgbColor{255, 210, 120} : RgbColor{0, 0, 0});
     digitalWrite(LED_PIN, on ? HIGH : LOW);
 }
 
 void setCubbyPostStatus(int cubbyNumber, const String& status) {
     if (status == "green") {
-        setCubbySegmentColor(cubbyNumber, cubbyStrip.Color(0, 255, 0));
+        setCubbySegmentColor(cubbyNumber, {0, 255, 0});
     } else if (status == "red") {
-        setCubbySegmentColor(cubbyNumber, cubbyStrip.Color(255, 0, 0));
+        setCubbySegmentColor(cubbyNumber, {255, 0, 0});
     } else if (status == "white") {
-        setCubbySegmentColor(cubbyNumber, cubbyStrip.Color(255, 255, 255));
+        setCubbySegmentColor(cubbyNumber, {255, 255, 255});
     } else if (status == "off") {
-        setCubbySegmentColor(cubbyNumber, 0);
+        setCubbySegmentColor(cubbyNumber, {0, 0, 0});
     }
 }
 
@@ -141,11 +194,11 @@ void runStartupLightPost() {
     clearCubbyLights();
 
     for (int cubbyNumber = 1; cubbyNumber <= CUBBY_COUNT; ++cubbyNumber) {
-        setCubbySegmentColor(cubbyNumber, cubbyStrip.Color(255, 210, 120));
+        setCubbySegmentColor(cubbyNumber, {255, 210, 120});
         delay(STARTUP_CUBBY_STEP_MS);
     }
 
-    setAllCubbySegments(cubbyStrip.Color(255, 255, 255));
+    setAllCubbySegments({255, 255, 255});
     delay(STARTUP_ALL_WHITE_MS);
 }
 
@@ -189,7 +242,7 @@ void handleMessage(char* topic, byte* payload, unsigned int length) {
             Serial.println("POST complete. Pico is ready for gameplay.");
         } else if (message == "white") {
             readyForGameplay = false;
-            setAllCubbySegments(cubbyStrip.Color(255, 255, 255));
+            setAllCubbySegments({255, 255, 255});
         }
     } else if (topicText.startsWith("escape/cubby/") && topicText.endsWith("/status")) {
         int cubbyStart = String("escape/cubby/").length();

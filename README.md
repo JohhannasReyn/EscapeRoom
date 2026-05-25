@@ -121,14 +121,17 @@ pico-cabinet-dowels-wine/
 
 pico-fireplace-reveal-effects/
   Pico 3: fireplace / reveal zone
-  Inputs: fireplace log puzzle
+  Inputs: fireplace log puzzle, oven dial rotary encoder
   Outputs: PDLC smart film, smoke burst, electric lock trigger
   Publishes:
     escape/puzzle/fireplace/solved
+    escape/puzzle/oven/solved
+    escape/oven/degrees
   Subscribes:
     escape/pdlc/on
     escape/smoke/burst
     escape/lock/trigger
+    escape/oven/enable
     escape/game/reset
 
 pico-tv-wall/
@@ -170,9 +173,14 @@ constexpr int CUBBY_LED_BRIGHTNESS = 80;
 constexpr int CUBBY_ACTIVE_DISTANCE_MM = 650;
 constexpr int STARTUP_CUBBY_STEP_MS = 300;
 constexpr int STARTUP_ALL_WHITE_MS = 800;
+constexpr int LED_SUPPLY_MA = 3000;
+constexpr int LED_POWER_HEADROOM_MA = 500;
+constexpr int LED_FULL_WHITE_CURRENT_MA = 60;
 ```
 
 After the lights are physically installed, count the real LEDs in one cubby and the real LEDs in each gap, then update those values.
+
+The LED strip is power-capped in firmware for a 5V 3A USB adapter. The code reserves `LED_POWER_HEADROOM_MA` and only lets the cubby LEDs use the remaining budget. If multiple cubbies are on and the estimated current would exceed the budget, Pico 1 automatically lowers NeoPixel brightness before calling `show()`. Typical WS2812-style LEDs are about 60mA, or 0.06A, per LED at full white. If the exact LED strip datasheet gives a different number, update `LED_FULL_WHITE_CURRENT_MA`.
 
 On Pico startup, the cubbies sweep on in order, then all turn white. The Raspberry Pi uses the same strip as a startup POST display by asking every Pico to report its puzzle state on `escape/post/query`.
 
@@ -555,6 +563,15 @@ Keep brightness low at first
 Do not power the LED strip from the Pico
 ```
 
+Power budget behavior:
+
+```text
+5V 3A adapter = 3000mA available
+500mA reserved headroom
+2500mA default LED budget
+Pico automatically dims the strip if the requested cubby colors exceed the budget
+```
+
 MQTT:
 
 ```text
@@ -611,16 +628,43 @@ GPIO 15 -> PDLC smart film relay/driver IN
 GPIO 16 -> smoke burst relay/driver IN
 GPIO 17 -> fireplace puzzle input
 GPIO 18 -> electric lock relay/driver IN
+GPIO 19 -> oven rotary encoder CLK
+GPIO 20 -> oven rotary encoder DT
+GPIO 21 -> oven rotary encoder SW, optional reset/reference button
 ```
+
+Oven dial notes:
+
+```text
+Encoder VCC -> Pico 3.3V
+Encoder GND -> Pico GND
+Encoder CLK -> GPIO 19
+Encoder DT  -> GPIO 20
+Encoder SW  -> GPIO 21
+```
+
+The oven dial is enabled only after every other puzzle has reported solved. At that point the Raspberry Pi sends `escape/lock/trigger` to unlock the electromagnetic lock and `escape/oven/enable` to allow the fireplace Pico to start checking encoder position. The current code assumes the knob starts at the pretend oven's 0/off position when enabled and counts 10-degree steps to the target:
+
+```cpp
+constexpr int OVEN_TARGET_DEGREES = 350;
+constexpr int OVEN_DEGREES_PER_STEP = 10;
+constexpr int OVEN_TOLERANCE_DEGREES = 5;
+constexpr unsigned long OVEN_LOCK_RELEASE_MS = 100;
+```
+
+The fireplace Pico also publishes the current pretend oven temperature as degrees on `escape/oven/degrees` when the dial is enabled and whenever the encoder moves. The Raspberry Pi subscribes to this topic and records the latest value so it can later drive a display, LED bar, or other feedback prop without changing the dial puzzle.
 
 MQTT:
 
 ```text
 Publishes:  escape/puzzle/fireplace/solved
+Publishes:  escape/puzzle/oven/solved
+Publishes:  escape/oven/degrees
 Publishes:  escape/post/cubby/4/state
 Subscribes: escape/pdlc/on
 Subscribes: escape/smoke/burst
 Subscribes: escape/lock/trigger
+Subscribes: escape/oven/enable
 Subscribes: escape/post/query
 Subscribes: escape/game/reset
 ```
@@ -928,6 +972,7 @@ escape/puzzle/dowels/solved
 escape/puzzle/wine/solved
 escape/puzzle/blender/solved
 escape/puzzle/fireplace/solved
+escape/puzzle/oven/solved
 escape/puzzle/phone/solved
 escape/puzzle/window/triggered
 escape/game/win
@@ -956,6 +1001,8 @@ escape/post/cubby/5/state
 escape/post/cubby/6/state
 escape/pdlc/on
 escape/lock/trigger
+escape/oven/enable
+escape/oven/degrees
 escape/audio/crash
 escape/audio/ralph_01
 escape/smoke/burst
