@@ -1,12 +1,17 @@
 #include "GameController.h"
 
 #include "../../shared/EncoderDial.h"
+#include "../../shared/EscapeRoomProtocol.h"
 #include "../../shared/PostState.h"
 
 #include <cctype>
 #include <iostream>
 #include <stdexcept>
 #include <utility>
+
+GameController::GameController(Effect* paintingCrashEffect, DisplayOutput* displayOutput)
+    : paintingCrashEffect(paintingCrashEffect), displayOutput(displayOutput) {
+}
 
 void GameController::addPuzzle(std::unique_ptr<PuzzleModule> puzzle) {
     puzzles.push_back(std::move(puzzle));
@@ -18,6 +23,10 @@ bool GameController::handleMessage(const std::string& topic, const std::string& 
     }
 
     if (handleOvenDegreesReport(topic, payload)) {
+        return true;
+    }
+
+    if (handleFlowEvent(topic, payload)) {
         return true;
     }
 
@@ -65,6 +74,10 @@ int GameController::lastOvenDegrees() const {
     return ovenDegrees;
 }
 
+RoomState GameController::currentState() const {
+    return state;
+}
+
 void GameController::queuePostQueryCommand() {
     resetPostState();
     pendingCommands.push_back({"escape/post/query", "status"});
@@ -95,7 +108,7 @@ bool GameController::handlePostStateReport(const std::string& topic, const std::
     try {
         int cubbyNumber = std::stoi(cubbyText);
 
-        if (cubbyNumber < 1 || cubbyNumber > 6) {
+        if (cubbyNumber < 1 || cubbyNumber > 5) {
             std::cout << "Ignoring POST report for cubby " << cubbyNumber << "." << std::endl;
             return true;
         }
@@ -125,8 +138,85 @@ bool GameController::handlePostStateReport(const std::string& topic, const std::
     return true;
 }
 
+bool GameController::handleFlowEvent(const std::string& topic, const std::string& payload) {
+    if (topic == EscapeTopic::CUBBY_APPROACH_DETECTED || topic == "escape/puzzle/stairs/triggered") {
+        transitionTo(RoomState::CUBBY_APPROACH_DETECTED, topic);
+        pendingCommands.push_back({EscapeTopic::ENABLE_CUBBY_LIGHT, "1"});
+        pendingCommands.push_back({EscapeTopic::LEGACY_CUBBY_1_LIGHT_ON, "on"});
+        transitionTo(RoomState::FIRST_CUBBY_LIT, "first cubby light command queued");
+        pendingCommands.push_back({EscapeTopic::ENABLE_COPPER_PUZZLE, "on"});
+        transitionTo(RoomState::COPPER_PUZZLE_ACTIVE, "copper puzzle enabled");
+        return true;
+    }
+
+    if (topic == EscapeTopic::COPPER_PUZZLE_COMPLETE || topic == "escape/puzzle/copper/solved") {
+        transitionTo(RoomState::COPPER_PUZZLE_COMPLETE, topic);
+        transitionTo(RoomState::BOTTLE_LOCK_STAGE, "bread clue and bottle lock stage");
+        transitionTo(RoomState::PADLOCK_BOX_STAGE, "bottle message opens padlocked box");
+        transitionTo(RoomState::RFID_STAGE, "RFID cards recovered");
+        pendingCommands.push_back({EscapeTopic::ENABLE_PAINTING_ROTATION, "on"});
+        transitionTo(RoomState::PAINTING_ROTATION_ACTIVE, "painting rotation enabled");
+        return false;
+    }
+
+    if (topic == EscapeTopic::PAINTING_ROTATION_COMPLETE) {
+        transitionTo(RoomState::PAINTING_ROTATION_COMPLETE, topic);
+
+        if (paintingCrashEffect != nullptr) {
+            paintingCrashEffect->trigger(payload);
+        } else {
+            std::cout << "Painting crash audio effect not configured." << std::endl;
+        }
+
+        transitionTo(RoomState::CRASHING_PLATES_PLAYED, "crashing plates effect requested");
+        transitionTo(RoomState::FINAL_PIECE_ACTIVE, "painting clue points to final piece");
+        return true;
+    }
+
+    if (topic == EscapeTopic::FINAL_PIECE_PLACED) {
+        transitionTo(RoomState::FINAL_PIECE_PLACED, topic);
+        pendingCommands.push_back({EscapeTopic::REVEAL_SMART_FILM, "on"});
+        pendingCommands.push_back({EscapeTopic::LEGACY_PDLC_ON, "on"});
+        transitionTo(RoomState::SMART_FILM_REVEALED, "smart film reveal command queued");
+        pendingCommands.push_back({EscapeTopic::ENABLE_COLOR_BUTTON_SEQUENCE, "on"});
+        transitionTo(RoomState::COLOR_BUTTON_SEQUENCE_ACTIVE, "color button sequence enabled");
+        return true;
+    }
+
+    if (topic == EscapeTopic::COLOR_SEQUENCE_COMPLETE) {
+        transitionTo(RoomState::COLOR_BUTTON_SEQUENCE_COMPLETE, topic);
+
+        if (displayOutput != nullptr) {
+            displayOutput->flash_message("Bake at 350 Degrees", 6, 0.5);
+        } else {
+            std::cout << "Display output not configured. Message: Bake at 350 Degrees" << std::endl;
+        }
+
+        transitionTo(RoomState::DISPLAY_BAKE_350, "display bake message requested");
+        pendingCommands.push_back({EscapeTopic::ENABLE_OVEN_KNOB, "on"});
+        pendingCommands.push_back({EscapeTopic::LEGACY_OVEN_ENABLE, "on"});
+        transitionTo(RoomState::OVEN_KNOB_ACTIVE, "oven knob enabled");
+        return true;
+    }
+
+    if (topic == EscapeTopic::OVEN_TARGET_REACHED || topic == "escape/puzzle/oven/solved") {
+        transitionTo(RoomState::OVEN_TARGET_REACHED, topic);
+        pendingCommands.push_back({EscapeTopic::UNLOCK_ELECTROMAG_LOCK, "on"});
+        pendingCommands.push_back({EscapeTopic::LEGACY_LOCK_TRIGGER, "on"});
+        transitionTo(RoomState::ELECTROMAGNETIC_LOCK_RELEASED, "oven target reached");
+        return true;
+    }
+
+    if (topic == EscapeTopic::ELECTROMAG_LOCK_UNLOCKED) {
+        transitionTo(RoomState::ROOM_KEY_AVAILABLE, topic);
+        return true;
+    }
+
+    return false;
+}
+
 bool GameController::handleOvenDegreesReport(const std::string& topic, const std::string& payload) {
-    if (topic != "escape/oven/degrees") {
+    if (topic != EscapeTopic::OVEN_POSITION_UPDATE && topic != EscapeTopic::LEGACY_OVEN_DEGREES) {
         return false;
     }
 
@@ -158,11 +248,10 @@ void GameController::queueCommandsForTopic(const std::string& topic) {
     };
 
     static const Route routes[] = {
-        {"escape/puzzle/dowels/solved", "escape/cubby/2/light_on"},
-        {"escape/puzzle/wine/solved", "escape/cubby/3/light_on"},
-        {"escape/puzzle/fireplace/solved", "escape/cubby/4/light_on"},
-        {"escape/puzzle/phone/solved", "escape/cubby/5/light_on"},
-        {"escape/puzzle/blender/solved", "escape/cubby/6/light_on"},
+        {EscapeTopic::COPPER_PUZZLE_COMPLETE, "escape/cubby/2/light_on"},
+        {EscapeTopic::PAINTING_ROTATION_COMPLETE, "escape/cubby/3/light_on"},
+        {EscapeTopic::FINAL_PIECE_PLACED, "escape/cubby/4/light_on"},
+        {EscapeTopic::COLOR_SEQUENCE_COMPLETE, "escape/cubby/5/light_on"},
     };
 
     for (const Route& route : routes) {
@@ -171,39 +260,21 @@ void GameController::queueCommandsForTopic(const std::string& topic) {
             return;
         }
     }
-
-    if (topic == "escape/puzzle/oven/solved") {
-        pendingCommands.push_back({"escape/game/win", "on"});
-    }
 }
 
 void GameController::markPuzzleSolved(const std::string& topic) {
     solvedTopics.insert(topic);
-
-    if (!ovenEnabled && allOvenPrerequisitesSolved()) {
-        ovenEnabled = true;
-        pendingCommands.push_back({"escape/lock/trigger", "on"});
-        pendingCommands.push_back({"escape/oven/enable", "on"});
-    }
 }
 
-bool GameController::allOvenPrerequisitesSolved() const {
-    static const char* requiredTopics[] = {
-        "escape/puzzle/copper/solved",
-        "escape/puzzle/stairs/triggered",
-        "escape/puzzle/dowels/solved",
-        "escape/puzzle/wine/solved",
-        "escape/puzzle/fireplace/solved",
-        "escape/puzzle/phone/solved",
-        "escape/puzzle/window/triggered",
-        "escape/puzzle/blender/solved",
-    };
-
-    for (const char* topic : requiredTopics) {
-        if (solvedTopics.find(topic) == solvedTopics.end()) {
-            return false;
-        }
+void GameController::transitionTo(RoomState nextState, const std::string& reason) {
+    if (state == nextState) {
+        return;
     }
 
-    return true;
+    std::cout << "STATE " << roomStateName(state) << " -> " << roomStateName(nextState);
+    if (!reason.empty()) {
+        std::cout << " (" << reason << ")";
+    }
+    std::cout << std::endl;
+    state = nextState;
 }

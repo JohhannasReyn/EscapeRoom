@@ -2,6 +2,7 @@
 #define PLANNED_PUZZLES_H
 
 #include "../PuzzleModule.h"
+#include "../../../shared/EscapeRoomProtocol.h"
 
 #include <iostream>
 #include <string>
@@ -39,42 +40,37 @@ private:
 
 class StairsPuzzle : public PlannedPuzzle {
 public:
-    StairsPuzzle() : PlannedPuzzle("Stairs puzzle", "escape/puzzle/stairs/triggered") {}
+    StairsPuzzle() : PlannedPuzzle("Cubby approach sensor", EscapeTopic::CUBBY_APPROACH_DETECTED) {}
 };
 
-class DowelsPuzzle : public PlannedPuzzle {
+class FinalPiecePuzzle : public PlannedPuzzle {
 public:
-    DowelsPuzzle() : PlannedPuzzle("Dowels puzzle", "escape/puzzle/dowels/solved") {}
+    FinalPiecePuzzle() : PlannedPuzzle("Final puzzle piece", EscapeTopic::FINAL_PIECE_PLACED) {}
 };
 
-class WinePuzzle : public PlannedPuzzle {
+class PaintingRotationPuzzle : public PlannedPuzzle {
 public:
-    WinePuzzle() : PlannedPuzzle("Wine puzzle", "escape/puzzle/wine/solved") {}
+    PaintingRotationPuzzle() : PlannedPuzzle("Painting rotation puzzle", EscapeTopic::PAINTING_ROTATION_COMPLETE) {}
 };
 
-class BlenderPuzzle : public PlannedPuzzle {
+class ColorButtonSequencePuzzle : public PlannedPuzzle {
 public:
-    BlenderPuzzle() : PlannedPuzzle("Blender puzzle", "escape/puzzle/blender/solved") {}
+    ColorButtonSequencePuzzle() : PlannedPuzzle("Color button sequence", EscapeTopic::COLOR_SEQUENCE_COMPLETE) {}
 };
 
-class FireplacePuzzle : public PlannedPuzzle {
+class OvenTargetPuzzle : public PlannedPuzzle {
 public:
-    FireplacePuzzle() : PlannedPuzzle("Fireplace puzzle", "escape/puzzle/fireplace/solved") {}
+    OvenTargetPuzzle() : PlannedPuzzle("Oven target reached", EscapeTopic::OVEN_TARGET_REACHED) {}
 };
 
-class PhonePuzzle : public PlannedPuzzle {
+class ElectromagUnlockedPuzzle : public PlannedPuzzle {
 public:
-    PhonePuzzle() : PlannedPuzzle("Phone puzzle", "escape/puzzle/phone/solved") {}
+    ElectromagUnlockedPuzzle() : PlannedPuzzle("Electromagnetic lock unlocked", EscapeTopic::ELECTROMAG_LOCK_UNLOCKED) {}
 };
 
-class WindowPuzzle : public PlannedPuzzle {
+class OvenHomePuzzle : public PlannedPuzzle {
 public:
-    WindowPuzzle() : PlannedPuzzle("Right wall/window prop", "escape/puzzle/window/triggered") {}
-};
-
-class OvenPuzzle : public PlannedPuzzle {
-public:
-    OvenPuzzle() : PlannedPuzzle("Oven dial puzzle", "escape/puzzle/oven/solved") {}
+    OvenHomePuzzle() : PlannedPuzzle("Oven home detected", EscapeTopic::OVEN_HOME_DETECTED) {}
 };
 
 #endif

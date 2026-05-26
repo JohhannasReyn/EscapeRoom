@@ -11,7 +11,8 @@ $tests = @(
         Sources = @(
             "raspberry-pi-controller\test\controller_logic_test.cpp",
             "raspberry-pi-controller\src\GameController.cpp",
-            "raspberry-pi-controller\src\puzzles\CopperPuzzle.cpp"
+            "raspberry-pi-controller\src\puzzles\CopperPuzzle.cpp",
+            "raspberry-pi-controller\src\effects\DisplayOutput.cpp"
         )
         Includes = @("raspberry-pi-controller\src", "shared")
     },
@@ -43,6 +44,21 @@ $tests = @(
     @{
         Name = "encoder_dial_test"
         Sources = @("tests\encoder_dial_test.cpp")
+        Includes = @("shared")
+    },
+    @{
+        Name = "oven_thermometer_test"
+        Sources = @("tests\oven_thermometer_test.cpp")
+        Includes = @("shared")
+    },
+    @{
+        Name = "protocol_topics_test"
+        Sources = @("tests\protocol_topics_test.cpp")
+        Includes = @("shared")
+    },
+    @{
+        Name = "room_state_test"
+        Sources = @("tests\room_state_test.cpp")
         Includes = @("shared")
     },
     @{

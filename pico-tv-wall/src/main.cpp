@@ -2,6 +2,9 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
 
+#include "../../shared/EscapeRoomProtocol.h"
+#include "../../shared/PostState.h"
+
 #ifndef WIFI_SSID
 #define WIFI_SSID "YOUR_WIFI_NAME"
 #endif
@@ -19,23 +22,34 @@
 #endif
 
 #ifndef MQTT_CLIENT_ID
-#define MQTT_CLIENT_ID "pico_tv_wall"
+#define MQTT_CLIENT_ID "pico3-painting-rotation"
 #endif
 
 constexpr int LED_PIN = LED_BUILTIN;
-constexpr int TV_TRIGGER_PIN = 15;
+constexpr int RST_PIN = 14;
+constexpr int PAINTING_SENSOR_PIN = 15;
+constexpr unsigned long DEBOUNCE_MS = 750;
 constexpr unsigned long MQTT_RETRY_MS = 3000;
-constexpr unsigned long TV_TRIGGER_MS = 500;
 
 WiFiClient wifiClient;
 PubSubClient mqtt(wifiClient);
 
-unsigned long tvOffAt = 0;
+bool paintingEnabled = false;
+bool paintingSolved = false;
+int paintingLastState = LOW;
+unsigned long paintingStableStart = 0;
 
-void pulseTvTrigger() {
-    digitalWrite(TV_TRIGGER_PIN, HIGH);
-    digitalWrite(LED_PIN, HIGH);
-    tvOffAt = millis() + TV_TRIGGER_MS;
+void publishPostState();
+
+void resetPainting() {
+    paintingEnabled = false;
+    paintingSolved = false;
+    paintingLastState = digitalRead(PAINTING_SENSOR_PIN);
+    paintingStableStart = millis();
+    digitalWrite(LED_PIN, LOW);
+    if (mqtt.connected()) {
+        publishPostState();
+    }
 }
 
 void handleMessage(char* topic, byte* payload, unsigned int length) {
@@ -45,18 +59,14 @@ void handleMessage(char* topic, byte* payload, unsigned int length) {
         message += static_cast<char>(payload[i]);
     }
 
-    Serial.print("Command received: ");
-    Serial.print(topic);
-    Serial.print(" -> ");
-    Serial.println(message);
+    String topicText(topic);
 
-    if (String(topic) == "escape/game/reset") {
-        tvOffAt = 0;
-        digitalWrite(TV_TRIGGER_PIN, LOW);
-        digitalWrite(LED_PIN, LOW);
-        Serial.println("TV wall reset.");
-    } else if (String(topic) == "escape/tv/play_intro") {
-        pulseTvTrigger();
+    if (topicText == EscapeTopic::ENABLE_PAINTING_ROTATION) {
+        paintingEnabled = message != "off";
+    } else if (topicText == EscapeTopic::STATUS_REQUEST || topicText == EscapeTopic::LEGACY_POST_QUERY) {
+        publishPostState();
+    } else if (topicText == EscapeTopic::RESET_PUZZLE || topicText == EscapeTopic::LEGACY_GAME_RESET) {
+        resetPainting();
     }
 }
 
@@ -70,19 +80,14 @@ void blink(int count, int delayMs = 150) {
 }
 
 void connectWiFi() {
-    Serial.print("Connecting to WiFi: ");
-    Serial.println(WIFI_SSID);
     WiFi.begin(WIFI_SSID, WIFI_PASS);
 
     while (WiFi.status() != WL_CONNECTED) {
         digitalWrite(LED_PIN, !digitalRead(LED_PIN));
         delay(500);
-        Serial.print(".");
     }
 
     digitalWrite(LED_PIN, LOW);
-    Serial.println();
-    Serial.println("WiFi connected.");
     blink(2);
 }
 
@@ -91,21 +96,30 @@ void connectMQTT() {
     mqtt.setCallback(handleMessage);
 
     while (!mqtt.connected()) {
-        Serial.print("Connecting to MQTT broker: ");
-        Serial.println(MQTT_BROKER);
-
         if (mqtt.connect(MQTT_CLIENT_ID)) {
-            Serial.println("MQTT connected.");
-            mqtt.subscribe("escape/tv/play_intro");
-            mqtt.subscribe("escape/game/reset");
+            mqtt.subscribe(EscapeTopic::ENABLE_PAINTING_ROTATION);
+            mqtt.subscribe(EscapeTopic::STATUS_REQUEST);
+            mqtt.subscribe(EscapeTopic::RESET_PUZZLE);
+            mqtt.subscribe(EscapeTopic::LEGACY_POST_QUERY);
+            mqtt.subscribe(EscapeTopic::LEGACY_GAME_RESET);
             blink(3);
             return;
         }
 
-        Serial.print("MQTT failed, state=");
-        Serial.println(mqtt.state());
         delay(MQTT_RETRY_MS);
     }
+}
+
+void publishEvent(const char* topic, const char* payload) {
+    if (!mqtt.publish(topic, payload)) {
+        Serial.println("MQTT publish failed.");
+    }
+
+    digitalWrite(LED_PIN, HIGH);
+}
+
+void publishPostState() {
+    publishEvent(postStateTopic(3).c_str(), postStatePayload(digitalRead(PAINTING_SENSOR_PIN) == HIGH));
 }
 
 void setup() {
@@ -113,11 +127,10 @@ void setup() {
     delay(1500);
 
     pinMode(LED_PIN, OUTPUT);
-    pinMode(TV_TRIGGER_PIN, OUTPUT);
-
-    digitalWrite(TV_TRIGGER_PIN, LOW);
-
-    Serial.println("TV Wall Pico");
+    pinMode(RST_PIN, INPUT_PULLUP);
+    pinMode(PAINTING_SENSOR_PIN, INPUT);
+    paintingLastState = digitalRead(PAINTING_SENSOR_PIN);
+    paintingStableStart = millis();
 
     connectWiFi();
     connectMQTT();
@@ -134,9 +147,23 @@ void loop() {
 
     mqtt.loop();
 
-    if (tvOffAt != 0 && millis() >= tvOffAt) {
-        digitalWrite(TV_TRIGGER_PIN, LOW);
-        digitalWrite(LED_PIN, LOW);
-        tvOffAt = 0;
+    if (digitalRead(RST_PIN) == LOW) {
+        resetPainting();
+        delay(500);
     }
+
+    int state = digitalRead(PAINTING_SENSOR_PIN);
+    unsigned long now = millis();
+
+    if (state != paintingLastState) {
+        paintingLastState = state;
+        paintingStableStart = now;
+    }
+
+    if (paintingEnabled && state == HIGH && !paintingSolved && now - paintingStableStart >= DEBOUNCE_MS) {
+        paintingSolved = true;
+        publishEvent(EscapeTopic::PAINTING_ROTATION_COMPLETE, "painting rotation complete");
+    }
+
+    delay(50);
 }

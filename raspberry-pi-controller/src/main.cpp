@@ -4,6 +4,7 @@
 #include "GameController.h"
 #include "ResetControl.h"
 #include "effects/AudioEffect.h"
+#include "effects/DisplayOutput.h"
 #include "puzzles/CopperPuzzle.h"
 #include "puzzles/PlannedPuzzles.h"
 
@@ -11,6 +12,7 @@
 #include <chrono>
 #include <cstdlib>
 #include <cstring>
+#include <fstream>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -34,6 +36,17 @@ std::string get_home_dir() {
 
 std::string get_audio_file() {
     return get_home_dir() + "/escape-room/crash.wav";
+}
+
+std::string get_project_asset_file(const std::string& fileName) {
+    std::string repoRootPath = "./assets/" + fileName;
+    std::ifstream repoRootFile(repoRootPath);
+
+    if (repoRootFile.good()) {
+        return repoRootPath;
+    }
+
+    return "../assets/" + fileName;
 }
 
 void publish_reset(struct mosquitto* mosq) {
@@ -231,23 +244,23 @@ void on_message(struct mosquitto* mosq, void* userdata, const struct mosquitto_m
 }
 
 int main() {
-    AudioEffect crashAudio(get_audio_file());
+    AudioEffect crashingPlatesAudio(get_project_asset_file("crashing_plates.m4a"));
+    DisplayOutput display;
 
-    GameController controller;
-    controller.addPuzzle(std::make_unique<CopperPuzzle>(crashAudio));
+    GameController controller(&crashingPlatesAudio, &display);
     controller.addPuzzle(std::make_unique<StairsPuzzle>());
-    controller.addPuzzle(std::make_unique<DowelsPuzzle>());
-    controller.addPuzzle(std::make_unique<WinePuzzle>());
-    controller.addPuzzle(std::make_unique<BlenderPuzzle>());
-    controller.addPuzzle(std::make_unique<FireplacePuzzle>());
-    controller.addPuzzle(std::make_unique<PhonePuzzle>());
-    controller.addPuzzle(std::make_unique<WindowPuzzle>());
-    controller.addPuzzle(std::make_unique<OvenPuzzle>());
+    controller.addPuzzle(std::make_unique<CopperPuzzle>());
+    controller.addPuzzle(std::make_unique<FinalPiecePuzzle>());
+    controller.addPuzzle(std::make_unique<PaintingRotationPuzzle>());
+    controller.addPuzzle(std::make_unique<ColorButtonSequencePuzzle>());
+    controller.addPuzzle(std::make_unique<OvenHomePuzzle>());
+    controller.addPuzzle(std::make_unique<OvenTargetPuzzle>());
+    controller.addPuzzle(std::make_unique<ElectromagUnlockedPuzzle>());
 
     std::cout << "Escape Room Raspberry Pi Game Controller" << std::endl;
     std::cout << "----------------------------------------" << std::endl;
     std::cout << "Broker: " << MQTT_HOST << ":" << MQTT_PORT << std::endl;
-    std::cout << "Audio:  " << get_audio_file() << std::endl;
+    std::cout << "Painting audio: " << crashingPlatesAudio.file() << std::endl;
     std::cout << "Registered puzzle topics:" << std::endl;
     for (const auto& topic : controller.topics()) {
         std::cout << "  " << topic << std::endl;

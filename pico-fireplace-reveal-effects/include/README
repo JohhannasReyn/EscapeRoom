@@ -1,35 +1,29 @@
-Fireplace/reveal effects Pico project.
+Pico 4 active firmware: smart film and oven knob puzzle.
 
-Default pins:
-- GPIO 14: reset button to GND, using internal pull-up
-- GPIO 15: PDLC smart film relay/driver input
-- GPIO 16: smoke burst relay/driver input
-- GPIO 17: fireplace puzzle solved input
-- GPIO 18: electric lock relay/driver input
+Hardware:
+- GPIO 15: smart film relay/driver input
+- GPIO 17: small addressable LED thermometer strip DIN
+- GPIO 18: electromagnetic lock relay/driver input
 - GPIO 19: oven rotary encoder CLK
 - GPIO 20: oven rotary encoder DT
-- GPIO 21: oven rotary encoder SW
+- GPIO 21: oven home magnetic sensor
 
-MQTT publish:
-- escape/puzzle/fireplace/solved
-- escape/puzzle/oven/solved
-- escape/oven/degrees
-- escape/post/cubby/4/state = ready or completed
+Main topics:
+- Publishes escape/pico4/smart_film_ready
+- Publishes escape/pico4/oven_home_detected
+- Publishes escape/pico4/oven_position_update
+- Publishes escape/pico4/oven_target_reached
+- Publishes escape/pico4/electromag_lock_unlocked
+- Publishes escape/pico4/oven_error
+- Subscribes escape/cmd/pico4/reveal_smart_film
+- Subscribes escape/cmd/pico4/enable_oven_knob
+- Subscribes escape/cmd/pico4/unlock_electromag_lock
+- Subscribes escape/cmd/all/status_request
+- Subscribes escape/cmd/all/reset_puzzle
 
-MQTT commands:
-- escape/pdlc/on
-- escape/smoke/burst
-- escape/lock/trigger
-- escape/oven/enable
-- escape/post/query
-- escape/game/reset
+The oven knob puzzle remains disabled until the Raspberry Pi receives the correct color-button sequence from Pico 5.
 
-When the local reset button is pressed, the Pico republishes its POST state.
-
-The oven dial is enabled by the Raspberry Pi after every other puzzle is solved. The lock should open at the same time with escape/lock/trigger. The encoder is treated as relative; start the knob at 0/off before enabling, then turn to the configured 350-degree target.
-
-The Pico publishes the current pretend oven temperature to escape/oven/degrees when the dial is enabled and every time the encoder moves. The Raspberry Pi stores the latest value so a display or LED feedback prop can be added later.
-
-The lock output is pulsed for 100 ms by default so a spring-loaded dial compartment can release. Adjust OVEN_LOCK_RELEASE_MS in src/main.cpp if the lock hardware needs a different timing.
-
-Use relay, MOSFET, or isolated driver modules. Do not switch mains power directly from Pico hardware.
+The lock only releases after:
+- oven knob puzzle is enabled
+- home magnetic sensor calibrates the dial
+- encoder-derived value reaches 350 within tolerance

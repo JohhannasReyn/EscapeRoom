@@ -1,27 +1,27 @@
 {
 	"folders": [
 		{
-			"name": "pico-entry-stairs-cubby-copper",
+			"name": "pico1-cubby-approach-leds",
 			"path": "escape-room-pico"
 		},
 		{
-			"name": "pico-cabinet-dowels-wine",
+			"name": "pico2-copper-final-piece",
 			"path": "pico-cabinet-dowels-wine"
 		},
 		{
-			"name": "pico-fireplace-reveal-effects",
-			"path": "pico-fireplace-reveal-effects"
-		},
-		{
-			"name": "pico-tv-wall",
+			"name": "pico3-painting-rotation",
 			"path": "pico-tv-wall"
 		},
 		{
-			"name": "pico-phone-window-props",
+			"name": "pico4-smart-film-oven",
+			"path": "pico-fireplace-reveal-effects"
+		},
+		{
+			"name": "pico5-color-buttons",
 			"path": "pico-phone-window-props"
 		},
 		{
-			"name": "pico-back-room-blender-final",
+			"name": "pico6-unused-future-puzzles",
 			"path": "pico-back-room-blender-final"
 		},
 		{

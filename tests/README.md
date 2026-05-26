@@ -10,7 +10,7 @@ Run from the repository root in PowerShell:
 
 The tests cover:
 
-- Raspberry Pi controller topic routing, POST red/green behavior, oven unlock gating, and oven degree telemetry parsing
+- Raspberry Pi controller topic routing, five-Pico POST behavior, room state transitions, painting audio trigger, display message trigger, oven unlock commands, and oven telemetry parsing
 - Whole-room reset hold timing
 - Cubby LED segment math
 - POST topic and payload naming
@@ -18,5 +18,8 @@ The tests cover:
 - Timed relay/output pulse behavior
 - Cubby LED current estimates, invalid power settings, and automatic brightness capping math
 - Oven encoder degree math for the 350-degree target, wraparound, reverse movement, and tolerance edges
+- Oven thermometer LED band/progression math
+- Shared protocol topic names
+- Room state names
 
 These tests do not replace hardware testing. They are meant to catch code mistakes before upload day so the hardware test is mostly about wiring, power, and sensor placement.

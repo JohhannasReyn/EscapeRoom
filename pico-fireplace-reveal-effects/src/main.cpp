@@ -1,9 +1,12 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <PubSubClient.h>
+#include <Adafruit_NeoPixel.h>
 
-#include "../../shared/PostState.h"
 #include "../../shared/EncoderDial.h"
+#include "../../shared/EscapeRoomProtocol.h"
+#include "../../shared/OvenThermometer.h"
+#include "../../shared/PostState.h"
 
 #ifndef WIFI_SSID
 #define WIFI_SSID "YOUR_WIFI_NAME"
@@ -22,48 +25,121 @@
 #endif
 
 #ifndef MQTT_CLIENT_ID
-#define MQTT_CLIENT_ID "pico_fireplace_reveal_effects"
+#define MQTT_CLIENT_ID "pico4-smart-film-oven"
 #endif
 
 constexpr int LED_PIN = LED_BUILTIN;
 constexpr int RST_PIN = 14;
-constexpr int PDLC_PIN = 15;
-constexpr int SMOKE_PIN = 16;
-constexpr int FIREPLACE_PIN = 17;
+constexpr int SMART_FILM_PIN = 15;
+constexpr int THERMOMETER_LED_PIN = 17;
 constexpr int LOCK_PIN = 18;
 constexpr int OVEN_ENCODER_CLK_PIN = 19;
 constexpr int OVEN_ENCODER_DT_PIN = 20;
-constexpr int OVEN_ENCODER_SW_PIN = 21;
-constexpr int OVEN_TARGET_DEGREES = 350;
-constexpr int OVEN_DEGREES_PER_STEP = 10;
-constexpr int OVEN_TOLERANCE_DEGREES = 5;
+constexpr int OVEN_HOME_SENSOR_PIN = 21;
 
-constexpr unsigned long DEBOUNCE_MS = 750;
+constexpr int OVEN_MIN_VALUE = 0;
+constexpr int OVEN_TARGET_VALUE = 350;
+constexpr int OVEN_MAX_VALUE = 500;
+constexpr int OVEN_TARGET_TOLERANCE = 10;
+constexpr int OVEN_DEGREES_PER_STEP = 10;
+constexpr int THERMOMETER_LED_COUNT = 12;
+constexpr int THERMOMETER_BRIGHTNESS = 64;
+
 constexpr unsigned long MQTT_RETRY_MS = 3000;
-constexpr unsigned long SMOKE_BURST_MS = 1200;
 constexpr unsigned long OVEN_LOCK_RELEASE_MS = 100;
 
 WiFiClient wifiClient;
 PubSubClient mqtt(wifiClient);
+Adafruit_NeoPixel thermometerStrip(THERMOMETER_LED_COUNT, THERMOMETER_LED_PIN, NEO_GRB + NEO_KHZ800);
 
-bool fireplaceSolved = false;
-int fireplaceLastState = LOW;
-unsigned long fireplaceStableStart = 0;
-unsigned long smokeOffAt = 0;
-unsigned long lockOffAt = 0;
 bool ovenEnabled = false;
+bool ovenHomed = false;
 bool ovenSolved = false;
 int ovenEncoderSteps = 0;
 int ovenLastClk = HIGH;
+unsigned long lockOffAt = 0;
 
-void resetFireplaceAndOutputs();
-void publishOvenDegrees(int ovenDegrees);
+void resetOvenAndOutputs();
 void publishPostState();
 
-void pulseOutput(int pin, unsigned long durationMs, unsigned long& offAt) {
-    digitalWrite(pin, HIGH);
-    digitalWrite(LED_PIN, HIGH);
-    offAt = millis() + durationMs;
+void publishEvent(const char* topic, const char* payload) {
+    Serial.print("Publishing event: ");
+    Serial.println(topic);
+
+    if (!mqtt.publish(topic, payload)) {
+        Serial.println("MQTT publish failed.");
+    }
+}
+
+void publishOvenDegrees(int ovenDegrees) {
+    String payload = String(ovenDegrees);
+    publishEvent(EscapeTopic::OVEN_POSITION_UPDATE, payload.c_str());
+    mqtt.publish(EscapeTopic::LEGACY_OVEN_DEGREES, payload.c_str());
+}
+
+void setLock(bool on) {
+    digitalWrite(LOCK_PIN, on ? HIGH : LOW);
+    digitalWrite(LED_PIN, on ? HIGH : LOW);
+
+    if (on) {
+        lockOffAt = millis() + OVEN_LOCK_RELEASE_MS;
+        publishEvent(EscapeTopic::ELECTROMAG_LOCK_UNLOCKED, "electromagnetic lock unlocked");
+    } else {
+        lockOffAt = 0;
+    }
+}
+
+void updateThermometer(int ovenValue) {
+    int litCount = litThermometerLedCount(ovenValue, OVEN_MIN_VALUE, OVEN_MAX_VALUE, THERMOMETER_LED_COUNT);
+
+    for (int index = 0; index < THERMOMETER_LED_COUNT; ++index) {
+        RgbColor color = thermometerColor(thermometerBandForIndex(index, litCount));
+        thermometerStrip.setPixelColor(index, thermometerStrip.Color(color.r, color.g, color.b));
+    }
+
+    thermometerStrip.show();
+}
+
+void clearThermometer() {
+    updateThermometer(OVEN_MIN_VALUE);
+}
+
+void checkHomeSensor() {
+    if (!ovenEnabled || ovenHomed || digitalRead(OVEN_HOME_SENSOR_PIN) != HIGH) {
+        return;
+    }
+
+    ovenHomed = true;
+    ovenEncoderSteps = 0;
+    ovenLastClk = digitalRead(OVEN_ENCODER_CLK_PIN);
+    publishEvent(EscapeTopic::OVEN_HOME_DETECTED, "oven dial home detected");
+    publishOvenDegrees(OVEN_MIN_VALUE);
+    updateThermometer(OVEN_MIN_VALUE);
+}
+
+void checkOvenEncoder() {
+    if (!ovenEnabled || !ovenHomed || ovenSolved) {
+        return;
+    }
+
+    int clk = digitalRead(OVEN_ENCODER_CLK_PIN);
+
+    if (clk != ovenLastClk && clk == LOW) {
+        int dt = digitalRead(OVEN_ENCODER_DT_PIN);
+        ovenEncoderSteps += dt == HIGH ? 1 : -1;
+
+        int ovenValue = encoderDegreesFromSteps(ovenEncoderSteps, OVEN_DEGREES_PER_STEP);
+        publishOvenDegrees(ovenValue);
+        updateThermometer(ovenValue);
+
+        if (dialIsAtTarget(ovenValue, OVEN_TARGET_VALUE, OVEN_TARGET_TOLERANCE)) {
+            ovenSolved = true;
+            publishEvent(EscapeTopic::OVEN_TARGET_REACHED, "oven target reached");
+            setLock(true);
+        }
+    }
+
+    ovenLastClk = clk;
 }
 
 void handleMessage(char* topic, byte* payload, unsigned int length) {
@@ -73,30 +149,24 @@ void handleMessage(char* topic, byte* payload, unsigned int length) {
         message += static_cast<char>(payload[i]);
     }
 
-    Serial.print("Command received: ");
-    Serial.print(topic);
-    Serial.print(" -> ");
-    Serial.println(message);
+    String topicText(topic);
 
-    if (String(topic) == "escape/post/query") {
-        publishPostState();
-    } else if (String(topic) == "escape/game/reset") {
-        resetFireplaceAndOutputs();
-    } else if (String(topic) == "escape/oven/enable") {
+    if (topicText == EscapeTopic::REVEAL_SMART_FILM || topicText == EscapeTopic::LEGACY_PDLC_ON) {
+        digitalWrite(SMART_FILM_PIN, message == "off" ? LOW : HIGH);
+        publishEvent(EscapeTopic::SMART_FILM_READY, message == "off" ? "opaque" : "transparent");
+    } else if (topicText == EscapeTopic::ENABLE_OVEN_KNOB || topicText == EscapeTopic::LEGACY_OVEN_ENABLE) {
         ovenEnabled = message != "off";
         ovenSolved = false;
+        ovenHomed = false;
         ovenEncoderSteps = 0;
         ovenLastClk = digitalRead(OVEN_ENCODER_CLK_PIN);
-        if (ovenEnabled) {
-            publishOvenDegrees(0);
-        }
-        Serial.println(ovenEnabled ? "Oven dial enabled." : "Oven dial disabled.");
-    } else if (String(topic) == "escape/pdlc/on") {
-        digitalWrite(PDLC_PIN, message == "off" ? LOW : HIGH);
-    } else if (String(topic) == "escape/smoke/burst") {
-        pulseOutput(SMOKE_PIN, SMOKE_BURST_MS, smokeOffAt);
-    } else if (String(topic) == "escape/lock/trigger") {
-        pulseOutput(LOCK_PIN, OVEN_LOCK_RELEASE_MS, lockOffAt);
+        clearThermometer();
+    } else if (topicText == EscapeTopic::UNLOCK_ELECTROMAG_LOCK || topicText == EscapeTopic::LEGACY_LOCK_TRIGGER) {
+        setLock(message != "off");
+    } else if (topicText == EscapeTopic::STATUS_REQUEST || topicText == EscapeTopic::LEGACY_POST_QUERY) {
+        publishPostState();
+    } else if (topicText == EscapeTopic::RESET_PUZZLE || topicText == EscapeTopic::LEGACY_GAME_RESET) {
+        resetOvenAndOutputs();
     }
 }
 
@@ -110,19 +180,14 @@ void blink(int count, int delayMs = 150) {
 }
 
 void connectWiFi() {
-    Serial.print("Connecting to WiFi: ");
-    Serial.println(WIFI_SSID);
     WiFi.begin(WIFI_SSID, WIFI_PASS);
 
     while (WiFi.status() != WL_CONNECTED) {
         digitalWrite(LED_PIN, !digitalRead(LED_PIN));
         delay(500);
-        Serial.print(".");
     }
 
     digitalWrite(LED_PIN, LOW);
-    Serial.println();
-    Serial.println("WiFi connected.");
     blink(2);
 }
 
@@ -131,101 +196,42 @@ void connectMQTT() {
     mqtt.setCallback(handleMessage);
 
     while (!mqtt.connected()) {
-        Serial.print("Connecting to MQTT broker: ");
-        Serial.println(MQTT_BROKER);
-
         if (mqtt.connect(MQTT_CLIENT_ID)) {
-            Serial.println("MQTT connected.");
-            mqtt.subscribe("escape/pdlc/on");
-            mqtt.subscribe("escape/smoke/burst");
-            mqtt.subscribe("escape/lock/trigger");
-            mqtt.subscribe("escape/oven/enable");
-            mqtt.subscribe("escape/post/query");
-            mqtt.subscribe("escape/game/reset");
+            mqtt.subscribe(EscapeTopic::REVEAL_SMART_FILM);
+            mqtt.subscribe(EscapeTopic::ENABLE_OVEN_KNOB);
+            mqtt.subscribe(EscapeTopic::UNLOCK_ELECTROMAG_LOCK);
+            mqtt.subscribe(EscapeTopic::STATUS_REQUEST);
+            mqtt.subscribe(EscapeTopic::RESET_PUZZLE);
+            mqtt.subscribe(EscapeTopic::LEGACY_PDLC_ON);
+            mqtt.subscribe(EscapeTopic::LEGACY_OVEN_ENABLE);
+            mqtt.subscribe(EscapeTopic::LEGACY_LOCK_TRIGGER);
+            mqtt.subscribe(EscapeTopic::LEGACY_POST_QUERY);
+            mqtt.subscribe(EscapeTopic::LEGACY_GAME_RESET);
             blink(3);
             return;
         }
 
-        Serial.print("MQTT failed, state=");
-        Serial.println(mqtt.state());
         delay(MQTT_RETRY_MS);
     }
 }
 
-void publishFireplaceSolved() {
-    const char* topic = "escape/puzzle/fireplace/solved";
-    const char* payload = "fireplace puzzle solved";
-
-    Serial.print("Publishing event: ");
-    Serial.println(topic);
-
-    if (!mqtt.publish(topic, payload)) {
-        Serial.println("MQTT publish failed.");
-    }
-
-    digitalWrite(LED_PIN, HIGH);
-}
-
-void publishOvenSolved() {
-    const char* topic = "escape/puzzle/oven/solved";
-    const char* payload = "oven dial set to 350 degrees";
-
-    Serial.print("Publishing event: ");
-    Serial.println(topic);
-
-    if (!mqtt.publish(topic, payload)) {
-        Serial.println("MQTT publish failed.");
-    }
-
-    digitalWrite(LED_PIN, HIGH);
-}
-
-void publishOvenDegrees(int ovenDegrees) {
-    const char* topic = "escape/oven/degrees";
-    String payload = String(ovenDegrees);
-
-    Serial.print("Publishing oven degrees: ");
-    Serial.println(payload);
-
-    if (!mqtt.publish(topic, payload.c_str())) {
-        Serial.println("MQTT publish failed.");
-    }
-}
-
 void publishPostState() {
-    std::string topic = postStateTopic(4);
-    const char* payload = postStatePayload(digitalRead(FIREPLACE_PIN) == HIGH);
-
-    Serial.print("Publishing POST state: ");
-    Serial.print(topic.c_str());
-    Serial.print(" -> ");
-    Serial.println(payload);
-
-    if (!mqtt.publish(topic.c_str(), payload)) {
-        Serial.println("MQTT publish failed.");
-    }
+    publishEvent(postStateTopic(4).c_str(), postStatePayload(ovenSolved));
 }
 
-void resetFireplaceAndOutputs() {
-    fireplaceSolved = false;
-    fireplaceLastState = digitalRead(FIREPLACE_PIN);
-    fireplaceStableStart = millis();
-    smokeOffAt = 0;
-    lockOffAt = 0;
+void resetOvenAndOutputs() {
     ovenEnabled = false;
+    ovenHomed = false;
     ovenSolved = false;
     ovenEncoderSteps = 0;
     ovenLastClk = digitalRead(OVEN_ENCODER_CLK_PIN);
-
-    digitalWrite(PDLC_PIN, LOW);
-    digitalWrite(SMOKE_PIN, LOW);
-    digitalWrite(LOCK_PIN, LOW);
+    setLock(false);
+    digitalWrite(SMART_FILM_PIN, LOW);
     digitalWrite(LED_PIN, LOW);
+    clearThermometer();
     if (mqtt.connected()) {
         publishPostState();
     }
-
-    Serial.println("Fireplace/reveal zone reset.");
 }
 
 void setup() {
@@ -234,24 +240,17 @@ void setup() {
 
     pinMode(LED_PIN, OUTPUT);
     pinMode(RST_PIN, INPUT_PULLUP);
-    pinMode(PDLC_PIN, OUTPUT);
-    pinMode(SMOKE_PIN, OUTPUT);
-    pinMode(FIREPLACE_PIN, INPUT);
+    pinMode(SMART_FILM_PIN, OUTPUT);
     pinMode(LOCK_PIN, OUTPUT);
     pinMode(OVEN_ENCODER_CLK_PIN, INPUT_PULLUP);
     pinMode(OVEN_ENCODER_DT_PIN, INPUT_PULLUP);
-    pinMode(OVEN_ENCODER_SW_PIN, INPUT_PULLUP);
+    pinMode(OVEN_HOME_SENSOR_PIN, INPUT);
 
-    digitalWrite(PDLC_PIN, LOW);
-    digitalWrite(SMOKE_PIN, LOW);
-    digitalWrite(LOCK_PIN, LOW);
+    thermometerStrip.begin();
+    thermometerStrip.setBrightness(THERMOMETER_BRIGHTNESS);
+    clearThermometer();
 
-    Serial.println("Fireplace Reveal Effects Pico");
-
-    fireplaceLastState = digitalRead(FIREPLACE_PIN);
-    fireplaceStableStart = millis();
-    ovenLastClk = digitalRead(OVEN_ENCODER_CLK_PIN);
-
+    resetOvenAndOutputs();
     connectWiFi();
     connectMQTT();
 }
@@ -268,59 +267,15 @@ void loop() {
     mqtt.loop();
 
     if (digitalRead(RST_PIN) == LOW) {
-        resetFireplaceAndOutputs();
+        resetOvenAndOutputs();
         delay(500);
     }
 
-    unsigned long now = millis();
+    checkHomeSensor();
+    checkOvenEncoder();
 
-    int fireplaceState = digitalRead(FIREPLACE_PIN);
-
-    if (fireplaceState != fireplaceLastState) {
-        fireplaceLastState = fireplaceState;
-        fireplaceStableStart = now;
-    }
-
-    if (fireplaceState == HIGH && !fireplaceSolved && now - fireplaceStableStart >= DEBOUNCE_MS) {
-        fireplaceSolved = true;
-        Serial.println("Fireplace puzzle solved!");
-        publishFireplaceSolved();
-    }
-
-    if (ovenEnabled && !ovenSolved) {
-        int clk = digitalRead(OVEN_ENCODER_CLK_PIN);
-
-        if (clk != ovenLastClk && clk == LOW) {
-            int dt = digitalRead(OVEN_ENCODER_DT_PIN);
-            ovenEncoderSteps += dt == HIGH ? 1 : -1;
-
-            int ovenDegrees = encoderDegreesFromSteps(ovenEncoderSteps, OVEN_DEGREES_PER_STEP);
-            Serial.print("Oven dial degrees: ");
-            Serial.println(ovenDegrees);
-            publishOvenDegrees(ovenDegrees);
-
-            if (dialIsAtTarget(ovenDegrees, OVEN_TARGET_DEGREES, OVEN_TOLERANCE_DEGREES)) {
-                ovenSolved = true;
-                Serial.println("Oven dial solved!");
-                publishOvenSolved();
-            }
-        }
-
-        ovenLastClk = clk;
-    }
-
-    if (smokeOffAt != 0 && now >= smokeOffAt) {
-        digitalWrite(SMOKE_PIN, LOW);
-        smokeOffAt = 0;
-    }
-
-    if (lockOffAt != 0 && now >= lockOffAt) {
-        digitalWrite(LOCK_PIN, LOW);
-        lockOffAt = 0;
-    }
-
-    if (smokeOffAt == 0 && lockOffAt == 0) {
-        digitalWrite(LED_PIN, digitalRead(PDLC_PIN));
+    if (lockOffAt != 0 && millis() >= lockOffAt) {
+        setLock(false);
     }
 
     delay(50);

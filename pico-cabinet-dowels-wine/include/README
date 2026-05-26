@@ -1,18 +1,17 @@
-Cabinet dowels/wine Pico project.
+Pico 2 active firmware: copper puzzle and final puzzle piece.
 
-Default pins:
-- GPIO 15: dowels puzzle solved input
-- GPIO 16: wine puzzle solved input
-- GPIO 14: reset button to GND, using internal pull-up
+This folder name is historical. It no longer runs the dowels/wine puzzle.
+Archived dowels/wine code is in:
 
-MQTT commands:
-- escape/post/query
-- escape/game/reset
+../../pico-back-room-blender-final/unused-future-puzzles/
 
-MQTT POST publish:
-- escape/post/cubby/2/state = ready or completed
-- escape/post/cubby/3/state = ready or completed
+Hardware:
+- GPIO 15: copper puzzle complete contact
+- GPIO 16: final puzzle piece placed contact
 
-When the local reset button is pressed, the Pico republishes these POST states.
-
-Sensor inputs assume external pull-down wiring. Use relay/MOSFET driver boards for any powered devices.
+Main topics:
+- Publishes escape/pico2/copper_puzzle_complete
+- Publishes escape/pico2/final_piece_placed
+- Subscribes escape/cmd/pico2/enable_copper_puzzle
+- Subscribes escape/cmd/all/status_request
+- Subscribes escape/cmd/all/reset_puzzle

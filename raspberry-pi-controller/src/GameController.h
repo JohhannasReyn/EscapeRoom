@@ -2,6 +2,10 @@
 #define GAME_CONTROLLER_H
 
 #include "PuzzleModule.h"
+#include "effects/DisplayOutput.h"
+#include "effects/Effect.h"
+
+#include "../../shared/RoomState.h"
 
 #include <array>
 #include <deque>
@@ -17,6 +21,8 @@ struct MqttCommand {
 
 class GameController {
 public:
+    GameController(Effect* paintingCrashEffect = nullptr, DisplayOutput* displayOutput = nullptr);
+
     void addPuzzle(std::unique_ptr<PuzzleModule> puzzle);
     bool handleMessage(const std::string& topic, const std::string& payload);
     std::vector<std::string> topics() const;
@@ -24,6 +30,7 @@ public:
     std::size_t pendingCommandCount() const;
     MqttCommand takeNextPendingCommand();
     int lastOvenDegrees() const;
+    RoomState currentState() const;
     void queuePostQueryCommand();
     void queueReadyCommand();
     void resetPostState();
@@ -31,16 +38,19 @@ public:
 private:
     bool handlePostStateReport(const std::string& topic, const std::string& payload);
     bool handleOvenDegreesReport(const std::string& topic, const std::string& payload);
+    bool handleFlowEvent(const std::string& topic, const std::string& payload);
     void queueCommandsForTopic(const std::string& topic);
     void markPuzzleSolved(const std::string& topic);
-    bool allOvenPrerequisitesSolved() const;
+    void transitionTo(RoomState nextState, const std::string& reason);
 
     std::vector<std::unique_ptr<PuzzleModule>> puzzles;
     std::deque<MqttCommand> pendingCommands;
-    std::array<bool, 6> postReady = {false, false, false, false, false, false};
+    std::array<bool, 5> postReady = {false, false, false, false, false};
     std::set<std::string> solvedTopics;
-    bool ovenEnabled = false;
+    RoomState state = RoomState::WAITING_FOR_CUBBY_APPROACH;
     int ovenDegrees = 0;
+    Effect* paintingCrashEffect = nullptr;
+    DisplayOutput* displayOutput = nullptr;
 };
 
 #endif

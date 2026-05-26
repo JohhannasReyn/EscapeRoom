@@ -2,6 +2,7 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
 
+#include "../../shared/EscapeRoomProtocol.h"
 #include "../../shared/PostState.h"
 
 #ifndef WIFI_SSID
@@ -21,46 +22,54 @@
 #endif
 
 #ifndef MQTT_CLIENT_ID
-#define MQTT_CLIENT_ID "pico_phone_window_props"
+#define MQTT_CLIENT_ID "pico5-color-buttons"
 #endif
 
 constexpr int LED_PIN = LED_BUILTIN;
 constexpr int RST_PIN = 14;
-constexpr unsigned long DEBOUNCE_MS = 750;
+constexpr int BUTTON_RED_PIN = 15;
+constexpr int BUTTON_BLUE_PIN = 16;
+constexpr unsigned long DEBOUNCE_MS = 150;
 constexpr unsigned long MQTT_RETRY_MS = 3000;
 
-struct DigitalPuzzle {
-    const char* name;
-    const char* topic;
-    const char* payload;
+// TODO: Replace with the actual color sequence after the physical puzzle code is finalized.
+constexpr const char* CORRECT_SEQUENCE = "";
+
+struct ColorButton {
+    char code;
     int pin;
-    bool solved;
     int lastState;
     unsigned long stableStart;
 };
 
-DigitalPuzzle puzzles[] = {
-    {"Phone puzzle", "escape/puzzle/phone/solved", "phone puzzle solved", 15, false, LOW, 0},
-    {"Right wall/window prop", "escape/puzzle/window/triggered", "window prop triggered", 16, false, LOW, 0},
+ColorButton buttons[] = {
+    {'R', BUTTON_RED_PIN, HIGH, 0},
+    {'B', BUTTON_BLUE_PIN, HIGH, 0},
 };
 
 WiFiClient wifiClient;
 PubSubClient mqtt(wifiClient);
 
+bool sequenceEnabled = false;
+bool sequenceSolved = false;
+String enteredSequence;
+
 void publishPostState();
 
-void resetPuzzles() {
-    for (DigitalPuzzle& puzzle : puzzles) {
-        puzzle.solved = false;
-        puzzle.lastState = digitalRead(puzzle.pin);
-        puzzle.stableStart = millis();
+void resetSequence() {
+    sequenceEnabled = false;
+    sequenceSolved = false;
+    enteredSequence = "";
+
+    for (ColorButton& button : buttons) {
+        button.lastState = digitalRead(button.pin);
+        button.stableStart = millis();
     }
 
     digitalWrite(LED_PIN, LOW);
     if (mqtt.connected()) {
         publishPostState();
     }
-    Serial.println("Phone/window props reset.");
 }
 
 void handleMessage(char* topic, byte* payload, unsigned int length) {
@@ -70,15 +79,16 @@ void handleMessage(char* topic, byte* payload, unsigned int length) {
         message += static_cast<char>(payload[i]);
     }
 
-    Serial.print("Command received: ");
-    Serial.print(topic);
-    Serial.print(" -> ");
-    Serial.println(message);
+    String topicText(topic);
 
-    if (String(topic) == "escape/post/query") {
+    if (topicText == EscapeTopic::ENABLE_COLOR_BUTTON_SEQUENCE) {
+        sequenceEnabled = message != "off";
+        sequenceSolved = false;
+        enteredSequence = "";
+    } else if (topicText == EscapeTopic::STATUS_REQUEST || topicText == EscapeTopic::LEGACY_POST_QUERY) {
         publishPostState();
-    } else if (String(topic) == "escape/game/reset") {
-        resetPuzzles();
+    } else if (topicText == EscapeTopic::RESET_PUZZLE || topicText == EscapeTopic::LEGACY_GAME_RESET) {
+        resetSequence();
     }
 }
 
@@ -92,19 +102,14 @@ void blink(int count, int delayMs = 150) {
 }
 
 void connectWiFi() {
-    Serial.print("Connecting to WiFi: ");
-    Serial.println(WIFI_SSID);
     WiFi.begin(WIFI_SSID, WIFI_PASS);
 
     while (WiFi.status() != WL_CONNECTED) {
         digitalWrite(LED_PIN, !digitalRead(LED_PIN));
         delay(500);
-        Serial.print(".");
     }
 
     digitalWrite(LED_PIN, LOW);
-    Serial.println();
-    Serial.println("WiFi connected.");
     blink(2);
 }
 
@@ -113,45 +118,52 @@ void connectMQTT() {
     mqtt.setCallback(handleMessage);
 
     while (!mqtt.connected()) {
-        Serial.print("Connecting to MQTT broker: ");
-        Serial.println(MQTT_BROKER);
-
         if (mqtt.connect(MQTT_CLIENT_ID)) {
-            Serial.println("MQTT connected.");
-            mqtt.subscribe("escape/post/query");
-            mqtt.subscribe("escape/game/reset");
+            mqtt.subscribe(EscapeTopic::ENABLE_COLOR_BUTTON_SEQUENCE);
+            mqtt.subscribe(EscapeTopic::STATUS_REQUEST);
+            mqtt.subscribe(EscapeTopic::RESET_PUZZLE);
+            mqtt.subscribe(EscapeTopic::LEGACY_POST_QUERY);
+            mqtt.subscribe(EscapeTopic::LEGACY_GAME_RESET);
             blink(3);
             return;
         }
 
-        Serial.print("MQTT failed, state=");
-        Serial.println(mqtt.state());
         delay(MQTT_RETRY_MS);
     }
 }
 
-void publishSolved(const DigitalPuzzle& puzzle) {
-    Serial.print("Publishing event: ");
-    Serial.println(puzzle.topic);
-
-    if (!mqtt.publish(puzzle.topic, puzzle.payload)) {
+void publishEvent(const char* topic, const char* payload) {
+    if (!mqtt.publish(topic, payload)) {
         Serial.println("MQTT publish failed.");
     }
-
-    digitalWrite(LED_PIN, HIGH);
 }
 
 void publishPostState() {
-    std::string topic = postStateTopic(5);
-    const char* payload = postStatePayload(digitalRead(15) == HIGH || digitalRead(16) == HIGH);
+    publishEvent(postStateTopic(5).c_str(), postStatePayload(sequenceSolved));
+}
 
-    Serial.print("Publishing POST state: ");
-    Serial.print(topic.c_str());
-    Serial.print(" -> ");
-    Serial.println(payload);
+void registerButtonPress(char code) {
+    if (!sequenceEnabled || sequenceSolved) {
+        return;
+    }
 
-    if (!mqtt.publish(topic.c_str(), payload)) {
-        Serial.println("MQTT publish failed.");
+    if (String(CORRECT_SEQUENCE).length() == 0) {
+        publishEvent(EscapeTopic::COLOR_SEQUENCE_ERROR, "color sequence not configured");
+        return;
+    }
+
+    enteredSequence += code;
+
+    if (!String(CORRECT_SEQUENCE).startsWith(enteredSequence)) {
+        publishEvent(EscapeTopic::COLOR_SEQUENCE_ERROR, "incorrect color sequence");
+        enteredSequence = "";
+        return;
+    }
+
+    if (enteredSequence == CORRECT_SEQUENCE) {
+        sequenceSolved = true;
+        digitalWrite(LED_PIN, HIGH);
+        publishEvent(EscapeTopic::COLOR_SEQUENCE_COMPLETE, "color sequence complete");
     }
 }
 
@@ -162,12 +174,10 @@ void setup() {
     pinMode(LED_PIN, OUTPUT);
     pinMode(RST_PIN, INPUT_PULLUP);
 
-    Serial.println("Phone/Window Props Pico");
-
-    for (DigitalPuzzle& puzzle : puzzles) {
-        pinMode(puzzle.pin, INPUT);
-        puzzle.lastState = digitalRead(puzzle.pin);
-        puzzle.stableStart = millis();
+    for (ColorButton& button : buttons) {
+        pinMode(button.pin, INPUT_PULLUP);
+        button.lastState = digitalRead(button.pin);
+        button.stableStart = millis();
     }
 
     connectWiFi();
@@ -186,27 +196,29 @@ void loop() {
     mqtt.loop();
 
     if (digitalRead(RST_PIN) == LOW) {
-        resetPuzzles();
+        resetSequence();
         delay(500);
     }
 
     unsigned long now = millis();
 
-    for (DigitalPuzzle& puzzle : puzzles) {
-        int state = digitalRead(puzzle.pin);
+    for (ColorButton& button : buttons) {
+        int state = digitalRead(button.pin);
 
-        if (state != puzzle.lastState) {
-            puzzle.lastState = state;
-            puzzle.stableStart = now;
+        if (state != button.lastState) {
+            button.lastState = state;
+            button.stableStart = now;
         }
 
-        if (state == HIGH && !puzzle.solved && now - puzzle.stableStart >= DEBOUNCE_MS) {
-            puzzle.solved = true;
-            Serial.print(puzzle.name);
-            Serial.println(" solved!");
-            publishSolved(puzzle);
+        if (state == LOW && now - button.stableStart >= DEBOUNCE_MS) {
+            registerButtonPress(button.code);
+
+            while (digitalRead(button.pin) == LOW) {
+                mqtt.loop();
+                delay(10);
+            }
         }
     }
 
-    delay(50);
+    delay(20);
 }

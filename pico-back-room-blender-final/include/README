@@ -1,19 +1,9 @@
-Back room blender/final outputs Pico project.
+Pico 6 unused / future puzzle archive.
 
-Default pins:
-- GPIO 14: reset button to GND, using internal pull-up
-- GPIO 15: blender flour puzzle solved input
-- GPIO 16: final output relay/driver input
+Pico 6 is not part of the active runtime flow. The active room uses Picos 1 through 5 only.
 
-MQTT publish:
-- escape/puzzle/blender/solved
-- escape/post/cubby/6/state = ready or completed
+Historical firmware and PlatformIO config snapshots are preserved in:
 
-MQTT commands:
-- escape/game/win
-- escape/post/query
-- escape/game/reset
+unused-future-puzzles/
 
-When the local reset button is pressed, the Pico republishes its POST state.
-
-Use relay, MOSFET, or isolated driver modules for locks, lights, or powered props.
+Keep this folder organized so retired puzzles can be restored or repurposed later.

@@ -5,9 +5,12 @@
 #include "../src/GameController.h"
 #include "../src/ResetControl.h"
 #include "../src/effects/Effect.h"
+#include "../src/effects/DisplayOutput.h"
 #include "../src/puzzles/CopperPuzzle.h"
 #include "../src/puzzles/PlannedPuzzles.h"
+#include "../../shared/EscapeRoomProtocol.h"
 #include "../../shared/PostState.h"
+#include "../../shared/RoomState.h"
 
 class RecordingEffect : public Effect {
 public:
@@ -20,6 +23,43 @@ public:
     std::string lastPayload;
 };
 
+class RecordingDisplay : public DisplayOutput {
+public:
+    void show_message(const std::string& text) override {
+        lastMessage = text;
+        ++showCount;
+    }
+
+    void flash_message(const std::string& text, int durationSec, double intervalSec) override {
+        lastMessage = text;
+        lastDuration = durationSec;
+        lastInterval = intervalSec;
+        ++flashCount;
+    }
+
+    void clear() override {
+        ++clearCount;
+    }
+
+    int showCount = 0;
+    int flashCount = 0;
+    int clearCount = 0;
+    int lastDuration = 0;
+    double lastInterval = 0;
+    std::string lastMessage;
+};
+
+void addActivePuzzles(GameController& controller) {
+    controller.addPuzzle(std::make_unique<StairsPuzzle>());
+    controller.addPuzzle(std::make_unique<CopperPuzzle>());
+    controller.addPuzzle(std::make_unique<FinalPiecePuzzle>());
+    controller.addPuzzle(std::make_unique<PaintingRotationPuzzle>());
+    controller.addPuzzle(std::make_unique<ColorButtonSequencePuzzle>());
+    controller.addPuzzle(std::make_unique<OvenHomePuzzle>());
+    controller.addPuzzle(std::make_unique<OvenTargetPuzzle>());
+    controller.addPuzzle(std::make_unique<ElectromagUnlockedPuzzle>());
+}
+
 int main() {
     assert(RESET_TOPIC == "escape/game/reset");
     assert(RESET_BUTTON_GPIO == 23);
@@ -28,53 +68,36 @@ int main() {
     assert(resetPressReady(999, true) == false);
     assert(resetPressReady(1000, true) == true);
 
-    RecordingEffect effect;
-    CopperPuzzle copper(effect);
-
-    assert(copper.topic() == "escape/puzzle/copper/solved");
+    CopperPuzzle copper;
+    assert(copper.topic() == std::string(EscapeTopic::COPPER_PUZZLE_COMPLETE));
     assert(copper.handle("escape/puzzle/unknown/solved", "ignored") == false);
-    assert(effect.triggerCount == 0);
+    assert(copper.handle(EscapeTopic::COPPER_PUZZLE_COMPLETE, "manual test") == true);
+    assert(copper.handle("escape/puzzle/copper/solved", "legacy test") == true);
 
-    assert(copper.handle("escape/puzzle/copper/solved", "manual test") == true);
-    assert(effect.triggerCount == 1);
-    assert(effect.lastPayload == "manual test");
-
-    GameController controller;
-    controller.addPuzzle(std::make_unique<CopperPuzzle>(effect));
-    controller.addPuzzle(std::make_unique<StairsPuzzle>());
-    controller.addPuzzle(std::make_unique<DowelsPuzzle>());
-    controller.addPuzzle(std::make_unique<WinePuzzle>());
-    controller.addPuzzle(std::make_unique<BlenderPuzzle>());
-    controller.addPuzzle(std::make_unique<FireplacePuzzle>());
-    controller.addPuzzle(std::make_unique<PhonePuzzle>());
-    controller.addPuzzle(std::make_unique<WindowPuzzle>());
+    RecordingEffect paintingAudio;
+    RecordingDisplay display;
+    GameController controller(&paintingAudio, &display);
+    addActivePuzzles(controller);
 
     assert(controller.puzzleCount() == 8);
+    assert(controller.currentState() == RoomState::WAITING_FOR_CUBBY_APPROACH);
+
     controller.queuePostQueryCommand();
-    assert(controller.pendingCommandCount() == 1);
     MqttCommand queryCommand = controller.takeNextPendingCommand();
     assert(queryCommand.topic == "escape/post/query");
     assert(queryCommand.payload == "status");
 
     assert(controller.handleMessage("escape/post/cubby/2/state", "completed") == true);
-    assert(controller.pendingCommandCount() == 1);
     MqttCommand redPostCommand = controller.takeNextPendingCommand();
     assert(redPostCommand.topic == cubbyStatusTopic(2));
     assert(redPostCommand.payload == "red");
 
-    assert(controller.handleMessage("escape/post/cubby/2/state", "ready") == true);
-    assert(controller.pendingCommandCount() == 1);
-    MqttCommand greenPostCommand = controller.takeNextPendingCommand();
-    assert(greenPostCommand.topic == cubbyStatusTopic(2));
-    assert(greenPostCommand.payload == "green");
-
-    for (int cubbyNumber = 1; cubbyNumber <= 6; ++cubbyNumber) {
+    for (int cubbyNumber = 1; cubbyNumber <= 5; ++cubbyNumber) {
         assert(controller.handleMessage("escape/post/cubby/" + std::to_string(cubbyNumber) + "/state", "ready") == true);
     }
 
-    assert(controller.pendingCommandCount() == 7);
-
-    for (int cubbyNumber = 1; cubbyNumber <= 6; ++cubbyNumber) {
+    assert(controller.pendingCommandCount() == 6);
+    for (int cubbyNumber = 1; cubbyNumber <= 5; ++cubbyNumber) {
         MqttCommand postReadyCommand = controller.takeNextPendingCommand();
         assert(postReadyCommand.topic == cubbyStatusTopic(cubbyNumber));
         assert(postReadyCommand.payload == "green");
@@ -84,104 +107,87 @@ int main() {
     assert(autoReadyCommand.topic == "escape/cubby/all/status");
     assert(autoReadyCommand.payload == "off");
 
-    controller.queueReadyCommand();
-    assert(controller.pendingCommandCount() == 1);
-    MqttCommand readyCommand = controller.takeNextPendingCommand();
-    assert(readyCommand.topic == "escape/cubby/all/status");
-    assert(readyCommand.payload == "off");
+    assert(controller.handleMessage("escape/post/cubby/6/state", "ready") == true);
+    assert(controller.pendingCommandCount() == 0);
 
-    assert(controller.handleMessage("escape/puzzle/copper/solved", "from controller") == true);
-    assert(effect.triggerCount == 2);
-    assert(effect.lastPayload == "from controller");
+    assert(controller.handleMessage(EscapeTopic::CUBBY_APPROACH_DETECTED, "approach") == true);
+    assert(controller.currentState() == RoomState::COPPER_PUZZLE_ACTIVE);
+    MqttCommand cubbyLight = controller.takeNextPendingCommand();
+    assert(cubbyLight.topic == EscapeTopic::ENABLE_CUBBY_LIGHT);
+    MqttCommand legacyCubbyLight = controller.takeNextPendingCommand();
+    assert(legacyCubbyLight.topic == EscapeTopic::LEGACY_CUBBY_1_LIGHT_ON);
+    MqttCommand enableCopper = controller.takeNextPendingCommand();
+    assert(enableCopper.topic == EscapeTopic::ENABLE_COPPER_PUZZLE);
 
-    assert(controller.handleMessage("escape/puzzle/dowels/solved", "future puzzle") == true);
-    assert(controller.pendingCommandCount() == 1);
-    MqttCommand firstCubbyCommand = controller.takeNextPendingCommand();
-    assert(firstCubbyCommand.topic == "escape/cubby/2/light_on");
-    assert(firstCubbyCommand.payload == "on");
-
-    assert(controller.handleMessage("escape/puzzle/window/triggered", "right wall prop") == true);
-    assert(controller.handleMessage("escape/puzzle/not-real/solved", "ignored") == false);
-
-    GameController earlyOvenController;
-    earlyOvenController.addPuzzle(std::make_unique<CopperPuzzle>(effect));
-    earlyOvenController.addPuzzle(std::make_unique<StairsPuzzle>());
-    earlyOvenController.addPuzzle(std::make_unique<DowelsPuzzle>());
-    earlyOvenController.addPuzzle(std::make_unique<WinePuzzle>());
-    earlyOvenController.addPuzzle(std::make_unique<BlenderPuzzle>());
-    earlyOvenController.addPuzzle(std::make_unique<FireplacePuzzle>());
-    earlyOvenController.addPuzzle(std::make_unique<PhonePuzzle>());
-    earlyOvenController.addPuzzle(std::make_unique<WindowPuzzle>());
-    earlyOvenController.addPuzzle(std::make_unique<OvenPuzzle>());
-
-    assert(earlyOvenController.handleMessage("escape/puzzle/copper/solved", "ok") == true);
-    assert(earlyOvenController.handleMessage("escape/puzzle/stairs/triggered", "ok") == true);
-    assert(earlyOvenController.handleMessage("escape/puzzle/dowels/solved", "ok") == true);
-    assert(earlyOvenController.handleMessage("escape/puzzle/wine/solved", "ok") == true);
-    assert(earlyOvenController.handleMessage("escape/puzzle/fireplace/solved", "ok") == true);
-    assert(earlyOvenController.handleMessage("escape/puzzle/phone/solved", "ok") == true);
-    assert(earlyOvenController.handleMessage("escape/puzzle/window/triggered", "ok") == true);
-
-    while (earlyOvenController.pendingCommandCount() > 0) {
-        MqttCommand command = earlyOvenController.takeNextPendingCommand();
-        assert(command.topic != "escape/lock/trigger");
-        assert(command.topic != "escape/oven/enable");
+    assert(controller.handleMessage(EscapeTopic::COPPER_PUZZLE_COMPLETE, "copper done") == true);
+    assert(controller.currentState() == RoomState::PAINTING_ROTATION_ACTIVE);
+    bool sawPaintingEnable = false;
+    bool sawCopperCubby = false;
+    while (controller.pendingCommandCount() > 0) {
+        MqttCommand command = controller.takeNextPendingCommand();
+        sawPaintingEnable = sawPaintingEnable || command.topic == EscapeTopic::ENABLE_PAINTING_ROTATION;
+        sawCopperCubby = sawCopperCubby || command.topic == "escape/cubby/2/light_on";
     }
+    assert(sawPaintingEnable == true);
+    assert(sawCopperCubby == true);
 
-    GameController finalController;
-    finalController.addPuzzle(std::make_unique<CopperPuzzle>(effect));
-    finalController.addPuzzle(std::make_unique<StairsPuzzle>());
-    finalController.addPuzzle(std::make_unique<DowelsPuzzle>());
-    finalController.addPuzzle(std::make_unique<WinePuzzle>());
-    finalController.addPuzzle(std::make_unique<BlenderPuzzle>());
-    finalController.addPuzzle(std::make_unique<FireplacePuzzle>());
-    finalController.addPuzzle(std::make_unique<PhonePuzzle>());
-    finalController.addPuzzle(std::make_unique<WindowPuzzle>());
-    finalController.addPuzzle(std::make_unique<OvenPuzzle>());
+    assert(controller.handleMessage(EscapeTopic::PAINTING_ROTATION_COMPLETE, "painting") == true);
+    assert(paintingAudio.triggerCount == 1);
+    assert(paintingAudio.lastPayload == "painting");
+    assert(controller.currentState() == RoomState::FINAL_PIECE_ACTIVE);
 
-    assert(finalController.handleMessage("escape/puzzle/copper/solved", "ok") == true);
-    assert(finalController.handleMessage("escape/puzzle/stairs/triggered", "ok") == true);
-    assert(finalController.handleMessage("escape/puzzle/dowels/solved", "ok") == true);
-    assert(finalController.handleMessage("escape/puzzle/wine/solved", "ok") == true);
-    assert(finalController.handleMessage("escape/puzzle/fireplace/solved", "ok") == true);
-    assert(finalController.handleMessage("escape/puzzle/phone/solved", "ok") == true);
-    assert(finalController.handleMessage("escape/puzzle/window/triggered", "ok") == true);
-    assert(finalController.handleMessage("escape/puzzle/blender/solved", "ok") == true);
+    assert(controller.handleMessage(EscapeTopic::FINAL_PIECE_PLACED, "piece") == true);
+    assert(controller.currentState() == RoomState::COLOR_BUTTON_SEQUENCE_ACTIVE);
+    bool sawSmartFilm = false;
+    bool sawLegacyFilm = false;
+    bool sawColorEnable = false;
+    while (controller.pendingCommandCount() > 0) {
+        MqttCommand command = controller.takeNextPendingCommand();
+        sawSmartFilm = sawSmartFilm || command.topic == EscapeTopic::REVEAL_SMART_FILM;
+        sawLegacyFilm = sawLegacyFilm || command.topic == EscapeTopic::LEGACY_PDLC_ON;
+        sawColorEnable = sawColorEnable || command.topic == EscapeTopic::ENABLE_COLOR_BUTTON_SEQUENCE;
+    }
+    assert(sawSmartFilm == true);
+    assert(sawLegacyFilm == true);
+    assert(sawColorEnable == true);
 
-    bool sawLockTrigger = false;
+    assert(controller.handleMessage(EscapeTopic::COLOR_SEQUENCE_COMPLETE, "buttons") == true);
+    assert(display.flashCount == 1);
+    assert(display.lastMessage == "Bake at 350 Degrees");
+    assert(controller.currentState() == RoomState::OVEN_KNOB_ACTIVE);
     bool sawOvenEnable = false;
-    while (finalController.pendingCommandCount() > 0) {
-        MqttCommand command = finalController.takeNextPendingCommand();
-        sawLockTrigger = sawLockTrigger || (command.topic == "escape/lock/trigger" && command.payload == "on");
-        sawOvenEnable = sawOvenEnable || (command.topic == "escape/oven/enable" && command.payload == "on");
+    bool sawLegacyOvenEnable = false;
+    while (controller.pendingCommandCount() > 0) {
+        MqttCommand command = controller.takeNextPendingCommand();
+        sawOvenEnable = sawOvenEnable || command.topic == EscapeTopic::ENABLE_OVEN_KNOB;
+        sawLegacyOvenEnable = sawLegacyOvenEnable || command.topic == EscapeTopic::LEGACY_OVEN_ENABLE;
     }
-
-    assert(sawLockTrigger == true);
     assert(sawOvenEnable == true);
-    assert(finalController.handleMessage("escape/puzzle/blender/solved", "duplicate") == true);
+    assert(sawLegacyOvenEnable == true);
 
-    while (finalController.pendingCommandCount() > 0) {
-        MqttCommand command = finalController.takeNextPendingCommand();
-        assert(command.topic != "escape/lock/trigger");
-        assert(command.topic != "escape/oven/enable");
+    assert(controller.handleMessage(EscapeTopic::OVEN_POSITION_UPDATE, "370") == true);
+    assert(controller.lastOvenDegrees() == 10);
+    assert(controller.handleMessage(EscapeTopic::OVEN_POSITION_UPDATE, "-1") == true);
+    assert(controller.lastOvenDegrees() == 359);
+    assert(controller.handleMessage(EscapeTopic::OVEN_POSITION_UPDATE, "720") == true);
+    assert(controller.lastOvenDegrees() == 0);
+    assert(controller.handleMessage(EscapeTopic::OVEN_POSITION_UPDATE, "120abc") == true);
+    assert(controller.lastOvenDegrees() == 0);
+
+    assert(controller.handleMessage(EscapeTopic::OVEN_TARGET_REACHED, "350") == true);
+    assert(controller.currentState() == RoomState::ELECTROMAGNETIC_LOCK_RELEASED);
+    bool sawUnlock = false;
+    bool sawLegacyUnlock = false;
+    while (controller.pendingCommandCount() > 0) {
+        MqttCommand command = controller.takeNextPendingCommand();
+        sawUnlock = sawUnlock || command.topic == EscapeTopic::UNLOCK_ELECTROMAG_LOCK;
+        sawLegacyUnlock = sawLegacyUnlock || command.topic == EscapeTopic::LEGACY_LOCK_TRIGGER;
     }
+    assert(sawUnlock == true);
+    assert(sawLegacyUnlock == true);
 
-    assert(finalController.handleMessage("escape/oven/degrees", "370") == true);
-    assert(finalController.lastOvenDegrees() == 10);
-    assert(finalController.handleMessage("escape/oven/degrees", "-1") == true);
-    assert(finalController.lastOvenDegrees() == 359);
-    assert(finalController.handleMessage("escape/oven/degrees", "720") == true);
-    assert(finalController.lastOvenDegrees() == 0);
-    assert(finalController.handleMessage("escape/oven/degrees", "120abc") == true);
-    assert(finalController.lastOvenDegrees() == 0);
-    assert(finalController.handleMessage("escape/oven/degrees", "not a number") == true);
-    assert(finalController.lastOvenDegrees() == 0);
-
-    assert(finalController.handleMessage("escape/puzzle/oven/solved", "350 degrees") == true);
-    assert(finalController.pendingCommandCount() == 1);
-    MqttCommand winCommand = finalController.takeNextPendingCommand();
-    assert(winCommand.topic == "escape/game/win");
-    assert(winCommand.payload == "on");
+    assert(controller.handleMessage(EscapeTopic::ELECTROMAG_LOCK_UNLOCKED, "open") == true);
+    assert(controller.currentState() == RoomState::ROOM_KEY_AVAILABLE);
 
     return 0;
 }

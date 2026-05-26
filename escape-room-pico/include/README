@@ -1,48 +1,15 @@
-Entry/stairs/cubby/copper Pico project.
+Pico 1 active firmware: cubby approach and addressable cubby LEDs.
 
-Default pins:
-- GPIO 14: reset button to GND, using internal pull-up
-- GPIO 15: copper puzzle solved input
-- GPIO 17: addressable cubby LED strip data
-- GPIO 18: cubby 2 lock relay/driver input
-- GPIO 19: optional copper puzzle begun input
-- GPIO 6: laser distance sensor XSHUT
-- GPIO 7: laser distance sensor GPIO1, reserved for future interrupt use
-- I2C SDA/SCL: laser distance sensor SDA/SCL, usually GPIO 4/GPIO 5
+Hardware:
+- VL53L0Xv2 distance sensor
+- 15m 5V addressable LED strip for cubbies
 
-MQTT publish:
-- escape/puzzle/copper/begun
-- escape/puzzle/copper/solved
-- escape/puzzle/stairs/triggered
+Main topics:
+- Publishes escape/pico1/cubby_approach_detected
+- Publishes escape/pico1/cubby_led_ready
+- Publishes escape/pico1/cubby_led_error
+- Subscribes escape/cmd/pico1/enable_cubby_light
+- Subscribes escape/cmd/all/status_request
+- Subscribes escape/cmd/all/reset_puzzle
 
-MQTT commands:
-- escape/cubby/1/light_on
-- escape/cubby/2/light_on
-- escape/cubby/3/light_on
-- escape/cubby/4/light_on
-- escape/cubby/5/light_on
-- escape/cubby/6/light_on
-- escape/cubby/1/status
-- escape/cubby/2/status
-- escape/cubby/3/status
-- escape/cubby/4/status
-- escape/cubby/5/status
-- escape/cubby/6/status
-- escape/cubby/all/status
-- escape/cubby/2/unlock
-- escape/post/query
-- escape/game/reset
-
-MQTT POST publish:
-- escape/post/cubby/1/state = ready or completed
-
-Startup behavior:
-- Pico sweeps the cubbies on in order.
-- Pico holds all cubbies white for Raspberry Pi startup checks.
-- Raspberry Pi queries puzzle states with escape/post/query.
-- Raspberry Pi turns ready cubbies green and completed cubbies red.
-- Raspberry Pi sends escape/cubby/all/status = off after all cubbies report ready.
-- Pico clears the strip and waits for the stairs distance sensor.
-
-Use a separate 5V supply for the cubby LED strip and share ground with the Pico.
-Use relay, MOSFET, or isolated driver modules for locks and non-addressable powered lighting.
+Copper puzzle code moved to Pico 2.

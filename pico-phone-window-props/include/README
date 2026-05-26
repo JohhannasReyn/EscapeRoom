@@ -1,19 +1,19 @@
-Phone/right-wall window props Pico project.
+Pico 5 active firmware: color-coded button sequence.
 
-Default pins:
-- GPIO 14: reset button to GND, using internal pull-up
-- GPIO 15: phone puzzle solved input
-- GPIO 16: right-wall/window prop input
+This folder name is historical. It no longer runs the phone/window prop puzzle.
+Archived phone/window code is in:
 
-MQTT publish:
-- escape/puzzle/phone/solved
-- escape/puzzle/window/triggered
-- escape/post/cubby/5/state = ready or completed
+../../pico-back-room-blender-final/unused-future-puzzles/
 
-MQTT commands:
-- escape/post/query
-- escape/game/reset
+Hardware:
+- GPIO 15: first configured color button
+- GPIO 16: second configured color button
 
-When the local reset button is pressed, the Pico republishes its POST state.
+Main topics:
+- Publishes escape/pico5/color_sequence_complete
+- Publishes escape/pico5/color_sequence_error
+- Subscribes escape/cmd/pico5/enable_color_button_sequence
+- Subscribes escape/cmd/all/status_request
+- Subscribes escape/cmd/all/reset_puzzle
 
-Sensor inputs assume external pull-down wiring.
+TODO: set the real color sequence and add GPIO entries for any additional buttons.
