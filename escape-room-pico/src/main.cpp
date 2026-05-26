@@ -238,6 +238,10 @@ void connectMQTT() {
             mqtt.subscribe(EscapeTopic::LEGACY_POST_QUERY);
             mqtt.subscribe(EscapeTopic::LEGACY_GAME_RESET);
             mqtt.subscribe("escape/cubby/1/status");
+            mqtt.subscribe("escape/cubby/2/status");
+            mqtt.subscribe("escape/cubby/3/status");
+            mqtt.subscribe("escape/cubby/4/status");
+            mqtt.subscribe("escape/cubby/5/status");
             mqtt.subscribe("escape/cubby/all/status");
             blink(3);
             return;
