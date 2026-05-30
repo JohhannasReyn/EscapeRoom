@@ -46,7 +46,7 @@ The Pico folder names now match the active puzzle structure. Pico 6 remains a ho
 | Pico 1 | `pico1-cubby-approach-leds` | 15m 5V addressable cubby LEDs, VL53L0Xv2 distance sensor | Detect cubby approach and illuminate cubbies when instructed |
 | Pico 2 | `pico2-copper-final-piece` | Copper puzzle contacts, final puzzle piece contact | Report copper completion and final piece placement |
 | Pico 3 | `pico3-painting-rotation` | RC35 or equivalent magnetic/reed/hall sensor | Report correct painting rotation |
-| Pico 4 | `pico4-smart-film-oven` | Smart film, oven knob potentiometer, home sensor, electromagnetic lock, 10-15 LED thermometer strip | Reveal smart film, track oven knob, drive thermometer, unlock at 350 |
+| Pico 4 | `pico4-smart-film-oven` | Smart film, oven knob potentiometer, electromagnetic lock, 10-15 LED thermometer strip | Reveal smart film, track oven knob, drive thermometer, unlock at 350 |
 | Pico 5 | `pico5-color-buttons` | Color-coded buttons | Report correct button sequence |
 | Pico 6 | `pico6-unused-future-puzzles` | None in active runtime | Stores unused/future puzzle code |
 
@@ -79,7 +79,7 @@ The Pico folder names now match the active puzzle structure. Pico 6 remains a ho
 23. Raspberry Pi displays/flashes `Bake at 350 Degrees`.
 24. Raspberry Pi enables Pico 4's oven knob puzzle.
 25. Player turns the oven knob to 350 degrees.
-26. Pico 4 verifies home position with the magnetic sensor and reads the oven setting from the potentiometer.
+26. Pico 4 reads the oven setting from the potentiometer.
 27. Pico 4 updates its small LED strip as a thermometer.
 28. Pico 4 unlocks the electromagnetic lock at 350 degrees within tolerance.
 29. The unlocked compartment contains the key to the locked room.
@@ -149,7 +149,6 @@ escape/pico2/final_piece_placed
 escape/pico3/painting_rotation_complete
 
 escape/pico4/smart_film_ready
-escape/pico4/oven_home_detected
 escape/pico4/oven_position_update
 escape/pico4/oven_target_reached
 escape/pico4/electromag_lock_unlocked
@@ -253,7 +252,6 @@ GPIO 18 -> electromagnetic lock relay/driver IN
 3.3V -> oven potentiometer outer leg
 GND -> oven potentiometer outer leg
 GPIO 26 / ADC0 -> oven potentiometer wiper
-GPIO 21 -> oven home magnetic sensor
 ```
 
 Oven constants are centralized near the top of `pico4-smart-film-oven/src/main.cpp`:
@@ -272,7 +270,6 @@ constexpr int THERMOMETER_LED_COUNT = 12;
 The lock only releases when:
 
 - Raspberry Pi has enabled the oven puzzle.
-- The home magnetic sensor has calibrated the dial.
 - The potentiometer-derived oven value is within tolerance of 350.
 
 Thermometer behavior is implemented through `shared/OvenThermometer.h` so the visual pattern can be tuned without repeated hardcoded LED blocks.
@@ -360,7 +357,7 @@ Run host-side tests from the repository root on Windows:
 
 - Confirm the exact VL53L0Xv2 board voltage and pinout before wiring Pico 1.
 - Set the real `LEDS_PER_CUBBY` and `LEDS_BETWEEN_CUBBIES` after installing the 15m strip.
-- Confirm the RC35 sensor output behavior for Pico 3 and Pico 4 home detection.
+- Confirm the RC35 sensor output behavior for Pico 3 painting detection.
 - Set the actual Pico 5 color-button sequence and add GPIO pins for any additional buttons.
 - Calibrate `OVEN_POT_MIN_READING`, `OVEN_POT_MAX_READING`, `OVEN_TARGET_TOLERANCE`, and thermometer LED count after the oven knob is mounted.
 - Replace the placeholder display implementation with the actual TV/HDMI/browser/pygame/Tkinter path.

@@ -34,7 +34,6 @@ constexpr int SMART_FILM_PIN = 15;
 constexpr int THERMOMETER_LED_PIN = 17;
 constexpr int LOCK_PIN = 18;
 constexpr int OVEN_POT_PIN = 26;
-constexpr int OVEN_HOME_SENSOR_PIN = 21;
 
 constexpr int OVEN_MIN_VALUE = 0;
 constexpr int OVEN_TARGET_VALUE = 350;
@@ -54,7 +53,6 @@ PubSubClient mqtt(wifiClient);
 Adafruit_NeoPixel thermometerStrip(THERMOMETER_LED_COUNT, THERMOMETER_LED_PIN, NEO_GRB + NEO_KHZ800);
 
 bool ovenEnabled = false;
-bool ovenHomed = false;
 bool ovenSolved = false;
 int ovenLastPublishedValue = -1;
 unsigned long lockOffAt = 0;
@@ -128,18 +126,8 @@ void publishAndDisplayOvenValue(int ovenValue, bool forcePublish = false) {
     }
 }
 
-void checkHomeSensor() {
-    if (!ovenEnabled || ovenHomed || digitalRead(OVEN_HOME_SENSOR_PIN) != HIGH) {
-        return;
-    }
-
-    ovenHomed = true;
-    publishEvent(EscapeTopic::OVEN_HOME_DETECTED, "oven dial home detected");
-    publishAndDisplayOvenValue(readOvenPotValue(), true);
-}
-
 void checkOvenPotentiometer() {
-    if (!ovenEnabled || !ovenHomed || ovenSolved) {
+    if (!ovenEnabled || ovenSolved) {
         return;
     }
 
@@ -169,7 +157,6 @@ void handleMessage(char* topic, byte* payload, unsigned int length) {
     } else if (topicText == EscapeTopic::ENABLE_OVEN_KNOB || topicText == EscapeTopic::LEGACY_OVEN_ENABLE) {
         ovenEnabled = message != "off";
         ovenSolved = false;
-        ovenHomed = false;
         ovenLastPublishedValue = -1;
         clearThermometer();
     } else if (topicText == EscapeTopic::UNLOCK_ELECTROMAG_LOCK || topicText == EscapeTopic::LEGACY_LOCK_TRIGGER) {
@@ -232,7 +219,6 @@ void publishPostState() {
 
 void resetOvenAndOutputs() {
     ovenEnabled = false;
-    ovenHomed = false;
     ovenSolved = false;
     ovenLastPublishedValue = -1;
     setLock(false);
@@ -253,7 +239,6 @@ void setup() {
     pinMode(SMART_FILM_PIN, OUTPUT);
     pinMode(LOCK_PIN, OUTPUT);
     pinMode(OVEN_POT_PIN, INPUT);
-    pinMode(OVEN_HOME_SENSOR_PIN, INPUT);
     analogReadResolution(12);
 
     thermometerStrip.begin();
@@ -281,7 +266,6 @@ void loop() {
         delay(500);
     }
 
-    checkHomeSensor();
     checkOvenPotentiometer();
 
     if (lockOffAt != 0 && millis() >= lockOffAt) {

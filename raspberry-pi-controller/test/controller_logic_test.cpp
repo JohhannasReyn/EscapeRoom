@@ -55,7 +55,6 @@ void addActivePuzzles(GameController& controller) {
     controller.addPuzzle(std::make_unique<FinalPiecePuzzle>());
     controller.addPuzzle(std::make_unique<PaintingRotationPuzzle>());
     controller.addPuzzle(std::make_unique<ColorButtonSequencePuzzle>());
-    controller.addPuzzle(std::make_unique<OvenHomePuzzle>());
     controller.addPuzzle(std::make_unique<OvenTargetPuzzle>());
     controller.addPuzzle(std::make_unique<ElectromagUnlockedPuzzle>());
 }
@@ -79,7 +78,7 @@ int main() {
     GameController controller(&paintingAudio, &display);
     addActivePuzzles(controller);
 
-    assert(controller.puzzleCount() == 8);
+    assert(controller.puzzleCount() == 7);
     assert(controller.currentState() == RoomState::WAITING_FOR_CUBBY_APPROACH);
 
     controller.queuePostQueryCommand();

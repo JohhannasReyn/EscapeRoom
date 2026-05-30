@@ -12,7 +12,6 @@ inline constexpr const char* FINAL_PIECE_PLACED = "escape/pico2/final_piece_plac
 inline constexpr const char* PAINTING_ROTATION_COMPLETE = "escape/pico3/painting_rotation_complete";
 
 inline constexpr const char* SMART_FILM_READY = "escape/pico4/smart_film_ready";
-inline constexpr const char* OVEN_HOME_DETECTED = "escape/pico4/oven_home_detected";
 inline constexpr const char* OVEN_POSITION_UPDATE = "escape/pico4/oven_position_update";
 inline constexpr const char* OVEN_TARGET_REACHED = "escape/pico4/oven_target_reached";
 inline constexpr const char* ELECTROMAG_LOCK_UNLOCKED = "escape/pico4/electromag_lock_unlocked";

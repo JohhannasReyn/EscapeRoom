@@ -8,6 +8,7 @@ This folder preserves firmware and config snapshots for puzzle modules that were
 - `old-pico-tv-wall-*`: TV wall trigger relay
 - `old-pico-phone-window-props-*`: phone and window prop inputs
 - `old-pico-back-room-blender-final-*`: blender flour puzzle and final output relay
+- `legacy-oven-encoder-home-reference.h`: archived rotary encoder plus magnetic home sensor helpers from the older Pico 4 oven dial design
 
 To restore one of these modules later, copy the archived `main.cpp` and `platformio.ini` back into a Pico project folder, then update MQTT topics, pin constants, and the Raspberry Pi controller state machine before wiring it into the room.
 

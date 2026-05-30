@@ -361,7 +361,6 @@ int main() {
     controller.addPuzzle(std::make_unique<FinalPiecePuzzle>());
     controller.addPuzzle(std::make_unique<PaintingRotationPuzzle>());
     controller.addPuzzle(std::make_unique<ColorButtonSequencePuzzle>());
-    controller.addPuzzle(std::make_unique<OvenHomePuzzle>());
     controller.addPuzzle(std::make_unique<OvenTargetPuzzle>());
     controller.addPuzzle(std::make_unique<ElectromagUnlockedPuzzle>());
 

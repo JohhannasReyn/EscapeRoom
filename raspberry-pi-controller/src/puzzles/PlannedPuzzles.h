@@ -68,9 +68,4 @@ public:
     ElectromagUnlockedPuzzle() : PlannedPuzzle("Electromagnetic lock unlocked", EscapeTopic::ELECTROMAG_LOCK_UNLOCKED) {}
 };
 
-class OvenHomePuzzle : public PlannedPuzzle {
-public:
-    OvenHomePuzzle() : PlannedPuzzle("Oven home detected", EscapeTopic::OVEN_HOME_DETECTED) {}
-};
-
 #endif

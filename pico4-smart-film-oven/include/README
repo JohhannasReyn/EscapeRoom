@@ -5,11 +5,9 @@ Hardware:
 - GPIO 17: small addressable LED thermometer strip DIN
 - GPIO 18: electromagnetic lock relay/driver input
 - GPIO 26 / ADC0: oven potentiometer wiper
-- GPIO 21: oven home magnetic sensor
 
 Main topics:
 - Publishes escape/pico4/smart_film_ready
-- Publishes escape/pico4/oven_home_detected
 - Publishes escape/pico4/oven_position_update
 - Publishes escape/pico4/oven_target_reached
 - Publishes escape/pico4/electromag_lock_unlocked
@@ -24,5 +22,4 @@ The oven knob puzzle remains disabled until the Raspberry Pi receives the correc
 
 The lock only releases after:
 - oven knob puzzle is enabled
-- home magnetic sensor calibrates the dial
 - potentiometer-derived value reaches 350 within tolerance
