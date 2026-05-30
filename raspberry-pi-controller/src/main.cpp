@@ -22,6 +22,7 @@ static const char* MQTT_HOST = "localhost";
 static const int MQTT_PORT = 1883;
 static const char* CLIENT_ID = "raspberry_pi_game_controller";
 static const char* GPIO_CHIP_NAME = "gpiochip0";
+static const char* GPIO_CHIP_PATH = "/dev/gpiochip0";
 static const int POST_ALL_GREEN_MS = 1200;
 
 std::string get_home_dir() {
@@ -109,15 +110,126 @@ void publish_pending_commands(struct mosquitto* mosq, GameController& controller
     }
 }
 
+void handle_reset_button_value(
+    int value,
+    unsigned long& heldMs,
+    bool& resetPublishedForPress,
+    struct mosquitto* mosq,
+    GameController& controller
+) {
+    bool pressed = value == 0;
+
+    if (pressed) {
+        heldMs += RESET_POLL_MS;
+
+        if (!resetPublishedForPress && resetPressReady(heldMs, pressed)) {
+            publish_reset(mosq);
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            controller.queuePostQueryCommand();
+            publish_pending_commands(mosq, controller);
+            resetPublishedForPress = true;
+        }
+    } else {
+        heldMs = 0;
+        resetPublishedForPress = false;
+    }
+}
+
+#if defined(LIBGPIOD_V2) || (defined(GPIOD_VERSION_MAJOR) && GPIOD_VERSION_MAJOR >= 2)
 void watch_reset_button(struct mosquitto* mosq, GameController& controller, std::atomic<bool>& running) {
-    gpiod_chip* chip = gpiod_chip_open_by_name(GPIO_CHIP_NAME);
+    struct gpiod_chip* chip = gpiod_chip_open(GPIO_CHIP_PATH);
+
+    if (chip == nullptr) {
+        std::cout << "Reset button disabled: could not open GPIO chip " << GPIO_CHIP_PATH << std::endl;
+        return;
+    }
+
+    struct gpiod_line_settings* settings = gpiod_line_settings_new();
+    struct gpiod_line_config* lineConfig = gpiod_line_config_new();
+    struct gpiod_request_config* requestConfig = gpiod_request_config_new();
+
+    if (settings == nullptr || lineConfig == nullptr || requestConfig == nullptr) {
+        std::cout << "Reset button disabled: could not allocate GPIO request config." << std::endl;
+        if (settings != nullptr) {
+            gpiod_line_settings_free(settings);
+        }
+        if (lineConfig != nullptr) {
+            gpiod_line_config_free(lineConfig);
+        }
+        if (requestConfig != nullptr) {
+            gpiod_request_config_free(requestConfig);
+        }
+        gpiod_chip_close(chip);
+        return;
+    }
+
+    gpiod_line_settings_set_direction(settings, GPIOD_LINE_DIRECTION_INPUT);
+    gpiod_line_settings_set_bias(settings, GPIOD_LINE_BIAS_PULL_UP);
+
+    unsigned int resetLineOffset = RESET_BUTTON_GPIO;
+    int addLineRc = gpiod_line_config_add_line_settings(lineConfig, &resetLineOffset, 1, settings);
+
+    if (addLineRc != 0) {
+        std::cout << "Reset button disabled: could not configure GPIO " << RESET_BUTTON_GPIO << "." << std::endl;
+        gpiod_request_config_free(requestConfig);
+        gpiod_line_config_free(lineConfig);
+        gpiod_line_settings_free(settings);
+        gpiod_chip_close(chip);
+        return;
+    }
+
+    gpiod_request_config_set_consumer(requestConfig, "escape-room-reset-button");
+    struct gpiod_line_request* request = gpiod_chip_request_lines(chip, requestConfig, lineConfig);
+
+    gpiod_request_config_free(requestConfig);
+    gpiod_line_config_free(lineConfig);
+    gpiod_line_settings_free(settings);
+
+    if (request == nullptr) {
+        std::cout << "Reset button disabled: could not request GPIO " << RESET_BUTTON_GPIO << " as input." << std::endl;
+        gpiod_chip_close(chip);
+        return;
+    }
+
+    std::cout << "Reset button enabled on Raspberry Pi GPIO " << RESET_BUTTON_GPIO << "." << std::endl;
+    std::cout << "Hold for " << RESET_HOLD_MS << " ms to publish " << RESET_TOPIC << "." << std::endl;
+
+    bool resetPublishedForPress = false;
+    unsigned long heldMs = 0;
+
+    while (running.load()) {
+        enum gpiod_line_value value = gpiod_line_request_get_value(request, RESET_BUTTON_GPIO);
+
+        if (value == GPIOD_LINE_VALUE_ERROR) {
+            std::cout << "Reset button read failed." << std::endl;
+            std::this_thread::sleep_for(std::chrono::milliseconds(RESET_POLL_MS));
+            continue;
+        }
+
+        handle_reset_button_value(
+            value == GPIOD_LINE_VALUE_INACTIVE ? 0 : 1,
+            heldMs,
+            resetPublishedForPress,
+            mosq,
+            controller
+        );
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(RESET_POLL_MS));
+    }
+
+    gpiod_line_request_release(request);
+    gpiod_chip_close(chip);
+}
+#else
+void watch_reset_button(struct mosquitto* mosq, GameController& controller, std::atomic<bool>& running) {
+    struct gpiod_chip* chip = gpiod_chip_open_by_name(GPIO_CHIP_NAME);
 
     if (chip == nullptr) {
         std::cout << "Reset button disabled: could not open GPIO chip " << GPIO_CHIP_NAME << std::endl;
         return;
     }
 
-    gpiod_line* line = gpiod_chip_get_line(chip, RESET_BUTTON_GPIO);
+    struct gpiod_line* line = gpiod_chip_get_line(chip, RESET_BUTTON_GPIO);
 
     if (line == nullptr) {
         std::cout << "Reset button disabled: could not open GPIO " << RESET_BUTTON_GPIO << std::endl;
@@ -152,22 +264,7 @@ void watch_reset_button(struct mosquitto* mosq, GameController& controller, std:
             continue;
         }
 
-        bool pressed = value == 0;
-
-        if (pressed) {
-            heldMs += RESET_POLL_MS;
-
-            if (!resetPublishedForPress && resetPressReady(heldMs, pressed)) {
-                publish_reset(mosq);
-                std::this_thread::sleep_for(std::chrono::milliseconds(500));
-                controller.queuePostQueryCommand();
-                publish_pending_commands(mosq, controller);
-                resetPublishedForPress = true;
-            }
-        } else {
-            heldMs = 0;
-            resetPublishedForPress = false;
-        }
+        handle_reset_button_value(value, heldMs, resetPublishedForPress, mosq, controller);
 
         std::this_thread::sleep_for(std::chrono::milliseconds(RESET_POLL_MS));
     }
@@ -175,6 +272,7 @@ void watch_reset_button(struct mosquitto* mosq, GameController& controller, std:
     gpiod_line_release(line);
     gpiod_chip_close(chip);
 }
+#endif
 
 void on_connect(struct mosquitto* mosq, void* userdata, int rc) {
     if (rc == 0) {
