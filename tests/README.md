@@ -17,7 +17,7 @@ The tests cover:
 - Debounced puzzle input timing
 - Timed relay/output pulse behavior
 - Cubby LED current estimates, invalid power settings, and automatic brightness capping math
-- Oven encoder degree math for the 350-degree target, wraparound, reverse movement, and tolerance edges
+- Oven dial math for potentiometer scaling, legacy encoder math, the 350-degree target, and tolerance edges
 - Oven thermometer LED band/progression math
 - Shared protocol topic names
 - Room state names

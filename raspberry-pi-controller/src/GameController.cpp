@@ -1,6 +1,6 @@
 #include "GameController.h"
 
-#include "EncoderDial.h"
+#include "OvenDial.h"
 #include "EscapeRoomProtocol.h"
 #include "PostState.h"
 
@@ -232,10 +232,10 @@ bool GameController::handleOvenDegreesReport(const std::string& topic, const std
             throw std::invalid_argument("trailing characters");
         }
 
-        ovenDegrees = normalizeDegrees(parsedDegrees);
-        std::cout << "Oven dial degrees: " << ovenDegrees << std::endl;
+        ovenDegrees = clampInt(parsedDegrees, 0, 500);
+        std::cout << "Oven dial value: " << ovenDegrees << std::endl;
     } catch (const std::exception&) {
-        std::cout << "Ignoring malformed oven degrees payload: " << payload << std::endl;
+        std::cout << "Ignoring malformed oven dial payload: " << payload << std::endl;
     }
 
     return true;

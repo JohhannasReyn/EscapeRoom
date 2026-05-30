@@ -3,7 +3,7 @@
 #include <PubSubClient.h>
 #include <Adafruit_NeoPixel.h>
 
-#include "../../shared/EncoderDial.h"
+#include "../../shared/OvenDial.h"
 #include "../../shared/EscapeRoomProtocol.h"
 #include "../../shared/OvenThermometer.h"
 #include "../../shared/PostState.h"
@@ -33,15 +33,16 @@ constexpr int RST_PIN = 14;
 constexpr int SMART_FILM_PIN = 15;
 constexpr int THERMOMETER_LED_PIN = 17;
 constexpr int LOCK_PIN = 18;
-constexpr int OVEN_ENCODER_CLK_PIN = 19;
-constexpr int OVEN_ENCODER_DT_PIN = 20;
+constexpr int OVEN_POT_PIN = 26;
 constexpr int OVEN_HOME_SENSOR_PIN = 21;
 
 constexpr int OVEN_MIN_VALUE = 0;
 constexpr int OVEN_TARGET_VALUE = 350;
 constexpr int OVEN_MAX_VALUE = 500;
 constexpr int OVEN_TARGET_TOLERANCE = 10;
-constexpr int OVEN_DEGREES_PER_STEP = 10;
+constexpr int OVEN_POT_MIN_READING = 0;
+constexpr int OVEN_POT_MAX_READING = 4095;
+constexpr int OVEN_POSITION_PUBLISH_DELTA = 2;
 constexpr int THERMOMETER_LED_COUNT = 12;
 constexpr int THERMOMETER_BRIGHTNESS = 64;
 
@@ -55,8 +56,7 @@ Adafruit_NeoPixel thermometerStrip(THERMOMETER_LED_COUNT, THERMOMETER_LED_PIN, N
 bool ovenEnabled = false;
 bool ovenHomed = false;
 bool ovenSolved = false;
-int ovenEncoderSteps = 0;
-int ovenLastClk = HIGH;
+int ovenLastPublishedValue = -1;
 unsigned long lockOffAt = 0;
 
 void resetOvenAndOutputs();
@@ -104,42 +104,54 @@ void clearThermometer() {
     updateThermometer(OVEN_MIN_VALUE);
 }
 
+int readOvenPotValue() {
+    int rawReading = analogRead(OVEN_POT_PIN);
+    return ovenValueFromPotReading(
+        rawReading,
+        OVEN_POT_MIN_READING,
+        OVEN_POT_MAX_READING,
+        OVEN_MIN_VALUE,
+        OVEN_MAX_VALUE
+    );
+}
+
+void publishAndDisplayOvenValue(int ovenValue, bool forcePublish = false) {
+    updateThermometer(ovenValue);
+
+    if (
+        forcePublish ||
+        ovenLastPublishedValue < 0 ||
+        abs(ovenValue - ovenLastPublishedValue) >= OVEN_POSITION_PUBLISH_DELTA
+    ) {
+        publishOvenDegrees(ovenValue);
+        ovenLastPublishedValue = ovenValue;
+    }
+}
+
 void checkHomeSensor() {
     if (!ovenEnabled || ovenHomed || digitalRead(OVEN_HOME_SENSOR_PIN) != HIGH) {
         return;
     }
 
     ovenHomed = true;
-    ovenEncoderSteps = 0;
-    ovenLastClk = digitalRead(OVEN_ENCODER_CLK_PIN);
     publishEvent(EscapeTopic::OVEN_HOME_DETECTED, "oven dial home detected");
-    publishOvenDegrees(OVEN_MIN_VALUE);
-    updateThermometer(OVEN_MIN_VALUE);
+    publishAndDisplayOvenValue(readOvenPotValue(), true);
 }
 
-void checkOvenEncoder() {
+void checkOvenPotentiometer() {
     if (!ovenEnabled || !ovenHomed || ovenSolved) {
         return;
     }
 
-    int clk = digitalRead(OVEN_ENCODER_CLK_PIN);
+    int ovenValue = readOvenPotValue();
+    publishAndDisplayOvenValue(ovenValue);
 
-    if (clk != ovenLastClk && clk == LOW) {
-        int dt = digitalRead(OVEN_ENCODER_DT_PIN);
-        ovenEncoderSteps += dt == HIGH ? 1 : -1;
-
-        int ovenValue = encoderDegreesFromSteps(ovenEncoderSteps, OVEN_DEGREES_PER_STEP);
-        publishOvenDegrees(ovenValue);
-        updateThermometer(ovenValue);
-
-        if (dialIsAtTarget(ovenValue, OVEN_TARGET_VALUE, OVEN_TARGET_TOLERANCE)) {
-            ovenSolved = true;
-            publishEvent(EscapeTopic::OVEN_TARGET_REACHED, "oven target reached");
-            setLock(true);
-        }
+    if (ovenValueIsAtTarget(ovenValue, OVEN_TARGET_VALUE, OVEN_TARGET_TOLERANCE)) {
+        ovenSolved = true;
+        publishAndDisplayOvenValue(ovenValue, true);
+        publishEvent(EscapeTopic::OVEN_TARGET_REACHED, "oven target reached");
+        setLock(true);
     }
-
-    ovenLastClk = clk;
 }
 
 void handleMessage(char* topic, byte* payload, unsigned int length) {
@@ -158,8 +170,7 @@ void handleMessage(char* topic, byte* payload, unsigned int length) {
         ovenEnabled = message != "off";
         ovenSolved = false;
         ovenHomed = false;
-        ovenEncoderSteps = 0;
-        ovenLastClk = digitalRead(OVEN_ENCODER_CLK_PIN);
+        ovenLastPublishedValue = -1;
         clearThermometer();
     } else if (topicText == EscapeTopic::UNLOCK_ELECTROMAG_LOCK || topicText == EscapeTopic::LEGACY_LOCK_TRIGGER) {
         setLock(message != "off");
@@ -223,8 +234,7 @@ void resetOvenAndOutputs() {
     ovenEnabled = false;
     ovenHomed = false;
     ovenSolved = false;
-    ovenEncoderSteps = 0;
-    ovenLastClk = digitalRead(OVEN_ENCODER_CLK_PIN);
+    ovenLastPublishedValue = -1;
     setLock(false);
     digitalWrite(SMART_FILM_PIN, LOW);
     digitalWrite(LED_PIN, LOW);
@@ -242,9 +252,9 @@ void setup() {
     pinMode(RST_PIN, INPUT_PULLUP);
     pinMode(SMART_FILM_PIN, OUTPUT);
     pinMode(LOCK_PIN, OUTPUT);
-    pinMode(OVEN_ENCODER_CLK_PIN, INPUT_PULLUP);
-    pinMode(OVEN_ENCODER_DT_PIN, INPUT_PULLUP);
+    pinMode(OVEN_POT_PIN, INPUT);
     pinMode(OVEN_HOME_SENSOR_PIN, INPUT);
+    analogReadResolution(12);
 
     thermometerStrip.begin();
     thermometerStrip.setBrightness(THERMOMETER_BRIGHTNESS);
@@ -272,7 +282,7 @@ void loop() {
     }
 
     checkHomeSensor();
-    checkOvenEncoder();
+    checkOvenPotentiometer();
 
     if (lockOffAt != 0 && millis() >= lockOffAt) {
         setLock(false);

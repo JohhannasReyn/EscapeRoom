@@ -166,13 +166,13 @@ int main() {
     assert(sawLegacyOvenEnable == true);
 
     assert(controller.handleMessage(EscapeTopic::OVEN_POSITION_UPDATE, "370") == true);
-    assert(controller.lastOvenDegrees() == 10);
+    assert(controller.lastOvenDegrees() == 370);
     assert(controller.handleMessage(EscapeTopic::OVEN_POSITION_UPDATE, "-1") == true);
-    assert(controller.lastOvenDegrees() == 359);
+    assert(controller.lastOvenDegrees() == 0);
     assert(controller.handleMessage(EscapeTopic::OVEN_POSITION_UPDATE, "720") == true);
-    assert(controller.lastOvenDegrees() == 0);
+    assert(controller.lastOvenDegrees() == 500);
     assert(controller.handleMessage(EscapeTopic::OVEN_POSITION_UPDATE, "120abc") == true);
-    assert(controller.lastOvenDegrees() == 0);
+    assert(controller.lastOvenDegrees() == 500);
 
     assert(controller.handleMessage(EscapeTopic::OVEN_TARGET_REACHED, "350") == true);
     assert(controller.currentState() == RoomState::ELECTROMAGNETIC_LOCK_RELEASED);

@@ -4,8 +4,7 @@ Hardware:
 - GPIO 15: smart film relay/driver input
 - GPIO 17: small addressable LED thermometer strip DIN
 - GPIO 18: electromagnetic lock relay/driver input
-- GPIO 19: oven rotary encoder CLK
-- GPIO 20: oven rotary encoder DT
+- GPIO 26 / ADC0: oven potentiometer wiper
 - GPIO 21: oven home magnetic sensor
 
 Main topics:
@@ -26,4 +25,4 @@ The oven knob puzzle remains disabled until the Raspberry Pi receives the correc
 The lock only releases after:
 - oven knob puzzle is enabled
 - home magnetic sensor calibrates the dial
-- encoder-derived value reaches 350 within tolerance
+- potentiometer-derived value reaches 350 within tolerance

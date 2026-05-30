@@ -42,8 +42,8 @@ $tests = @(
         Includes = @("shared")
     },
     @{
-        Name = "encoder_dial_test"
-        Sources = @("tests\encoder_dial_test.cpp")
+        Name = "oven_dial_test"
+        Sources = @("tests\oven_dial_test.cpp")
         Includes = @("shared")
     },
     @{
