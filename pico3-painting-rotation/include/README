@@ -1,9 +1,8 @@
 Pico 3 active firmware: painting rotation puzzle.
 
-This folder name is historical. It no longer drives the TV wall trigger.
-Archived TV wall code is in:
+This folder is the active Pico 3 project. The old TV wall trigger code is archived in:
 
-../../pico-back-room-blender-final/unused-future-puzzles/
+../../pico6-unused-future-puzzles/unused-future-puzzles/
 
 Hardware:
 - GPIO 15: RC35 magnetic sensor, reed switch, or equivalent hall-style sensor
@@ -14,4 +13,4 @@ Main topics:
 - Subscribes escape/cmd/all/status_request
 - Subscribes escape/cmd/all/reset_puzzle
 
-The Raspberry Pi plays assets/crashing_plates.m4a when this puzzle completes.
+The Raspberry Pi plays assets/audio/crashing_plates.m4a when this puzzle completes.

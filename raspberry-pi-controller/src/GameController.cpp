@@ -1,8 +1,8 @@
 #include "GameController.h"
 
-#include "../../shared/EncoderDial.h"
-#include "../../shared/EscapeRoomProtocol.h"
-#include "../../shared/PostState.h"
+#include "EncoderDial.h"
+#include "EscapeRoomProtocol.h"
+#include "PostState.h"
 
 #include <cctype>
 #include <iostream>

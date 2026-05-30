@@ -1,6 +1,6 @@
 #include "CopperPuzzle.h"
 
-#include "../../../shared/EscapeRoomProtocol.h"
+#include "EscapeRoomProtocol.h"
 
 #include <iostream>
 

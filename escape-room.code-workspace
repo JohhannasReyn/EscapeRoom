@@ -2,27 +2,27 @@
 	"folders": [
 		{
 			"name": "pico1-cubby-approach-leds",
-			"path": "escape-room-pico"
+			"path": "pico1-cubby-approach-leds"
 		},
 		{
 			"name": "pico2-copper-final-piece",
-			"path": "pico-cabinet-dowels-wine"
+			"path": "pico2-copper-final-piece"
 		},
 		{
 			"name": "pico3-painting-rotation",
-			"path": "pico-tv-wall"
+			"path": "pico3-painting-rotation"
 		},
 		{
 			"name": "pico4-smart-film-oven",
-			"path": "pico-fireplace-reveal-effects"
+			"path": "pico4-smart-film-oven"
 		},
 		{
 			"name": "pico5-color-buttons",
-			"path": "pico-phone-window-props"
+			"path": "pico5-color-buttons"
 		},
 		{
 			"name": "pico6-unused-future-puzzles",
-			"path": "pico-back-room-blender-final"
+			"path": "pico6-unused-future-puzzles"
 		},
 		{
 			"name": "raspberry-pi-controller",

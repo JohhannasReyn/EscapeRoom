@@ -1,9 +1,8 @@
 Pico 2 active firmware: copper puzzle and final puzzle piece.
 
-This folder name is historical. It no longer runs the dowels/wine puzzle.
-Archived dowels/wine code is in:
+This folder is the active Pico 2 project. The old dowels/wine puzzle code is archived in:
 
-../../pico-back-room-blender-final/unused-future-puzzles/
+../../pico6-unused-future-puzzles/unused-future-puzzles/
 
 Hardware:
 - GPIO 15: copper puzzle complete contact

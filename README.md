@@ -21,14 +21,13 @@ The Raspberry Pi remains the central brain. Picos report state changes; the Pi c
 ```text
 EscapeRoom/
 ├── assets/
-│   ├── crashing_plates.m4a
-│   └── plates_crashing.m4a
-├── escape-room-pico/                  Pico 1 active firmware
-├── pico-cabinet-dowels-wine/          Pico 2 active firmware, historical folder name
-├── pico-tv-wall/                      Pico 3 active firmware, historical folder name
-├── pico-fireplace-reveal-effects/     Pico 4 active firmware, historical folder name
-├── pico-phone-window-props/           Pico 5 active firmware, historical folder name
-├── pico-back-room-blender-final/      Pico 6 unused / future puzzle archive
+│   └── crashing_plates.m4a
+├── pico1-cubby-approach-leds/         Pico 1 active firmware
+├── pico2-copper-final-piece/          Pico 2 active firmware
+├── pico3-painting-rotation/           Pico 3 active firmware
+├── pico4-smart-film-oven/             Pico 4 active firmware
+├── pico5-color-buttons/               Pico 5 active firmware
+├── pico6-unused-future-puzzles/       Pico 6 unused / future puzzle archive
 │   └── unused-future-puzzles/
 ├── raspberry-pi-controller/
 ├── shared/
@@ -36,7 +35,7 @@ EscapeRoom/
 └── tools/
 ```
 
-The folder names are partly historical so existing PlatformIO workspace references keep working. Use the Pico number and README mapping below as the authority.
+The Pico folder names now match the active puzzle structure. Pico 6 remains a holding area for archived puzzle code that may be restored or repurposed later.
 
 ---
 
@@ -44,12 +43,12 @@ The folder names are partly historical so existing PlatformIO workspace referenc
 
 | Pico | Folder | Active Hardware | Responsibility |
 | --- | --- | --- | --- |
-| Pico 1 | `escape-room-pico` | 15m 5V addressable cubby LEDs, VL53L0Xv2 distance sensor | Detect cubby approach and illuminate cubbies when instructed |
-| Pico 2 | `pico-cabinet-dowels-wine` | Copper puzzle contacts, final puzzle piece contact | Report copper completion and final piece placement |
-| Pico 3 | `pico-tv-wall` | RC35 or equivalent magnetic/reed/hall sensor | Report correct painting rotation |
-| Pico 4 | `pico-fireplace-reveal-effects` | Smart film, oven knob encoder, home sensor, electromagnetic lock, 10-15 LED thermometer strip | Reveal smart film, track oven knob, drive thermometer, unlock at 350 |
-| Pico 5 | `pico-phone-window-props` | Color-coded buttons | Report correct button sequence |
-| Pico 6 | `pico-back-room-blender-final` | None in active runtime | Stores unused/future puzzle code |
+| Pico 1 | `pico1-cubby-approach-leds` | 15m 5V addressable cubby LEDs, VL53L0Xv2 distance sensor | Detect cubby approach and illuminate cubbies when instructed |
+| Pico 2 | `pico2-copper-final-piece` | Copper puzzle contacts, final puzzle piece contact | Report copper completion and final piece placement |
+| Pico 3 | `pico3-painting-rotation` | RC35 or equivalent magnetic/reed/hall sensor | Report correct painting rotation |
+| Pico 4 | `pico4-smart-film-oven` | Smart film, oven knob encoder, home sensor, electromagnetic lock, 10-15 LED thermometer strip | Reveal smart film, track oven knob, drive thermometer, unlock at 350 |
+| Pico 5 | `pico5-color-buttons` | Color-coded buttons | Report correct button sequence |
+| Pico 6 | `pico6-unused-future-puzzles` | None in active runtime | Stores unused/future puzzle code |
 
 ---
 
@@ -212,7 +211,7 @@ External 5V supply - -> Pico GND
 Pico GPIO 17        -> LED strip DIN through a 330-470 ohm resistor
 ```
 
-Pico 1 power-caps the LED strip using constants near the top of `escape-room-pico/src/main.cpp`:
+Pico 1 power-caps the LED strip using constants near the top of `pico1-cubby-approach-leds/src/main.cpp`:
 
 ```cpp
 constexpr int LED_SUPPLY_MA = 3000;
@@ -256,7 +255,7 @@ GPIO 20 -> oven rotary encoder DT
 GPIO 21 -> oven home magnetic sensor
 ```
 
-Oven constants are centralized near the top of `pico-fireplace-reveal-effects/src/main.cpp`:
+Oven constants are centralized near the top of `pico4-smart-film-oven/src/main.cpp`:
 
 ```cpp
 constexpr int OVEN_MIN_VALUE = 0;
@@ -283,7 +282,7 @@ GPIO 15 -> first configured color button
 GPIO 16 -> second configured color button
 ```
 
-TODO: set the real color-button sequence in `pico-phone-window-props/src/main.cpp` once the physical code is finalized:
+TODO: set the real color-button sequence in `pico5-color-buttons/src/main.cpp` once the physical code is finalized:
 
 ```cpp
 constexpr const char* CORRECT_SEQUENCE = "";
@@ -298,7 +297,7 @@ Pico 6 is not wired into the active runtime flow.
 Archived source/config snapshots live here:
 
 ```text
-pico-back-room-blender-final/unused-future-puzzles/
+pico6-unused-future-puzzles/unused-future-puzzles/
 ```
 
 Current archive contents include the old dowels/wine, TV wall, phone/window, and blender/final firmware/config snapshots.
@@ -329,7 +328,7 @@ Each Pico folder is an independent PlatformIO project. Update WiFi and broker bu
 ```ini
 -D WIFI_SSID=\"YOUR_WIFI_NAME\"
 -D WIFI_PASS=\"YOUR_WIFI_PASSWORD\"
--D MQTT_BROKER=\"192.168.1.42\"
+-D MQTT_BROKER=\"192.168.1.172\"
 ```
 
 The Raspberry Pi controller is a native Linux PlatformIO project. Install its system dependencies on the Pi:

@@ -5,7 +5,7 @@
 #include "effects/DisplayOutput.h"
 #include "effects/Effect.h"
 
-#include "../../shared/RoomState.h"
+#include "RoomState.h"
 
 #include <array>
 #include <deque>

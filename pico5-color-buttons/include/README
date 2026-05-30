@@ -1,9 +1,8 @@
 Pico 5 active firmware: color-coded button sequence.
 
-This folder name is historical. It no longer runs the phone/window prop puzzle.
-Archived phone/window code is in:
+This folder is the active Pico 5 project. The old phone/window prop code is archived in:
 
-../../pico-back-room-blender-final/unused-future-puzzles/
+../../pico6-unused-future-puzzles/unused-future-puzzles/
 
 Hardware:
 - GPIO 15: first configured color button

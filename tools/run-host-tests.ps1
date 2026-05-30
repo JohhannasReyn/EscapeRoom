@@ -18,8 +18,8 @@ $tests = @(
     },
     @{
         Name = "cubby_led_layout_test"
-        Sources = @("escape-room-pico\test\test_cubby_led_layout.cpp")
-        Includes = @("escape-room-pico\src")
+        Sources = @("pico1-cubby-approach-leds\test\test_cubby_led_layout.cpp")
+        Includes = @("pico1-cubby-approach-leds\src")
     },
     @{
         Name = "post_state_test"

@@ -39,14 +39,24 @@ std::string get_audio_file() {
 }
 
 std::string get_project_asset_file(const std::string& fileName) {
-    std::string repoRootPath = "./assets/" + fileName;
-    std::ifstream repoRootFile(repoRootPath);
+    const std::string candidates[] = {
+        get_home_dir() + "/escape-room/assets/" + fileName,
+        "/home/admin/escape-room/assets/" + fileName,
+        "./assets/" + fileName,
+        "../assets/" + fileName,
+        "./assets/audio/" + fileName,
+        "../assets/audio/" + fileName
+    };
 
-    if (repoRootFile.good()) {
-        return repoRootPath;
+    for (const auto& candidate : candidates) {
+        std::ifstream assetFile(candidate);
+
+        if (assetFile.good()) {
+            return candidate;
+        }
     }
 
-    return "../assets/" + fileName;
+    return get_home_dir() + "/escape-room/assets/" + fileName;
 }
 
 void publish_reset(struct mosquitto* mosq) {

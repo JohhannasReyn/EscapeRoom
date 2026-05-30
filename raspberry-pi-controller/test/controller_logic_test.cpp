@@ -8,9 +8,9 @@
 #include "../src/effects/DisplayOutput.h"
 #include "../src/puzzles/CopperPuzzle.h"
 #include "../src/puzzles/PlannedPuzzles.h"
-#include "../../shared/EscapeRoomProtocol.h"
-#include "../../shared/PostState.h"
-#include "../../shared/RoomState.h"
+#include "EscapeRoomProtocol.h"
+#include "PostState.h"
+#include "RoomState.h"
 
 class RecordingEffect : public Effect {
 public:
