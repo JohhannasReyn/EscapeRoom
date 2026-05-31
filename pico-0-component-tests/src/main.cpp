@@ -45,6 +45,7 @@ constexpr unsigned long OUTPUT_TOGGLE_MS = 1000;
 
 constexpr const char* TOPIC_ONLINE = "escape/debug/pico0/online";
 constexpr const char* TOPIC_CURRENT_TEST = "escape/debug/pico0/current_test";
+constexpr const char* TOPIC_WIRING = "escape/debug/pico0/wiring";
 constexpr const char* TOPIC_EVENT = "escape/debug/pico0/event";
 constexpr const char* TOPIC_TELEMETRY = "escape/debug/pico0/telemetry";
 constexpr const char* TOPIC_ERROR = "escape/debug/pico0/error";
@@ -85,6 +86,14 @@ void publishCurrentTest() {
     payload += ",running=";
     payload += testRunning ? "1" : "0";
     publishText(TOPIC_CURRENT_TEST, payload);
+}
+
+void publishWiringGuide() {
+    String payload = "test=";
+    payload += componentTestName(currentTest);
+    payload += ",wiring=";
+    payload += componentTestWiring(currentTest);
+    publishText(TOPIC_WIRING, payload);
 }
 
 void clearWs2812() {
@@ -147,6 +156,7 @@ void startTest(ComponentTest test) {
     event += componentTestName(currentTest);
     publishText(TOPIC_EVENT, event);
     publishCurrentTest();
+    publishWiringGuide();
 }
 
 void stopTest() {
@@ -154,6 +164,7 @@ void stopTest() {
     resetRuntimeState();
     publishText(TOPIC_EVENT, "stopped");
     publishCurrentTest();
+    publishWiringGuide();
 }
 
 void handleMessage(char* topic, byte* payload, unsigned int length) {
@@ -175,6 +186,7 @@ void handleMessage(char* topic, byte* payload, unsigned int length) {
         stopTest();
     } else if (topicText == TOPIC_STATUS) {
         publishCurrentTest();
+        publishWiringGuide();
     }
 }
 
@@ -221,6 +233,7 @@ void connectMQTT() {
             blink(3);
             publishText(TOPIC_ONLINE, "online");
             publishCurrentTest();
+            publishWiringGuide();
             return;
         }
 

@@ -52,6 +52,33 @@ inline ComponentTest componentTestFromName(const char* name) {
     return ComponentTest::Unknown;
 }
 
+inline const char* componentTestWiring(ComponentTest test) {
+    switch (test) {
+        case ComponentTest::Idle:
+            return "No active test selected. Wire one component, then publish a test name to escape/debug/pico0/set_test.";
+        case ComponentTest::Ws2812:
+            return "WS2812B: 5V supply + -> LED 5V+, 5V supply - -> LED GND, Pico GND -> LED GND, Pico GPIO17 -> 330-470 ohm resistor -> LED DIN.";
+        case ComponentTest::Pir:
+            return "PIR: PIR VCC -> 5V supply or Pico 3V3 if supported, PIR GND -> Pico GND and supply GND, PIR OUT -> Pico GPIO6. Confirm OUT is not 5V before connecting.";
+        case ComponentTest::MagneticSwitch:
+            return "Magnetic switch: Pico GPIO15 -> one side of switch, Pico GND -> other side. Uses INPUT_PULLUP, idle=1, closed/triggered=0.";
+        case ComponentTest::CopperContact:
+            return "Copper contact: Pico GPIO15 -> one copper contact, Pico GND -> other contact. Uses INPUT_PULLUP, open=1, connected=0.";
+        case ComponentTest::Button:
+            return "Button: Pico GPIO15 -> one side of button, Pico GND -> other side. Uses INPUT_PULLUP, released=1, pressed=0.";
+        case ComponentTest::Potentiometer:
+            return "Potentiometer: Pico 3V3 -> one outer leg, Pico GND -> other outer leg, Pico GPIO26/ADC0 -> center wiper.";
+        case ComponentTest::RelayLock:
+            return "Relay lock output: Pico GPIO18 -> relay IN, Pico GND -> relay GND, relay VCC -> module supply. Test relay before connecting a real lock.";
+        case ComponentTest::SmartFilmRelay:
+            return "Smart film relay output: Pico GPIO15 -> relay/driver IN, Pico GND -> relay/driver GND, driver VCC -> module supply. Test driver before connecting smart film.";
+        case ComponentTest::Unknown:
+            return "Unknown test. Valid names: idle, ws2812, pir, magnetic_switch, copper_contact, button, potentiometer, relay_lock, smart_film_relay.";
+    }
+
+    return "Unknown test.";
+}
+
 inline int wrapLedIndex(int step, int ledCount) {
     if (ledCount <= 0) {
         return 0;

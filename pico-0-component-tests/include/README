@@ -18,6 +18,7 @@ MQTT debug output topics:
 ```text
 escape/debug/pico0/online
 escape/debug/pico0/current_test
+escape/debug/pico0/wiring
 escape/debug/pico0/event
 escape/debug/pico0/telemetry
 escape/debug/pico0/error
@@ -46,6 +47,16 @@ mosquitto_pub -h localhost -t escape/debug/pico0/set_test -m pir
 mosquitto_pub -h localhost -t escape/debug/pico0/stop -m stop
 mosquitto_pub -h localhost -t escape/debug/pico0/status -m status
 ```
+
+Whenever a test starts or status is requested, the Pico publishes the expected
+pin connections to:
+
+```text
+escape/debug/pico0/wiring
+```
+
+This makes the Raspberry Pi terminal act like a wiring checklist before each
+test runs.
 
 WS2812B LED strip test:
 

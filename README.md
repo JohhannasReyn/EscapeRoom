@@ -231,6 +231,12 @@ mosquitto_pub -h localhost -t escape/debug/pico0/set_test -m smart_film_relay
 mosquitto_pub -h localhost -t escape/debug/pico0/stop -m stop
 ```
 
+When a test starts, Pico 0 publishes the expected wiring checklist to:
+
+```text
+escape/debug/pico0/wiring
+```
+
 WS2812B LED strip diagnostic wiring:
 
 ```text

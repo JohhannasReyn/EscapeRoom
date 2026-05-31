@@ -24,6 +24,17 @@ int main() {
     assert(componentTestFromName("smart_film_relay") == ComponentTest::SmartFilmRelay);
     assert(componentTestFromName("nope") == ComponentTest::Unknown);
 
+    assert(std::string(componentTestWiring(ComponentTest::Idle)).find("No active test") != std::string::npos);
+    assert(std::string(componentTestWiring(ComponentTest::Ws2812)).find("GPIO17") != std::string::npos);
+    assert(std::string(componentTestWiring(ComponentTest::Pir)).find("GPIO6") != std::string::npos);
+    assert(std::string(componentTestWiring(ComponentTest::MagneticSwitch)).find("GPIO15") != std::string::npos);
+    assert(std::string(componentTestWiring(ComponentTest::CopperContact)).find("GPIO15") != std::string::npos);
+    assert(std::string(componentTestWiring(ComponentTest::Button)).find("GPIO15") != std::string::npos);
+    assert(std::string(componentTestWiring(ComponentTest::Potentiometer)).find("GPIO26") != std::string::npos);
+    assert(std::string(componentTestWiring(ComponentTest::RelayLock)).find("GPIO18") != std::string::npos);
+    assert(std::string(componentTestWiring(ComponentTest::SmartFilmRelay)).find("GPIO15") != std::string::npos);
+    assert(std::string(componentTestWiring(ComponentTest::Unknown)).find("Valid names") != std::string::npos);
+
     assert(rainbowColorForStep(0).r == 255);
     assert(rainbowColorForStep(0).g == 0);
     assert(rainbowColorForStep(0).b == 0);
