@@ -346,10 +346,16 @@ void on_message(struct mosquitto* mosq, void* userdata, const struct mosquitto_m
         payload.assign(static_cast<char*>(msg->payload), msg->payloadlen);
     }
 
+    bool isTelemetry = topic.rfind("escape/telemetry/", 0) == 0;
+
     std::cout << std::endl;
-    std::cout << "MQTT message received." << std::endl;
+    std::cout << (isTelemetry ? "Sensor telemetry received." : "MQTT message received.") << std::endl;
     std::cout << "Topic: " << topic << std::endl;
     std::cout << "Payload: " << payload << std::endl;
+
+    if (isTelemetry) {
+        return;
+    }
 
     auto* controller = static_cast<GameController*>(userdata);
 
