@@ -42,6 +42,11 @@ $tests = @(
         Includes = @("shared")
     },
     @{
+        Name = "component_diagnostics_test"
+        Sources = @("tests\component_diagnostics_test.cpp")
+        Includes = @("pico-0-component-tests\src")
+    },
+    @{
         Name = "oven_dial_test"
         Sources = @("tests\oven_dial_test.cpp")
         Includes = @("shared")

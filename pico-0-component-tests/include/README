@@ -1,0 +1,164 @@
+Pico 0 component diagnostic firmware.
+
+Use this project when debugging one component at a time before wiring it into an
+active puzzle Pico. Upload it to a Raspberry Pi Pico W, wire exactly one device,
+then choose the test from the Raspberry Pi using MQTT.
+
+MQTT command topics:
+
+```text
+escape/debug/pico0/set_test
+escape/debug/pico0/start
+escape/debug/pico0/stop
+escape/debug/pico0/status
+```
+
+MQTT debug output topics:
+
+```text
+escape/debug/pico0/online
+escape/debug/pico0/current_test
+escape/debug/pico0/event
+escape/debug/pico0/telemetry
+escape/debug/pico0/error
+```
+
+Available tests:
+
+```text
+idle
+ws2812
+pir
+magnetic_switch
+copper_contact
+button
+potentiometer
+relay_lock
+smart_film_relay
+```
+
+Example commands from the Raspberry Pi:
+
+```bash
+mosquitto_sub -h localhost -v -t 'escape/debug/pico0/#'
+mosquitto_pub -h localhost -t escape/debug/pico0/set_test -m ws2812
+mosquitto_pub -h localhost -t escape/debug/pico0/set_test -m pir
+mosquitto_pub -h localhost -t escape/debug/pico0/stop -m stop
+mosquitto_pub -h localhost -t escape/debug/pico0/status -m status
+```
+
+WS2812B LED strip test:
+
+```text
+5V USB pigtail + -> LED strip 5V+
+5V USB pigtail - -> LED strip GND
+Pico GND         -> LED strip GND
+Pico GPIO 17     -> 330-470 ohm resistor -> LED strip DIN
+```
+
+Use the strip input side marked DIN or the side the arrows point away from. The
+test lights LEDs 0 through 20 one at a time every 200ms, cycles through a rainbow
+gradient, waits 1500ms, clears the strip, and repeats.
+
+If the test publishes telemetry but the strip stays dark, check these in order:
+
+1. LED strip GND and Pico GND are directly connected.
+2. USB pigtail 5V+ and GND are actually powered.
+3. GPIO 17 is wired to DIN, not DOUT.
+4. The strip is WS2812B/NeoPixel-compatible.
+5. Try a 3.3V-to-5V data level shifter such as 74AHCT125.
+6. Try a short strip segment in case the first pixel is damaged.
+
+PIR motion test:
+
+```text
+PIR VCC -> 5V supply, or Pico 3V3 if your PIR supports 3.3V
+PIR GND -> Pico GND and supply GND
+PIR OUT -> Pico GPIO 6
+```
+
+Many PIR sensors need 30-60 seconds of warm-up after power is applied. They
+detect body heat moving across zones, so a hand directly over the dome may not
+always trigger as clearly as stepping sideways in front of it. If PIR OUT is 5V,
+use a level shifter or resistor divider before Pico GPIO 6.
+
+Magnetic switch test:
+
+```text
+Pico GPIO 15 -> one side of reed/magnetic switch
+Pico GND     -> other side of reed/magnetic switch
+```
+
+The firmware uses INPUT_PULLUP for this test. The idle state should read 1, and
+the triggered/closed state should read 0.
+
+Copper contact test:
+
+```text
+Pico GPIO 15 -> one copper contact
+Pico GND     -> other copper contact
+```
+
+The firmware uses INPUT_PULLUP. When the copper path closes, the state should
+change from 1 to 0 and the trigger counter should increase.
+
+Button test:
+
+```text
+Pico GPIO 15 -> one side of button
+Pico GND     -> other side of button
+```
+
+The firmware uses INPUT_PULLUP. Pressed should read 0.
+
+Potentiometer test:
+
+```text
+Pico 3V3 OUT -> one outer potentiometer leg
+Pico GND     -> other outer potentiometer leg
+Pico GPIO 26 / ADC0 -> center wiper leg
+```
+
+Telemetry reports raw 12-bit ADC values from 0 to 4095 plus an approximate
+percent value.
+
+Relay / electromagnetic lock output test:
+
+```text
+Pico GPIO 18 -> relay module IN
+Pico GND     -> relay module GND
+Relay VCC    -> relay module supply required by your module
+```
+
+This test toggles GPIO 18 every second. Do not connect a real lock until the
+relay module toggles correctly with a meter or indicator LED.
+
+Smart film relay output test:
+
+```text
+Pico GPIO 15 -> relay/driver IN
+Pico GND     -> relay/driver GND
+Driver VCC   -> driver supply required by your module
+```
+
+This test toggles GPIO 15 every second. Test the relay/driver first before
+connecting the actual smart film power circuit.
+
+Raspberry Pi sound and display diagnostics:
+
+Sound and TV/display output are Raspberry Pi controller responsibilities, so
+they are not wired to this Pico diagnostic project.
+
+To test the crashing plates file directly on the Raspberry Pi:
+
+```bash
+ffplay -nodisp -autoexit /home/admin/escape-room/assets/crashing_plates.m4a
+```
+
+To verify the controller-side message path, run the Raspberry Pi controller and
+watch the terminal for display output when the room reaches the color-button
+stage. The expected message is:
+
+```text
+Bake at 350 Degrees
+```

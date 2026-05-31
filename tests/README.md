@@ -17,6 +17,7 @@ The tests cover:
 - Debounced puzzle input timing
 - Timed relay/output pulse behavior
 - Cubby LED current estimates, invalid power settings, and automatic brightness capping math
+- Component diagnostic test selection names, LED index wrapping, and rainbow color helper behavior
 - Oven dial math for potentiometer scaling, the 350-degree target, and tolerance edges
 - Oven thermometer LED band/progression math
 - Shared protocol topic names

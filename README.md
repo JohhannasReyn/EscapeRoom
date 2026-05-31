@@ -22,6 +22,7 @@ The Raspberry Pi remains the central brain. Picos report state changes; the Pi c
 EscapeRoom/
 ├── assets/
 │   └── crashing_plates.m4a
+├── pico-0-component-tests/            Standalone component diagnostic firmware
 ├── pico1-cubby-approach-leds/         Pico 1 active firmware
 ├── pico2-copper-final-piece/          Pico 2 active firmware
 ├── pico3-painting-rotation/           Pico 3 active firmware
@@ -36,6 +37,8 @@ EscapeRoom/
 ```
 
 The Pico folder names now match the active puzzle structure. Pico 6 remains a holding area for archived puzzle code that may be restored or repurposed later.
+
+`pico-0-component-tests` is not part of the active room runtime. It is a bench-test project for one component at a time before that component is added to a puzzle Pico.
 
 ---
 
@@ -202,6 +205,49 @@ escape/lock/trigger
 
 Pin numbers are GPIO numbers, not physical header pin numbers.
 
+### Pico 0: Component Diagnostics
+
+Project: `pico-0-component-tests`
+
+Use this project when a component needs to be tested by itself. Upload it to a spare Pico W, wire one component, subscribe to the debug topics from the Raspberry Pi, then select the test over MQTT.
+
+Debug monitor:
+
+```bash
+mosquitto_sub -h localhost -v -t 'escape/debug/pico0/#'
+```
+
+Select a test:
+
+```bash
+mosquitto_pub -h localhost -t escape/debug/pico0/set_test -m ws2812
+mosquitto_pub -h localhost -t escape/debug/pico0/set_test -m pir
+mosquitto_pub -h localhost -t escape/debug/pico0/set_test -m magnetic_switch
+mosquitto_pub -h localhost -t escape/debug/pico0/set_test -m copper_contact
+mosquitto_pub -h localhost -t escape/debug/pico0/set_test -m button
+mosquitto_pub -h localhost -t escape/debug/pico0/set_test -m potentiometer
+mosquitto_pub -h localhost -t escape/debug/pico0/set_test -m relay_lock
+mosquitto_pub -h localhost -t escape/debug/pico0/set_test -m smart_film_relay
+mosquitto_pub -h localhost -t escape/debug/pico0/stop -m stop
+```
+
+WS2812B LED strip diagnostic wiring:
+
+```text
+5V USB pigtail + -> LED strip 5V+
+5V USB pigtail - -> LED strip GND
+Pico GND         -> LED strip GND
+Pico GPIO 17     -> 330-470 ohm resistor -> LED strip DIN
+```
+
+The NeoPixel library is installed by PlatformIO through `lib_deps` in `pico-0-component-tests/platformio.ini`; it does not belong in `build_flags`.
+
+The LED test lights pixels 0 through 20 one at a time every 200ms, cycles through a rainbow gradient, waits 1500ms, clears the strip, and repeats. If MQTT telemetry says the test is running but the strip stays dark, check shared ground, 5V power, DIN vs DOUT direction, GPIO 17 placement, the first LED, and whether the strip needs a 3.3V-to-5V data level shifter.
+
+Detailed one-component-at-a-time wiring notes are in `pico-0-component-tests/include/README`.
+
+Sound effects and TV/display messages are Raspberry Pi controller outputs, not Pico 0 pin tests. The diagnostic README includes direct Raspberry Pi checks for `crashing_plates.m4a` and the `Bake at 350 Degrees` display message path.
+
 ### Pico 1: Cubby Approach and LEDs
 
 ```text
@@ -350,6 +396,12 @@ board_build.core = earlephilhower
 ```
 
 The Pico W projects use the Earle Philhower Raspberry Pi Arduino core through the Max Gerhardt PlatformIO package. This is intentional because the standard `platformio/raspberrypi` install may not expose the `rpipicow` board on every student machine.
+
+Build the component diagnostic project from `pico-0-component-tests/`:
+
+```bash
+pio run
+```
 
 The Raspberry Pi controller is a native Linux PlatformIO project. Install its system dependencies on the Pi:
 
