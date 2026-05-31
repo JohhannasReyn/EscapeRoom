@@ -1,9 +1,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <PubSubClient.h>
-#include <Wire.h>
 #include <Adafruit_NeoPixel.h>
-#include <VL53L0X.h>
 
 #include "CubbyLedLayout.h"
 #include "../../shared/EscapeRoomProtocol.h"
@@ -33,16 +31,12 @@
 constexpr int LED_PIN = LED_BUILTIN;
 constexpr int RST_PIN = 14;
 constexpr int CUBBY_LED_DATA_PIN = 17;
-constexpr int DISTANCE_SENSOR_SDA_PIN = 4;
-constexpr int DISTANCE_SENSOR_SCL_PIN = 5;
-constexpr int DISTANCE_SENSOR_XSHUT_PIN = 6;
-constexpr int DISTANCE_SENSOR_GPIO1_PIN = 7;
+constexpr int MOTION_SENSOR_PIN = 6;
 
 constexpr int CUBBY_COUNT = 6;
 constexpr int LEDS_PER_CUBBY = 30;
 constexpr int LEDS_BETWEEN_CUBBIES = 3;
 constexpr int CUBBY_LED_BRIGHTNESS = 80;
-constexpr int CUBBY_ACTIVE_DISTANCE_MM = 650;
 constexpr int STARTUP_CUBBY_STEP_MS = 300;
 constexpr int STARTUP_ALL_WHITE_MS = 800;
 constexpr int LED_SUPPLY_MA = 3000;
@@ -51,25 +45,20 @@ constexpr int LED_CURRENT_BUDGET_MA = LED_SUPPLY_MA - LED_POWER_HEADROOM_MA;
 constexpr int LED_FULL_WHITE_CURRENT_MA = 60;
 
 constexpr unsigned long MQTT_RETRY_MS = 3000;
-constexpr unsigned long DISTANCE_READ_MS = 100;
 constexpr unsigned long SENSOR_TELEMETRY_MS = 1000;
-constexpr unsigned long DISTANCE_SENSOR_INIT_RETRY_MS = 2000;
+constexpr unsigned long MOTION_DEBOUNCE_MS = 250;
 
 constexpr int TOTAL_CUBBY_LEDS = totalCubbyLedCount(CUBBY_COUNT, LEDS_PER_CUBBY, LEDS_BETWEEN_CUBBIES);
 
 WiFiClient wifiClient;
 PubSubClient mqtt(wifiClient);
 Adafruit_NeoPixel cubbyStrip(TOTAL_CUBBY_LEDS, CUBBY_LED_DATA_PIN, NEO_GRB + NEO_KHZ800);
-VL53L0X distanceSensor;
 
-bool distanceSensorReady = false;
 bool approachTriggered = false;
 bool readyForGameplay = false;
-unsigned long lastDistanceRead = 0;
 unsigned long lastSensorTelemetry = 0;
-unsigned long lastDistanceSensorInit = 0;
-uint16_t lastDistanceMm = 0;
-const char* distanceSensorStatus = "not_started";
+int motionLastState = LOW;
+unsigned long motionStableStart = 0;
 RgbColor cubbyColors[CUBBY_COUNT] = {};
 
 void resetController(bool readyAfterReset = true);
@@ -272,12 +261,10 @@ void publishSensorTelemetry() {
     }
 
     lastSensorTelemetry = millis();
-    String payload = "ready=" + String(distanceSensorReady ? 1 : 0);
-    payload += ",status=" + String(distanceSensorStatus);
-    payload += ",distance_mm=" + String(lastDistanceMm);
+    String payload = "ready=1";
+    payload += ",motion=" + String(digitalRead(MOTION_SENSOR_PIN));
     payload += ",approach_triggered=" + String(approachTriggered ? 1 : 0);
-    payload += ",gpio1=" + String(digitalRead(DISTANCE_SENSOR_GPIO1_PIN));
-    mqtt.publish("escape/telemetry/pico1/vl53l0x", payload.c_str());
+    mqtt.publish("escape/telemetry/pico1/motion", payload.c_str());
 }
 
 void resetController(bool readyAfterReset) {
@@ -290,53 +277,20 @@ void resetController(bool readyAfterReset) {
     }
 }
 
-void setupDistanceSensor() {
-    lastDistanceSensorInit = millis();
-    distanceSensorReady = false;
-    distanceSensorStatus = "initializing";
-
-    pinMode(DISTANCE_SENSOR_XSHUT_PIN, OUTPUT);
-    pinMode(DISTANCE_SENSOR_GPIO1_PIN, INPUT);
-
-    digitalWrite(DISTANCE_SENSOR_XSHUT_PIN, LOW);
-    delay(10);
-    digitalWrite(DISTANCE_SENSOR_XSHUT_PIN, HIGH);
-    delay(10);
-
-    Wire.setSDA(DISTANCE_SENSOR_SDA_PIN);
-    Wire.setSCL(DISTANCE_SENSOR_SCL_PIN);
-    Wire.begin();
-    distanceSensor.setTimeout(500);
-
-    if (!distanceSensor.init()) {
-        distanceSensorReady = false;
-        distanceSensorStatus = "init_failed";
-        Serial.println("VL53L0X distance sensor not found; cubby approach disabled.");
+void checkMotionApproach() {
+    if (!readyForGameplay || approachTriggered) {
         return;
     }
 
-    distanceSensor.startContinuous();
-    distanceSensorReady = true;
-    distanceSensorStatus = "ready";
-}
+    int motionState = digitalRead(MOTION_SENSOR_PIN);
+    unsigned long now = millis();
 
-void checkCubbyApproach() {
-    if (!readyForGameplay || !distanceSensorReady || approachTriggered || millis() - lastDistanceRead < DISTANCE_READ_MS) {
-        return;
+    if (motionState != motionLastState) {
+        motionLastState = motionState;
+        motionStableStart = now;
     }
 
-    lastDistanceRead = millis();
-    uint16_t distanceMm = distanceSensor.readRangeContinuousMillimeters();
-    lastDistanceMm = distanceMm;
-
-    if (distanceSensor.timeoutOccurred()) {
-        distanceSensorStatus = "read_timeout";
-        return;
-    }
-
-    distanceSensorStatus = "ready";
-
-    if (distanceMm <= CUBBY_ACTIVE_DISTANCE_MM) {
+    if (motionState == HIGH && now - motionStableStart >= MOTION_DEBOUNCE_MS) {
         approachTriggered = true;
         publishEvent(EscapeTopic::CUBBY_APPROACH_DETECTED, "approach detected");
     }
@@ -348,13 +302,15 @@ void setup() {
 
     pinMode(LED_PIN, OUTPUT);
     pinMode(RST_PIN, INPUT_PULLUP);
+    pinMode(MOTION_SENSOR_PIN, INPUT);
+    motionLastState = digitalRead(MOTION_SENSOR_PIN);
+    motionStableStart = millis();
 
     cubbyStrip.begin();
     cubbyStrip.setBrightness(CUBBY_LED_BRIGHTNESS);
     clearCubbyLights();
     runStartupLightPost();
 
-    setupDistanceSensor();
     connectWiFi();
     connectMQTT();
     readyForGameplay = true;
@@ -376,11 +332,7 @@ void loop() {
         delay(500);
     }
 
-    if (!distanceSensorReady && millis() - lastDistanceSensorInit >= DISTANCE_SENSOR_INIT_RETRY_MS) {
-        setupDistanceSensor();
-    }
-
-    checkCubbyApproach();
+    checkMotionApproach();
     publishSensorTelemetry();
     delay(50);
 }

@@ -43,7 +43,7 @@ The Pico folder names now match the active puzzle structure. Pico 6 remains a ho
 
 | Pico | Folder | Active Hardware | Responsibility |
 | --- | --- | --- | --- |
-| Pico 1 | `pico1-cubby-approach-leds` | 15m 5V addressable cubby LEDs, VL53L0Xv2 distance sensor | Detect cubby approach and illuminate cubbies when instructed |
+| Pico 1 | `pico1-cubby-approach-leds` | 15m 5V addressable cubby LEDs, PIR motion detector | Detect cubby approach and illuminate cubbies when instructed |
 | Pico 2 | `pico2-copper-final-piece` | Copper puzzle contacts, final puzzle piece contact | Report copper completion and final piece placement |
 | Pico 3 | `pico3-painting-rotation` | RC35 or equivalent magnetic/reed/hall sensor | Report correct painting rotation |
 | Pico 4 | `pico4-smart-film-oven` | Smart film, oven knob potentiometer, electromagnetic lock, 10-15 LED thermometer strip | Reveal smart film, track oven knob, drive thermometer, unlock at 350 |
@@ -55,7 +55,7 @@ The Pico folder names now match the active puzzle structure. Pico 6 remains a ho
 ## Event Chain
 
 1. Players approach the cubbies at the bottom of the stairs.
-2. Pico 1 detects approach with the VL53L0Xv2 sensor.
+2. Pico 1 detects approach with the PIR motion detector.
 3. Pico 1 publishes `escape/pico1/cubby_approach_detected`.
 4. Raspberry Pi tells Pico 1 to illuminate the first cubby.
 5. Players retrieve puzzle pieces.
@@ -161,7 +161,7 @@ escape/pico5/color_sequence_error
 Sensor telemetry from Picos:
 
 ```text
-escape/telemetry/pico1/vl53l0x
+escape/telemetry/pico1/motion
 escape/telemetry/pico2/contacts
 escape/telemetry/pico3/painting_sensor
 escape/telemetry/pico4/oven
@@ -207,11 +207,12 @@ Pin numbers are GPIO numbers, not physical header pin numbers.
 ```text
 GPIO 14 -> local reset button -> GND
 GPIO 17 -> cubby addressable LED strip DIN
-GPIO 6  -> VL53L0X XSHUT
-GPIO 7  -> VL53L0X GPIO1, optional/future interrupt
-GPIO 4  -> VL53L0X SDA
-GPIO 5  -> VL53L0X SCL
+GPIO 6  -> PIR motion detector OUT
+Pico 3V3 OUT or VBUS/5V -> PIR motion detector VCC
+Pico GND -> PIR motion detector GND
 ```
+
+Most HC-SR501-style PIR modules work best from 5V on VCC and output about 3.3V on OUT, which is safe for the Pico. If your specific motion detector outputs 5V on OUT, add a logic level shifter or resistor divider before connecting it to GPIO 6.
 
 LED power:
 
@@ -374,7 +375,7 @@ Run host-side tests from the repository root on Windows:
 
 ## Hardware TODOs
 
-- Confirm the exact VL53L0Xv2 board voltage and pinout before wiring Pico 1.
+- Confirm the PIR motion detector output voltage before wiring its OUT pin to Pico GPIO 6.
 - Set the real `LEDS_PER_CUBBY` and `LEDS_BETWEEN_CUBBIES` after installing the 15m strip.
 - Confirm the RC35 sensor output behavior for Pico 3 painting detection.
 - Set the actual Pico 5 color-button sequence and add GPIO pins for any additional buttons.

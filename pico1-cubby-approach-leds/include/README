@@ -1,7 +1,7 @@
 Pico 1 active firmware: cubby approach and addressable cubby LEDs.
 
 Hardware:
-- VL53L0Xv2 distance sensor
+- PIR motion detector
 - 15m 5V addressable LED strip for cubbies
 
 Main topics:
