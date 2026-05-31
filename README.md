@@ -158,6 +158,18 @@ escape/pico5/color_sequence_complete
 escape/pico5/color_sequence_error
 ```
 
+Sensor telemetry from Picos:
+
+```text
+escape/telemetry/pico1/vl53l0x
+escape/telemetry/pico2/contacts
+escape/telemetry/pico3/painting_sensor
+escape/telemetry/pico4/oven
+escape/telemetry/pico5/buttons
+```
+
+The Raspberry Pi controller subscribes to `escape/telemetry/#` and prints these payloads in the terminal for live hardware testing. Telemetry is separate from game event topics, so it should not advance the room state.
+
 Commands from Raspberry Pi:
 
 ```text

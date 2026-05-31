@@ -22,6 +22,7 @@ int main() {
     assert(std::string(EscapeTopic::UNLOCK_ELECTROMAG_LOCK) == "escape/cmd/pico4/unlock_electromag_lock");
     assert(std::string(EscapeTopic::RESET_PUZZLE) == "escape/cmd/all/reset_puzzle");
     assert(std::string(EscapeTopic::STATUS_REQUEST) == "escape/cmd/all/status_request");
+    assert(std::string(EscapeTopic::SENSOR_TELEMETRY_WILDCARD) == "escape/telemetry/#");
 
     return 0;
 }

@@ -47,6 +47,7 @@ constexpr int THERMOMETER_BRIGHTNESS = 64;
 
 constexpr unsigned long MQTT_RETRY_MS = 3000;
 constexpr unsigned long OVEN_LOCK_RELEASE_MS = 100;
+constexpr unsigned long SENSOR_TELEMETRY_MS = 1000;
 
 WiFiClient wifiClient;
 PubSubClient mqtt(wifiClient);
@@ -56,6 +57,7 @@ bool ovenEnabled = false;
 bool ovenSolved = false;
 int ovenLastPublishedValue = -1;
 unsigned long lockOffAt = 0;
+unsigned long lastSensorTelemetry = 0;
 
 void resetOvenAndOutputs();
 void publishPostState();
@@ -218,6 +220,29 @@ void publishPostState() {
     publishEvent(postStateTopic(4).c_str(), postStatePayload(ovenSolved));
 }
 
+void publishSensorTelemetry() {
+    if (!mqtt.connected() || millis() - lastSensorTelemetry < SENSOR_TELEMETRY_MS) {
+        return;
+    }
+
+    lastSensorTelemetry = millis();
+    int rawPot = analogRead(OVEN_POT_PIN);
+    int ovenValue = ovenValueFromPotReading(
+        rawPot,
+        OVEN_POT_MIN_READING,
+        OVEN_POT_MAX_READING,
+        OVEN_MIN_VALUE,
+        OVEN_MAX_VALUE
+    );
+    String payload = "oven_raw=" + String(rawPot);
+    payload += ",oven_value=" + String(ovenValue);
+    payload += ",enabled=" + String(ovenEnabled ? 1 : 0);
+    payload += ",solved=" + String(ovenSolved ? 1 : 0);
+    payload += ",smart_film=" + String(digitalRead(SMART_FILM_PIN));
+    payload += ",lock=" + String(digitalRead(LOCK_PIN));
+    mqtt.publish("escape/telemetry/pico4/oven", payload.c_str());
+}
+
 void resetOvenAndOutputs() {
     ovenEnabled = false;
     ovenSolved = false;
@@ -268,6 +293,7 @@ void loop() {
     }
 
     checkOvenPotentiometer();
+    publishSensorTelemetry();
 
     if (lockOffAt != 0 && millis() >= lockOffAt) {
         setLock(false);

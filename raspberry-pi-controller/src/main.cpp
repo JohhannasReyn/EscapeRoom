@@ -311,6 +311,14 @@ void on_connect(struct mosquitto* mosq, void* userdata, int rc) {
             std::cout << "Subscribe failed for oven dial degrees. Error code: " << oven_degrees_rc << std::endl;
         }
 
+        int telemetry_rc = mosquitto_subscribe(mosq, nullptr, EscapeTopic::SENSOR_TELEMETRY_WILDCARD, 0);
+
+        if (telemetry_rc == MOSQ_ERR_SUCCESS) {
+            std::cout << "Subscribed to topic: " << EscapeTopic::SENSOR_TELEMETRY_WILDCARD << std::endl;
+        } else {
+            std::cout << "Subscribe failed for sensor telemetry. Error code: " << telemetry_rc << std::endl;
+        }
+
         controller->queuePostQueryCommand();
         publish_pending_commands(mosq, *controller);
     } else {

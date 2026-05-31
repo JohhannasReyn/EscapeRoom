@@ -29,6 +29,7 @@ inline constexpr const char* ENABLE_OVEN_KNOB = "escape/cmd/pico4/enable_oven_kn
 inline constexpr const char* UNLOCK_ELECTROMAG_LOCK = "escape/cmd/pico4/unlock_electromag_lock";
 inline constexpr const char* RESET_PUZZLE = "escape/cmd/all/reset_puzzle";
 inline constexpr const char* STATUS_REQUEST = "escape/cmd/all/status_request";
+inline constexpr const char* SENSOR_TELEMETRY_WILDCARD = "escape/telemetry/#";
 
 inline constexpr const char* LEGACY_GAME_RESET = "escape/game/reset";
 inline constexpr const char* LEGACY_POST_QUERY = "escape/post/query";

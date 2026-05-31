@@ -31,6 +31,7 @@ constexpr int BUTTON_RED_PIN = 15;
 constexpr int BUTTON_BLUE_PIN = 16;
 constexpr unsigned long DEBOUNCE_MS = 150;
 constexpr unsigned long MQTT_RETRY_MS = 3000;
+constexpr unsigned long SENSOR_TELEMETRY_MS = 1000;
 
 // TODO: Replace with the actual color sequence after the physical puzzle code is finalized.
 constexpr const char* CORRECT_SEQUENCE = "";
@@ -53,6 +54,7 @@ PubSubClient mqtt(wifiClient);
 bool sequenceEnabled = false;
 bool sequenceSolved = false;
 String enteredSequence;
+unsigned long lastSensorTelemetry = 0;
 
 void publishPostState();
 
@@ -143,6 +145,26 @@ void publishPostState() {
     publishEvent(postStateTopic(5).c_str(), postStatePayload(sequenceSolved));
 }
 
+void publishSensorTelemetry() {
+    if (!mqtt.connected() || millis() - lastSensorTelemetry < SENSOR_TELEMETRY_MS) {
+        return;
+    }
+
+    lastSensorTelemetry = millis();
+    String payload = "enabled=" + String(sequenceEnabled ? 1 : 0);
+    payload += ",solved=" + String(sequenceSolved ? 1 : 0);
+    payload += ",entered=" + enteredSequence;
+
+    for (ColorButton& button : buttons) {
+        payload += ",";
+        payload += button.code;
+        payload += "=";
+        payload += String(digitalRead(button.pin));
+    }
+
+    mqtt.publish("escape/telemetry/pico5/buttons", payload.c_str());
+}
+
 void registerButtonPress(char code) {
     if (!sequenceEnabled || sequenceSolved) {
         return;
@@ -220,6 +242,8 @@ void loop() {
             }
         }
     }
+
+    publishSensorTelemetry();
 
     delay(20);
 }

@@ -30,6 +30,7 @@ constexpr int RST_PIN = 14;
 constexpr int PAINTING_SENSOR_PIN = 15;
 constexpr unsigned long DEBOUNCE_MS = 750;
 constexpr unsigned long MQTT_RETRY_MS = 3000;
+constexpr unsigned long SENSOR_TELEMETRY_MS = 1000;
 
 WiFiClient wifiClient;
 PubSubClient mqtt(wifiClient);
@@ -38,6 +39,7 @@ bool paintingEnabled = false;
 bool paintingSolved = false;
 int paintingLastState = LOW;
 unsigned long paintingStableStart = 0;
+unsigned long lastSensorTelemetry = 0;
 
 void publishPostState();
 
@@ -123,6 +125,18 @@ void publishPostState() {
     publishEvent(postStateTopic(3).c_str(), postStatePayload(digitalRead(PAINTING_SENSOR_PIN) == HIGH));
 }
 
+void publishSensorTelemetry() {
+    if (!mqtt.connected() || millis() - lastSensorTelemetry < SENSOR_TELEMETRY_MS) {
+        return;
+    }
+
+    lastSensorTelemetry = millis();
+    String payload = "painting_sensor=" + String(digitalRead(PAINTING_SENSOR_PIN));
+    payload += ",enabled=" + String(paintingEnabled ? 1 : 0);
+    payload += ",solved=" + String(paintingSolved ? 1 : 0);
+    mqtt.publish("escape/telemetry/pico3/painting_sensor", payload.c_str());
+}
+
 void setup() {
     Serial.begin(115200);
     delay(1500);
@@ -165,6 +179,8 @@ void loop() {
         paintingSolved = true;
         publishEvent(EscapeTopic::PAINTING_ROTATION_COMPLETE, "painting rotation complete");
     }
+
+    publishSensorTelemetry();
 
     delay(50);
 }

@@ -50,6 +50,7 @@ constexpr int LED_FULL_WHITE_CURRENT_MA = 60;
 
 constexpr unsigned long MQTT_RETRY_MS = 3000;
 constexpr unsigned long DISTANCE_READ_MS = 100;
+constexpr unsigned long SENSOR_TELEMETRY_MS = 1000;
 
 constexpr int TOTAL_CUBBY_LEDS = totalCubbyLedCount(CUBBY_COUNT, LEDS_PER_CUBBY, LEDS_BETWEEN_CUBBIES);
 
@@ -62,6 +63,8 @@ bool distanceSensorReady = false;
 bool approachTriggered = false;
 bool readyForGameplay = false;
 unsigned long lastDistanceRead = 0;
+unsigned long lastSensorTelemetry = 0;
+uint16_t lastDistanceMm = 0;
 RgbColor cubbyColors[CUBBY_COUNT] = {};
 
 void resetController(bool readyAfterReset = true);
@@ -258,6 +261,19 @@ void publishPostState() {
     publishEvent(postStateTopic(1).c_str(), postStatePayload(false));
 }
 
+void publishSensorTelemetry() {
+    if (!mqtt.connected() || millis() - lastSensorTelemetry < SENSOR_TELEMETRY_MS) {
+        return;
+    }
+
+    lastSensorTelemetry = millis();
+    String payload = "ready=" + String(distanceSensorReady ? 1 : 0);
+    payload += ",distance_mm=" + String(lastDistanceMm);
+    payload += ",approach_triggered=" + String(approachTriggered ? 1 : 0);
+    payload += ",gpio1=" + String(digitalRead(DISTANCE_SENSOR_GPIO1_PIN));
+    mqtt.publish("escape/telemetry/pico1/vl53l0x", payload.c_str());
+}
+
 void resetController(bool readyAfterReset) {
     approachTriggered = false;
     readyForGameplay = readyAfterReset;
@@ -297,6 +313,7 @@ void checkCubbyApproach() {
 
     lastDistanceRead = millis();
     uint16_t distanceMm = distanceSensor.readRangeContinuousMillimeters();
+    lastDistanceMm = distanceMm;
 
     if (!distanceSensor.timeoutOccurred() && distanceMm <= CUBBY_ACTIVE_DISTANCE_MM) {
         approachTriggered = true;
@@ -339,5 +356,6 @@ void loop() {
     }
 
     checkCubbyApproach();
+    publishSensorTelemetry();
     delay(50);
 }

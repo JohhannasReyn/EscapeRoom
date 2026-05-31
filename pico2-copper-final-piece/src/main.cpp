@@ -31,6 +31,7 @@ constexpr int COPPER_COMPLETE_PIN = 15;
 constexpr int FINAL_PIECE_PIN = 16;
 constexpr unsigned long DEBOUNCE_MS = 750;
 constexpr unsigned long MQTT_RETRY_MS = 3000;
+constexpr unsigned long SENSOR_TELEMETRY_MS = 1000;
 
 struct DigitalPuzzle {
     const char* name;
@@ -50,6 +51,7 @@ DigitalPuzzle puzzles[] = {
 
 WiFiClient wifiClient;
 PubSubClient mqtt(wifiClient);
+unsigned long lastSensorTelemetry = 0;
 
 void publishPostState();
 
@@ -141,6 +143,19 @@ void publishPostState() {
     publishEvent(postStateTopic(2).c_str(), postStatePayload(completed));
 }
 
+void publishSensorTelemetry() {
+    if (!mqtt.connected() || millis() - lastSensorTelemetry < SENSOR_TELEMETRY_MS) {
+        return;
+    }
+
+    lastSensorTelemetry = millis();
+    String payload = "copper=" + String(digitalRead(COPPER_COMPLETE_PIN));
+    payload += ",final_piece=" + String(digitalRead(FINAL_PIECE_PIN));
+    payload += ",copper_solved=" + String(puzzles[0].solved ? 1 : 0);
+    payload += ",final_solved=" + String(puzzles[1].solved ? 1 : 0);
+    mqtt.publish("escape/telemetry/pico2/contacts", payload.c_str());
+}
+
 void setup() {
     Serial.begin(115200);
     delay(1500);
@@ -189,6 +204,8 @@ void loop() {
             publishEvent(puzzle.topic, puzzle.payload);
         }
     }
+
+    publishSensorTelemetry();
 
     delay(50);
 }
