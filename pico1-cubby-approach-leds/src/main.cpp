@@ -244,6 +244,7 @@ void connectMQTT() {
             mqtt.subscribe("escape/cubby/5/status");
             mqtt.subscribe("escape/cubby/all/status");
             blink(3);
+            publishPostState();
             return;
         }
 

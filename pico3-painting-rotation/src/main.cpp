@@ -103,6 +103,7 @@ void connectMQTT() {
             mqtt.subscribe(EscapeTopic::LEGACY_POST_QUERY);
             mqtt.subscribe(EscapeTopic::LEGACY_GAME_RESET);
             blink(3);
+            publishPostState();
             return;
         }
 
