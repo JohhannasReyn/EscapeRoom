@@ -326,10 +326,17 @@ escape-room.code-workspace
 Each Pico folder is an independent PlatformIO project. Update WiFi and broker build flags in each active `platformio.ini`:
 
 ```ini
+platform = https://github.com/maxgerhardt/platform-raspberrypi.git
+board = rpipicow
+framework = arduino
+board_build.core = earlephilhower
+
 -D WIFI_SSID=\"YOUR_WIFI_NAME\"
 -D WIFI_PASS=\"YOUR_WIFI_PASSWORD\"
 -D MQTT_BROKER=\"192.168.1.172\"
 ```
+
+The Pico W projects use the Earle Philhower Raspberry Pi Arduino core through the Max Gerhardt PlatformIO package. This is intentional because the standard `platformio/raspberrypi` install may not expose the `rpipicow` board on every student machine.
 
 The Raspberry Pi controller is a native Linux PlatformIO project. Install its system dependencies on the Pi:
 
