@@ -21,7 +21,11 @@ struct MqttCommand {
 
 class GameController {
 public:
-    GameController(Effect* paintingCrashEffect = nullptr, DisplayOutput* displayOutput = nullptr);
+    GameController(
+        Effect* paintingCrashEffect = nullptr,
+        DisplayOutput* displayOutput = nullptr,
+        Effect* colorSequenceErrorEffect = nullptr
+    );
 
     void addPuzzle(std::unique_ptr<PuzzleModule> puzzle);
     bool handleMessage(const std::string& topic, const std::string& payload);
@@ -51,6 +55,7 @@ private:
     int ovenDegrees = 0;
     Effect* paintingCrashEffect = nullptr;
     DisplayOutput* displayOutput = nullptr;
+    Effect* colorSequenceErrorEffect = nullptr;
 };
 
 #endif

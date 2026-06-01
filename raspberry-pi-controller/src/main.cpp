@@ -35,18 +35,16 @@ std::string get_home_dir() {
     return std::string(home);
 }
 
-std::string get_audio_file() {
-    return get_home_dir() + "/escape-room/crash.wav";
-}
-
 std::string get_project_asset_file(const std::string& fileName) {
     const std::string candidates[] = {
+        get_home_dir() + "/escape-room/assets/audio/" + fileName,
+        "/home/admin/escape-room/assets/audio/" + fileName,
+        "./assets/audio/" + fileName,
+        "../assets/audio/" + fileName,
         get_home_dir() + "/escape-room/assets/" + fileName,
         "/home/admin/escape-room/assets/" + fileName,
         "./assets/" + fileName,
-        "../assets/" + fileName,
-        "./assets/audio/" + fileName,
-        "../assets/audio/" + fileName
+        "../assets/" + fileName
     };
 
     for (const auto& candidate : candidates) {
@@ -57,7 +55,7 @@ std::string get_project_asset_file(const std::string& fileName) {
         }
     }
 
-    return get_home_dir() + "/escape-room/assets/" + fileName;
+    return get_home_dir() + "/escape-room/assets/audio/" + fileName;
 }
 
 void publish_reset(struct mosquitto* mosq) {
@@ -367,14 +365,16 @@ void on_message(struct mosquitto* mosq, void* userdata, const struct mosquitto_m
 
 int main() {
     AudioEffect crashingPlatesAudio(get_project_asset_file("crashing_plates.m4a"));
+    AudioEffect wrongCodeAudio(get_project_asset_file("buzzer.mp3"));
     DisplayOutput display;
 
-    GameController controller(&crashingPlatesAudio, &display);
+    GameController controller(&crashingPlatesAudio, &display, &wrongCodeAudio);
     controller.addPuzzle(std::make_unique<StairsPuzzle>());
     controller.addPuzzle(std::make_unique<CopperPuzzle>());
     controller.addPuzzle(std::make_unique<FinalPiecePuzzle>());
     controller.addPuzzle(std::make_unique<PaintingRotationPuzzle>());
     controller.addPuzzle(std::make_unique<ColorButtonSequencePuzzle>());
+    controller.addPuzzle(std::make_unique<ColorButtonSequenceErrorPuzzle>());
     controller.addPuzzle(std::make_unique<OvenTargetPuzzle>());
     controller.addPuzzle(std::make_unique<ElectromagUnlockedPuzzle>());
 
@@ -382,6 +382,7 @@ int main() {
     std::cout << "----------------------------------------" << std::endl;
     std::cout << "Broker: " << MQTT_HOST << ":" << MQTT_PORT << std::endl;
     std::cout << "Painting audio: " << crashingPlatesAudio.file() << std::endl;
+    std::cout << "Wrong-code audio: " << wrongCodeAudio.file() << std::endl;
     std::cout << "Registered puzzle topics:" << std::endl;
     for (const auto& topic : controller.topics()) {
         std::cout << "  " << topic << std::endl;

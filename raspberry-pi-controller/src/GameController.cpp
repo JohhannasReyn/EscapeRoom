@@ -9,8 +9,14 @@
 #include <stdexcept>
 #include <utility>
 
-GameController::GameController(Effect* paintingCrashEffect, DisplayOutput* displayOutput)
-    : paintingCrashEffect(paintingCrashEffect), displayOutput(displayOutput) {
+GameController::GameController(
+    Effect* paintingCrashEffect,
+    DisplayOutput* displayOutput,
+    Effect* colorSequenceErrorEffect
+)
+    : paintingCrashEffect(paintingCrashEffect),
+      displayOutput(displayOutput),
+      colorSequenceErrorEffect(colorSequenceErrorEffect) {
 }
 
 void GameController::addPuzzle(std::unique_ptr<PuzzleModule> puzzle) {
@@ -196,6 +202,16 @@ bool GameController::handleFlowEvent(const std::string& topic, const std::string
         pendingCommands.push_back({EscapeTopic::ENABLE_OVEN_KNOB, "on"});
         pendingCommands.push_back({EscapeTopic::LEGACY_OVEN_ENABLE, "on"});
         transitionTo(RoomState::OVEN_KNOB_ACTIVE, "oven knob enabled");
+        return true;
+    }
+
+    if (topic == EscapeTopic::COLOR_SEQUENCE_ERROR) {
+        if (colorSequenceErrorEffect != nullptr) {
+            colorSequenceErrorEffect->trigger(payload);
+        } else {
+            std::cout << "Color sequence error audio effect not configured." << std::endl;
+        }
+
         return true;
     }
 

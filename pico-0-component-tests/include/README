@@ -163,7 +163,8 @@ they are not wired to this Pico diagnostic project.
 To test the crashing plates file directly on the Raspberry Pi:
 
 ```bash
-ffplay -nodisp -autoexit /home/admin/escape-room/assets/crashing_plates.m4a
+ffplay -nodisp -autoexit /home/admin/escape-room/assets/audio/crashing_plates.m4a
+ffplay -nodisp -autoexit /home/admin/escape-room/assets/audio/buzzer.mp3
 ```
 
 To verify the controller-side message path, run the Raspberry Pi controller and
