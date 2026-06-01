@@ -58,6 +58,11 @@ public:
     ColorButtonSequencePuzzle() : PlannedPuzzle("Color button sequence", EscapeTopic::COLOR_SEQUENCE_COMPLETE) {}
 };
 
+class ColorButtonSequenceErrorPuzzle : public PlannedPuzzle {
+public:
+    ColorButtonSequenceErrorPuzzle() : PlannedPuzzle("Color button sequence error", EscapeTopic::COLOR_SEQUENCE_ERROR) {}
+};
+
 class OvenTargetPuzzle : public PlannedPuzzle {
 public:
     OvenTargetPuzzle() : PlannedPuzzle("Oven target reached", EscapeTopic::OVEN_TARGET_REACHED) {}

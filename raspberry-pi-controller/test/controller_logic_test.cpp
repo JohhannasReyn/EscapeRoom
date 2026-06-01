@@ -55,6 +55,7 @@ void addActivePuzzles(GameController& controller) {
     controller.addPuzzle(std::make_unique<FinalPiecePuzzle>());
     controller.addPuzzle(std::make_unique<PaintingRotationPuzzle>());
     controller.addPuzzle(std::make_unique<ColorButtonSequencePuzzle>());
+    controller.addPuzzle(std::make_unique<ColorButtonSequenceErrorPuzzle>());
     controller.addPuzzle(std::make_unique<OvenTargetPuzzle>());
     controller.addPuzzle(std::make_unique<ElectromagUnlockedPuzzle>());
 }
@@ -74,11 +75,12 @@ int main() {
     assert(copper.handle("escape/puzzle/copper/solved", "legacy test") == true);
 
     RecordingEffect paintingAudio;
+    RecordingEffect wrongCodeAudio;
     RecordingDisplay display;
-    GameController controller(&paintingAudio, &display);
+    GameController controller(&paintingAudio, &display, &wrongCodeAudio);
     addActivePuzzles(controller);
 
-    assert(controller.puzzleCount() == 7);
+    assert(controller.puzzleCount() == 8);
     assert(controller.currentState() == RoomState::WAITING_FOR_CUBBY_APPROACH);
 
     controller.queuePostQueryCommand();
@@ -149,6 +151,11 @@ int main() {
     assert(sawSmartFilm == true);
     assert(sawLegacyFilm == true);
     assert(sawColorEnable == true);
+
+    assert(controller.handleMessage(EscapeTopic::COLOR_SEQUENCE_ERROR, "wrong code") == true);
+    assert(wrongCodeAudio.triggerCount == 1);
+    assert(wrongCodeAudio.lastPayload == "wrong code");
+    assert(controller.currentState() == RoomState::COLOR_BUTTON_SEQUENCE_ACTIVE);
 
     assert(controller.handleMessage(EscapeTopic::COLOR_SEQUENCE_COMPLETE, "buttons") == true);
     assert(display.flashCount == 1);

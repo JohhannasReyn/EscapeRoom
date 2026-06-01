@@ -19,7 +19,11 @@ void AudioEffect::trigger(const std::string& payload) {
     }
 
     std::string cmd;
-    if (audioFile.size() >= 4 && audioFile.substr(audioFile.size() - 4) == ".m4a") {
+    bool useFfplay =
+        (audioFile.size() >= 4 && audioFile.substr(audioFile.size() - 4) == ".m4a") ||
+        (audioFile.size() >= 4 && audioFile.substr(audioFile.size() - 4) == ".mp3");
+
+    if (useFfplay) {
         cmd = "ffplay -nodisp -autoexit -loglevel quiet \"" + audioFile + "\" &";
     } else {
         cmd = "aplay \"" + audioFile + "\" &";

@@ -21,7 +21,9 @@ The Raspberry Pi remains the central brain. Picos report state changes; the Pi c
 ```text
 EscapeRoom/
 ├── assets/
-│   └── crashing_plates.m4a
+│   └── audio/
+│       ├── buzzer.mp3
+│       └── crashing_plates.m4a
 ├── pico-0-component-tests/            Standalone component diagnostic firmware
 ├── pico1-cubby-approach-leds/         Pico 1 active firmware
 ├── pico2-copper-final-piece/          Pico 2 active firmware
@@ -63,7 +65,7 @@ The Pico folder names now match the active puzzle structure. Pico 6 remains a ho
 4. Raspberry Pi tells Pico 1 to illuminate the first 2 or 3 cubbies.
 5. Players retrieve puzzle pieces & RFID cards.
 6. Pico 3 publishes escape/pico3/painting_rotation_complete.
-7. Raspberry Pi plays ./assets/crashing_plates.m4a.
+7. Raspberry Pi plays `./assets/audio/crashing_plates.m4a`.
 8. Players complete the copper puzzle.
 9. Pico 2 publishes escape/pico2/copper_puzzle_complete.
 10. The copper puzzle clue points to smart film.
@@ -74,7 +76,7 @@ The Pico folder names now match the active puzzle structure. Pico 6 remains a ho
 15. The utensils reveal directions for directional lock containing key to bread box.
 16. Code is found hidden within the bread to color coded buttons. 
 17. Pico 5 publishes escape/pico5/color_sequence_complete.
-18. (Wrong code entered triggers sound effect, Correct code turns on TV --> TV says "Bake at 350")
+18. Wrong code entered triggers `./assets/audio/buzzer.mp3`; correct code turns on the TV message.
 19. Raspberry Pi displays/flashes Bake at 350 Degrees.
 20. Raspberry Pi enables Pico 4's oven knob puzzle.
 21. Player turns the oven knob to 350 degrees.
@@ -94,7 +96,8 @@ The controller:
 - Owns the explicit room state machine.
 - Logs every major state transition.
 - Sends commands to Pico boards.
-- Plays `./assets/crashing_plates.m4a` when the painting puzzle completes.
+- Plays `./assets/audio/crashing_plates.m4a` when the painting puzzle completes.
+- Plays `./assets/audio/buzzer.mp3` when an incorrect color-button code is entered.
 - Displays or flashes `Bake at 350 Degrees` when the color-button sequence completes.
 - Handles whole-room reset through the Raspberry Pi reset button.
 
@@ -247,7 +250,7 @@ The LED test lights pixels 0 through 20 one at a time every 200ms, cycles throug
 
 Detailed one-component-at-a-time wiring notes are in `pico-0-component-tests/include/README`.
 
-Sound effects and TV/display messages are Raspberry Pi controller outputs, not Pico 0 pin tests. The diagnostic README includes direct Raspberry Pi checks for `crashing_plates.m4a` and the `Bake at 350 Degrees` display message path.
+Sound effects and TV/display messages are Raspberry Pi controller outputs, not Pico 0 pin tests. The diagnostic README includes direct Raspberry Pi checks for `crashing_plates.m4a`, `buzzer.mp3`, and the `Bake at 350 Degrees` display message path.
 
 ### Pico 1: Cubby Approach and LEDs
 

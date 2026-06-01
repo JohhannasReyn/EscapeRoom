@@ -10,7 +10,7 @@ Run from the repository root in PowerShell:
 
 The tests cover:
 
-- Raspberry Pi controller topic routing, five-Pico POST behavior, room state transitions, painting audio trigger, display message trigger, oven unlock commands, and oven telemetry parsing
+- Raspberry Pi controller topic routing, five-Pico POST behavior, room state transitions, painting audio trigger, wrong-code audio trigger, display message trigger, oven unlock commands, and oven telemetry parsing
 - Whole-room reset hold timing
 - Cubby LED segment math
 - POST topic and payload naming
