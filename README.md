@@ -129,7 +129,7 @@ ROOM_KEY_AVAILABLE
 
 Display support is intentionally abstracted in `raspberry-pi-controller/src/effects/DisplayOutput.*`. The current implementation logs messages to stdout. Replace that implementation with HDMI/browser/pygame/Tkinter display code when the actual display path is chosen.
 
-Audio playback uses `AudioEffect`. `.m4a` files are played with `ffplay` when available; other files fall back to `aplay`. If the file is missing, the controller logs the issue and continues.
+Audio playback uses `AudioEffect`. `.m4a` and `.mp3` files are played with `ffplay` when available; other files fall back to `aplay`. If the file is missing, the controller logs the issue and continues.
 
 ---
 
@@ -413,6 +413,71 @@ The Raspberry Pi controller is a native Linux PlatformIO project. Install its sy
 sudo apt update
 sudo apt install -y mosquitto mosquitto-clients libmosquitto-dev libgpiod-dev ffmpeg
 ```
+
+### Raspberry Pi Bluetooth Audio
+
+Use this when the Raspberry Pi should play escape room sound effects through a Bluetooth speaker.
+
+Install and enable Bluetooth support:
+
+```bash
+sudo apt update
+sudo apt install -y bluetooth bluez
+sudo systemctl enable --now bluetooth
+```
+
+Pair a Bluetooth speaker:
+
+```bash
+bluetoothctl
+power on
+agent on
+default-agent
+scan on
+```
+
+Wait until the speaker appears, then copy its MAC address. It will look similar to:
+
+```text
+AA:BB:CC:DD:EE:FF Speaker Name
+```
+
+Then run these inside `bluetoothctl`, replacing the example MAC address:
+
+```text
+pair AA:BB:CC:DD:EE:FF
+trust AA:BB:CC:DD:EE:FF
+connect AA:BB:CC:DD:EE:FF
+scan off
+exit
+```
+
+Reconnect a previously paired speaker:
+
+```bash
+bluetoothctl connect AA:BB:CC:DD:EE:FF
+```
+
+Test project audio:
+
+```bash
+ffplay -nodisp -autoexit /home/admin/escape-room/assets/audio/buzzer.mp3
+ffplay -nodisp -autoexit /home/admin/escape-room/assets/audio/crashing_plates.m4a
+```
+
+If the speaker connects but no sound plays, check the active audio output:
+
+```bash
+wpctl status
+```
+
+If the Bluetooth speaker appears in the output list, set it as the default sink:
+
+```bash
+wpctl set-default SINK_ID
+```
+
+Replace `SINK_ID` with the numeric ID shown by `wpctl status`.
 
 Build/run the controller from `raspberry-pi-controller/`:
 
