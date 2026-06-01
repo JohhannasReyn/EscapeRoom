@@ -59,33 +59,28 @@ The Pico folder names now match the active puzzle structure. Pico 6 remains a ho
 
 1. Players approach the cubbies at the bottom of the stairs.
 2. Pico 1 detects approach with the PIR motion detector.
-3. Pico 1 publishes `escape/pico1/cubby_approach_detected`.
-4. Raspberry Pi tells Pico 1 to illuminate the first cubby.
-5. Players retrieve puzzle pieces.
-6. Players complete the copper puzzle.
-7. Pico 2 publishes `escape/pico2/copper_puzzle_complete`.
-8. The copper puzzle clue points to bread.
-9. The bread code opens a bottle lock.
-10. The bottle message opens another padlocked box.
-11. The box contains RFID cards.
-12. The RFID cards unlock a cubby with the painting clue.
-13. Players rotate the painting.
-14. Pico 3 publishes `escape/pico3/painting_rotation_complete`.
-15. Raspberry Pi plays `./assets/crashing_plates.m4a`.
-16. The painting clue points players toward the final puzzle piece.
-17. Players place the final puzzle piece.
-18. Pico 2 publishes `escape/pico2/final_piece_placed`.
-19. Raspberry Pi tells Pico 4 to reveal the smart film.
-20. Transparent smart film reveals a code.
-21. Players enter the code using color-coded buttons.
-22. Pico 5 publishes `escape/pico5/color_sequence_complete`.
-23. Raspberry Pi displays/flashes `Bake at 350 Degrees`.
-24. Raspberry Pi enables Pico 4's oven knob puzzle.
-25. Player turns the oven knob to 350 degrees.
-26. Pico 4 reads the oven setting from the potentiometer.
-27. Pico 4 updates its small LED strip as a thermometer.
-28. Pico 4 unlocks the electromagnetic lock at 350 degrees within tolerance.
-29. The unlocked compartment contains the key to the locked room.
+3. Pico 1 publishes escape/pico1/cubby_approach_detected.
+4. Raspberry Pi tells Pico 1 to illuminate the first 2 or 3 cubbies.
+5. Players retrieve puzzle pieces & RFID cards.
+6. Pico 3 publishes escape/pico3/painting_rotation_complete.
+7. Raspberry Pi plays ./assets/crashing_plates.m4a.
+8. Players complete the copper puzzle.
+9. Pico 2 publishes escape/pico2/copper_puzzle_complete.
+10. The copper puzzle clue points to smart film.
+11. Raspberry Pi tells Pico 4 to reveal the smart film.
+12. The smart film code revealed to open bottle lock.
+13. The bottle message opens another padlocked box.
+14. The box contains colored keys for color coded locks covering utensils.
+15. The utensils reveal directions for directional lock containing key to bread box.
+16. Code is found hidden within the bread to color coded buttons. 
+17. Pico 5 publishes escape/pico5/color_sequence_complete.
+18. (Wrong code entered triggers sound effect, Correct code turns on TV --> TV says "Bake at 350")
+19. Raspberry Pi displays/flashes Bake at 350 Degrees.
+20. Raspberry Pi enables Pico 4's oven knob puzzle.
+21. Player turns the oven knob to 350 degrees.
+22. Pico 4 reads the oven setting from the potentiometer.
+23. Pico 4 unlocks the electromagnetic lock at 350 degrees within tolerance.
+24. The unlocked compartment contains the key to the locked room.
 
 ---
 
