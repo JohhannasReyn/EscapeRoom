@@ -137,6 +137,11 @@ int main() {
     assert(paintingAudio.lastPayload == "painting");
     assert(controller.currentState() == RoomState::FINAL_PIECE_ACTIVE);
 
+    assert(controller.handleMessage(EscapeTopic::PAINTING_ROTATION_COMPLETE, "painting again") == true);
+    assert(paintingAudio.triggerCount == 2);
+    assert(paintingAudio.lastPayload == "painting again");
+    assert(controller.currentState() == RoomState::FINAL_PIECE_ACTIVE);
+
     assert(controller.handleMessage(EscapeTopic::FINAL_PIECE_PLACED, "piece") == true);
     assert(controller.currentState() == RoomState::COLOR_BUTTON_SEQUENCE_ACTIVE);
     bool sawSmartFilm = false;

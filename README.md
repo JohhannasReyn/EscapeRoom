@@ -386,7 +386,7 @@ Open the root workspace:
 escape-room.code-workspace
 ```
 
-Each Pico folder is an independent PlatformIO project. Update WiFi and broker build flags in each active `platformio.ini`:
+Each Pico folder is an independent PlatformIO project. The active Pico projects default to the Raspberry Pi hotspot network:
 
 ```ini
 platform = https://github.com/maxgerhardt/platform-raspberrypi.git
@@ -394,9 +394,9 @@ board = rpipicow
 framework = arduino
 board_build.core = earlephilhower
 
--D WIFI_SSID=\"YOUR_WIFI_NAME\"
--D WIFI_PASS=\"YOUR_WIFI_PASSWORD\"
--D MQTT_BROKER=\"192.168.1.172\"
+-D WIFI_SSID=\"EscapeRoom\"
+-D WIFI_PASS=\"BakeAt350\"
+-D MQTT_BROKER=\"10.42.0.1\"
 ```
 
 The Pico W projects use the Earle Philhower Raspberry Pi Arduino core through the Max Gerhardt PlatformIO package. This is intentional because the standard `platformio/raspberrypi` install may not expose the `rpipicow` board on every student machine.
@@ -407,11 +407,55 @@ Build the component diagnostic project from `pico-0-component-tests/`:
 pio run
 ```
 
+### Raspberry Pi Hotspot Network
+
+Use this when the escape room needs to move between houses, schools, or venues without rewriting every Pico's WiFi settings. The Raspberry Pi can host its own WiFi network, and every Pico connects to that network instead of the venue WiFi.
+
+The recommended network values are:
+
+```text
+SSID: EscapeRoom
+Password: BakeAt350
+Raspberry Pi / MQTT broker IP: 10.42.0.1
+```
+
+Set up the hotspot on the Raspberry Pi:
+
+```bash
+cd /home/admin/escape-room
+bash tools/setup-pi-hotspot.sh
+```
+
+Customize the hotspot before running the script:
+
+```bash
+HOTSPOT_SSID='EscapeRoom' HOTSPOT_PASSWORD='BakeAt350' bash tools/setup-pi-hotspot.sh
+```
+
+After the hotspot is active, update each Pico `platformio.ini` to use:
+
+```ini
+-D WIFI_SSID=\"EscapeRoom\"
+-D WIFI_PASS=\"BakeAt350\"
+-D MQTT_BROKER=\"10.42.0.1\"
+```
+
+The Raspberry Pi controller can still use `localhost` for MQTT because Mosquitto is running on the Pi itself.
+
+Useful hotspot commands:
+
+```bash
+nmcli connection show
+nmcli connection up escape-room-hotspot
+nmcli connection down escape-room-hotspot
+nmcli device wifi list
+```
+
 The Raspberry Pi controller is a native Linux PlatformIO project. Install its system dependencies on the Pi:
 
 ```bash
 sudo apt update
-sudo apt install -y mosquitto mosquitto-clients libmosquitto-dev libgpiod-dev ffmpeg
+sudo apt install -y mosquitto mosquitto-clients libmosquitto-dev libgpiod-dev ffmpeg network-manager
 ```
 
 ### Raspberry Pi Bluetooth Audio
