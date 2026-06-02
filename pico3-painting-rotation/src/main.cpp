@@ -36,16 +36,18 @@ WiFiClient wifiClient;
 PubSubClient mqtt(wifiClient);
 
 bool paintingEnabled = false;
-bool paintingSolved = false;
+bool paintingTriggered = false;
 int paintingLastState = LOW;
 unsigned long paintingStableStart = 0;
 unsigned long lastSensorTelemetry = 0;
+unsigned long paintingTriggerCount = 0;
 
 void publishPostState();
 
 void resetPainting() {
     paintingEnabled = false;
-    paintingSolved = false;
+    paintingTriggered = false;
+    paintingTriggerCount = 0;
     paintingLastState = digitalRead(PAINTING_SENSOR_PIN);
     paintingStableStart = millis();
     digitalWrite(LED_PIN, LOW);
@@ -65,6 +67,9 @@ void handleMessage(char* topic, byte* payload, unsigned int length) {
 
     if (topicText == EscapeTopic::ENABLE_PAINTING_ROTATION) {
         paintingEnabled = message != "off";
+        paintingTriggered = false;
+        paintingLastState = digitalRead(PAINTING_SENSOR_PIN);
+        paintingStableStart = millis();
     } else if (topicText == EscapeTopic::STATUS_REQUEST || topicText == EscapeTopic::LEGACY_POST_QUERY) {
         publishPostState();
     } else if (topicText == EscapeTopic::RESET_PUZZLE || topicText == EscapeTopic::LEGACY_GAME_RESET) {
@@ -133,7 +138,8 @@ void publishSensorTelemetry() {
     lastSensorTelemetry = millis();
     String payload = "painting_sensor=" + String(digitalRead(PAINTING_SENSOR_PIN));
     payload += ",enabled=" + String(paintingEnabled ? 1 : 0);
-    payload += ",solved=" + String(paintingSolved ? 1 : 0);
+    payload += ",triggered=" + String(paintingTriggered ? 1 : 0);
+    payload += ",trigger_count=" + String(paintingTriggerCount);
     mqtt.publish("escape/telemetry/pico3/painting_sensor", payload.c_str());
 }
 
@@ -175,8 +181,13 @@ void loop() {
         paintingStableStart = now;
     }
 
-    if (paintingEnabled && state == HIGH && !paintingSolved && now - paintingStableStart >= DEBOUNCE_MS) {
-        paintingSolved = true;
+    if (paintingEnabled && state == LOW && paintingTriggered && now - paintingStableStart >= DEBOUNCE_MS) {
+        paintingTriggered = false;
+    }
+
+    if (paintingEnabled && state == HIGH && !paintingTriggered && now - paintingStableStart >= DEBOUNCE_MS) {
+        paintingTriggered = true;
+        ++paintingTriggerCount;
         publishEvent(EscapeTopic::PAINTING_ROTATION_COMPLETE, "painting rotation complete");
     }
 
