@@ -199,6 +199,12 @@ void loop() {
             puzzle.stableStart = now;
         }
 
+        if (state == LOW && puzzle.solved && now - puzzle.stableStart >= DEBOUNCE_MS) {
+            puzzle.solved = false;
+            digitalWrite(LED_PIN, LOW);
+            publishPostState();
+        }
+
         if (puzzle.enabled && state == HIGH && !puzzle.solved && now - puzzle.stableStart >= DEBOUNCE_MS) {
             puzzle.solved = true;
             publishEvent(puzzle.topic, puzzle.payload);

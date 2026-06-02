@@ -12,4 +12,7 @@ Main topics:
 - Subscribes escape/cmd/all/status_request
 - Subscribes escape/cmd/all/reset_puzzle
 
+The PIR approach event publishes once while the PIR output is HIGH, then re-arms
+after the PIR output returns LOW.
+
 Copper puzzle code moved to Pico 2.

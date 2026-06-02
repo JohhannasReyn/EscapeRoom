@@ -129,14 +129,20 @@ void publishAndDisplayOvenValue(int ovenValue, bool forcePublish = false) {
 }
 
 void checkOvenPotentiometer() {
-    if (!ovenEnabled || ovenSolved) {
+    if (!ovenEnabled) {
         return;
     }
 
     int ovenValue = readOvenPotValue();
     publishAndDisplayOvenValue(ovenValue);
+    bool atTarget = ovenValueIsAtTarget(ovenValue, OVEN_TARGET_VALUE, OVEN_TARGET_TOLERANCE);
 
-    if (ovenValueIsAtTarget(ovenValue, OVEN_TARGET_VALUE, OVEN_TARGET_TOLERANCE)) {
+    if (ovenSolved && !atTarget) {
+        ovenSolved = false;
+        publishPostState();
+    }
+
+    if (!ovenSolved && atTarget) {
         ovenSolved = true;
         publishAndDisplayOvenValue(ovenValue, true);
         publishEvent(EscapeTopic::OVEN_TARGET_REACHED, "oven target reached");
