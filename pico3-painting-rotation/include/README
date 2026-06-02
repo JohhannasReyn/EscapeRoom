@@ -14,3 +14,6 @@ Main topics:
 - Subscribes escape/cmd/all/reset_puzzle
 
 The Raspberry Pi plays assets/audio/crashing_plates.m4a each time this event is received.
+
+The event publishes once when the sensor input goes HIGH, then re-arms after the
+input returns LOW.

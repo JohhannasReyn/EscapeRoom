@@ -278,7 +278,7 @@ void resetController(bool readyAfterReset) {
 }
 
 void checkMotionApproach() {
-    if (!readyForGameplay || approachTriggered) {
+    if (!readyForGameplay) {
         return;
     }
 
@@ -290,7 +290,11 @@ void checkMotionApproach() {
         motionStableStart = now;
     }
 
-    if (motionState == HIGH && now - motionStableStart >= MOTION_DEBOUNCE_MS) {
+    if (motionState == LOW && approachTriggered && now - motionStableStart >= MOTION_DEBOUNCE_MS) {
+        approachTriggered = false;
+    }
+
+    if (motionState == HIGH && !approachTriggered && now - motionStableStart >= MOTION_DEBOUNCE_MS) {
         approachTriggered = true;
         publishEvent(EscapeTopic::CUBBY_APPROACH_DETECTED, "approach detected");
     }

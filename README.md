@@ -55,6 +55,8 @@ The Pico folder names now match the active puzzle structure. Pico 6 remains a ho
 | Pico 5 | `pico5-color-buttons` | Color-coded buttons | Report correct button sequence |
 | Pico 6 | `pico6-unused-future-puzzles` | None in active runtime | Stores unused/future puzzle code |
 
+Sensor and contact-style Pico events are edge-triggered for repeatable testing: the Pico publishes once when the input becomes active, then re-arms after the input returns inactive. The oven re-arms after the knob leaves the 350-degree target window, and the color-button Pico re-arms after a solved sequence once all buttons are released.
+
 ---
 
 ## Event Chain
@@ -264,6 +266,8 @@ Pico GND -> PIR motion detector GND
 
 Most HC-SR501-style PIR modules work best from 5V on VCC and output about 3.3V on OUT, which is safe for the Pico. If your specific motion detector outputs 5V on OUT, add a logic level shifter or resistor divider before connecting it to GPIO 6.
 
+The approach event publishes once while the PIR output is HIGH, then re-arms after the PIR output returns LOW.
+
 LED power:
 
 ```text
@@ -296,6 +300,8 @@ Pico 3.3V -> contact/switch -> Pico GPIO input
 Pico GPIO input -> 10k ohm resistor -> Pico GND
 ```
 
+Each contact publishes once when the input goes HIGH, then re-arms after the input returns LOW.
+
 ### Pico 3: Painting Rotation
 
 ```text
@@ -304,6 +310,8 @@ GPIO 15 -> RC35/reed/hall sensor output
 ```
 
 The painting sensor is disabled until Raspberry Pi sends `escape/cmd/pico3/enable_painting_rotation`.
+
+The painting event publishes once when the sensor input goes HIGH, then re-arms after the input returns LOW.
 
 ### Pico 4: Smart Film and Oven Knob
 
@@ -335,6 +343,8 @@ The lock only releases when:
 - Raspberry Pi has enabled the oven puzzle.
 - The potentiometer-derived oven value is within tolerance of 350.
 
+After the oven reaches 350, the Pico re-arms when the potentiometer leaves the target tolerance window.
+
 Thermometer behavior is implemented through `shared/OvenThermometer.h` so the visual pattern can be tuned without repeated hardcoded LED blocks.
 
 ### Pico 5: Color Buttons
@@ -352,6 +362,8 @@ constexpr const char* CORRECT_SEQUENCE = "";
 ```
 
 Additional color buttons can be added by extending the `buttons[]` array and assigning real GPIO pins.
+
+After a correct sequence is reported, the Pico re-arms once all configured buttons are released.
 
 ### Pico 6: Unused / Future Puzzle Archive
 

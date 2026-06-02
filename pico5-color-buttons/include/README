@@ -15,4 +15,7 @@ Main topics:
 - Subscribes escape/cmd/all/status_request
 - Subscribes escape/cmd/all/reset_puzzle
 
+After a correct sequence is reported, the Pico re-arms once all configured
+buttons are released.
+
 TODO: set the real color sequence and add GPIO entries for any additional buttons.

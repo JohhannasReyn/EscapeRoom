@@ -14,3 +14,6 @@ Main topics:
 - Subscribes escape/cmd/pico2/enable_copper_puzzle
 - Subscribes escape/cmd/all/status_request
 - Subscribes escape/cmd/all/reset_puzzle
+
+Each contact publishes once when its input goes HIGH, then re-arms after the
+input returns LOW.

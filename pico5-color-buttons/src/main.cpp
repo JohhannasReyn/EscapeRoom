@@ -58,6 +58,16 @@ unsigned long lastSensorTelemetry = 0;
 
 void publishPostState();
 
+bool allButtonsReleased() {
+    for (ColorButton& button : buttons) {
+        if (digitalRead(button.pin) == LOW) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 void resetSequence() {
     sequenceEnabled = false;
     sequenceSolved = false;
@@ -187,6 +197,7 @@ void registerButtonPress(char code) {
         sequenceSolved = true;
         digitalWrite(LED_PIN, HIGH);
         publishEvent(EscapeTopic::COLOR_SEQUENCE_COMPLETE, "color sequence complete");
+        publishPostState();
     }
 }
 
@@ -241,6 +252,13 @@ void loop() {
                 delay(10);
             }
         }
+    }
+
+    if (sequenceSolved && allButtonsReleased()) {
+        sequenceSolved = false;
+        enteredSequence = "";
+        digitalWrite(LED_PIN, LOW);
+        publishPostState();
     }
 
     publishSensorTelemetry();

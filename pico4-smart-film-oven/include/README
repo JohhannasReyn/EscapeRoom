@@ -23,3 +23,6 @@ The oven knob puzzle remains disabled until the Raspberry Pi receives the correc
 The lock only releases after:
 - oven knob puzzle is enabled
 - potentiometer-derived value reaches 350 within tolerance
+
+After the oven reaches 350, the Pico re-arms when the potentiometer leaves the
+target tolerance window.
