@@ -31,6 +31,7 @@
 constexpr int LED_PIN = LED_BUILTIN;
 constexpr int RST_PIN = 14;
 constexpr int SMART_FILM_PIN = 15;
+constexpr int SMART_FILM_BUZZER_PIN = 16;
 constexpr int THERMOMETER_LED_PIN = 17;
 constexpr int LOCK_PIN = 18;
 constexpr int OVEN_POT_PIN = 26;
@@ -47,6 +48,7 @@ constexpr int THERMOMETER_BRIGHTNESS = 64;
 
 constexpr unsigned long MQTT_RETRY_MS = 3000;
 constexpr unsigned long OVEN_LOCK_RELEASE_MS = 100;
+constexpr unsigned long SMART_FILM_BUZZER_MS = 350;
 constexpr unsigned long SENSOR_TELEMETRY_MS = 1000;
 
 WiFiClient wifiClient;
@@ -57,6 +59,7 @@ bool ovenEnabled = false;
 bool ovenSolved = false;
 int ovenLastPublishedValue = -1;
 unsigned long lockOffAt = 0;
+unsigned long smartFilmBuzzerOffAt = 0;
 unsigned long lastSensorTelemetry = 0;
 
 void resetOvenAndOutputs();
@@ -87,6 +90,11 @@ void setLock(bool on) {
     } else {
         lockOffAt = 0;
     }
+}
+
+void pulseSmartFilmBuzzer() {
+    digitalWrite(SMART_FILM_BUZZER_PIN, HIGH);
+    smartFilmBuzzerOffAt = millis() + SMART_FILM_BUZZER_MS;
 }
 
 void updateThermometer(int ovenValue) {
@@ -160,8 +168,14 @@ void handleMessage(char* topic, byte* payload, unsigned int length) {
     String topicText(topic);
 
     if (topicText == EscapeTopic::REVEAL_SMART_FILM || topicText == EscapeTopic::LEGACY_PDLC_ON) {
-        digitalWrite(SMART_FILM_PIN, message == "off" ? LOW : HIGH);
-        publishEvent(EscapeTopic::SMART_FILM_READY, message == "off" ? "opaque" : "transparent");
+        bool revealSmartFilm = message != "off";
+        digitalWrite(SMART_FILM_PIN, revealSmartFilm ? HIGH : LOW);
+
+        if (revealSmartFilm) {
+            pulseSmartFilmBuzzer();
+        }
+
+        publishEvent(EscapeTopic::SMART_FILM_READY, revealSmartFilm ? "transparent" : "opaque");
     } else if (topicText == EscapeTopic::ENABLE_OVEN_KNOB || topicText == EscapeTopic::LEGACY_OVEN_ENABLE) {
         ovenEnabled = message != "off";
         ovenSolved = false;
@@ -245,6 +259,7 @@ void publishSensorTelemetry() {
     payload += ",enabled=" + String(ovenEnabled ? 1 : 0);
     payload += ",solved=" + String(ovenSolved ? 1 : 0);
     payload += ",smart_film=" + String(digitalRead(SMART_FILM_PIN));
+    payload += ",smart_film_buzzer=" + String(digitalRead(SMART_FILM_BUZZER_PIN));
     payload += ",lock=" + String(digitalRead(LOCK_PIN));
     mqtt.publish("escape/telemetry/pico4/oven", payload.c_str());
 }
@@ -255,6 +270,8 @@ void resetOvenAndOutputs() {
     ovenLastPublishedValue = -1;
     setLock(false);
     digitalWrite(SMART_FILM_PIN, LOW);
+    digitalWrite(SMART_FILM_BUZZER_PIN, LOW);
+    smartFilmBuzzerOffAt = 0;
     digitalWrite(LED_PIN, LOW);
     clearThermometer();
     if (mqtt.connected()) {
@@ -269,6 +286,7 @@ void setup() {
     pinMode(LED_PIN, OUTPUT);
     pinMode(RST_PIN, INPUT_PULLUP);
     pinMode(SMART_FILM_PIN, OUTPUT);
+    pinMode(SMART_FILM_BUZZER_PIN, OUTPUT);
     pinMode(LOCK_PIN, OUTPUT);
     pinMode(OVEN_POT_PIN, INPUT);
     analogReadResolution(12);
@@ -303,6 +321,11 @@ void loop() {
 
     if (lockOffAt != 0 && millis() >= lockOffAt) {
         setLock(false);
+    }
+
+    if (smartFilmBuzzerOffAt != 0 && millis() >= smartFilmBuzzerOffAt) {
+        digitalWrite(SMART_FILM_BUZZER_PIN, LOW);
+        smartFilmBuzzerOffAt = 0;
     }
 
     delay(50);
