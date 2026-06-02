@@ -9,15 +9,15 @@
 #include "../../shared/PostState.h"
 
 #ifndef WIFI_SSID
-#define WIFI_SSID "YOUR_WIFI_NAME"
+#define WIFI_SSID "EscapeRoom"
 #endif
 
 #ifndef WIFI_PASS
-#define WIFI_PASS "YOUR_WIFI_PASSWORD"
+#define WIFI_PASS "BakeAt350"
 #endif
 
 #ifndef MQTT_BROKER
-#define MQTT_BROKER "192.168.1.42"
+#define MQTT_BROKER "10.42.0.1"
 #endif
 
 #ifndef MQTT_BROKER_PORT
