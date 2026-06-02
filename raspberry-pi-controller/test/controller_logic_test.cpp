@@ -76,8 +76,9 @@ int main() {
 
     RecordingEffect paintingAudio;
     RecordingEffect wrongCodeAudio;
+    RecordingEffect bakeBuzzer;
     RecordingDisplay display;
-    GameController controller(&paintingAudio, &display, &wrongCodeAudio);
+    GameController controller(&paintingAudio, &display, &wrongCodeAudio, &bakeBuzzer);
     addActivePuzzles(controller);
 
     assert(controller.puzzleCount() == 8);
@@ -165,6 +166,8 @@ int main() {
     assert(controller.handleMessage(EscapeTopic::COLOR_SEQUENCE_COMPLETE, "buttons") == true);
     assert(display.flashCount == 1);
     assert(display.lastMessage == "Bake at 350 Degrees");
+    assert(bakeBuzzer.triggerCount == 1);
+    assert(bakeBuzzer.lastPayload == "buttons");
     assert(controller.currentState() == RoomState::OVEN_KNOB_ACTIVE);
     bool sawOvenEnable = false;
     bool sawLegacyOvenEnable = false;

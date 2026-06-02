@@ -102,6 +102,7 @@ The controller:
 - Plays `./assets/audio/buzzer.mp3` when an incorrect color-button code is entered.
 - Displays or flashes `Bake at 350 Degrees` when the color-button sequence completes.
 - Handles whole-room reset through the Raspberry Pi reset button.
+- Pulses a Raspberry Pi GPIO buzzer when `Bake at 350 Degrees` is displayed.
 
 State names are defined in `shared/RoomState.h` and include:
 
@@ -132,6 +133,23 @@ ROOM_KEY_AVAILABLE
 Display support is intentionally abstracted in `raspberry-pi-controller/src/effects/DisplayOutput.*`. The current implementation logs messages to stdout. Replace that implementation with HDMI/browser/pygame/Tkinter display code when the actual display path is chosen.
 
 Audio playback uses `AudioEffect`. `.m4a` and `.mp3` files are played with `ffplay` when available; other files fall back to `aplay`. If the file is missing, the controller logs the issue and continues.
+
+The Bake-message attention buzzer uses Raspberry Pi GPIO 24 by default for 350ms. Change these defaults with build flags if the physical wiring needs different values:
+
+```ini
+-D PI_BAKE_BUZZER_GPIO=24
+-D PI_BAKE_BUZZER_MS=350
+```
+
+Raspberry Pi Bake-message buzzer wiring:
+
+```text
+Raspberry Pi GPIO 24 -> active buzzer module signal/IN
+Raspberry Pi GND     -> buzzer module GND
+Buzzer VCC           -> 3.3V or 5V as required by the buzzer module
+```
+
+If the buzzer is a bare two-wire buzzer or draws more current than a GPIO-safe module, drive it through a transistor/MOSFET module instead of directly from GPIO.
 
 ---
 
@@ -318,6 +336,7 @@ The painting event publishes once when the sensor input goes HIGH, then re-arms 
 ```text
 GPIO 14 -> local reset button -> GND
 GPIO 15 -> smart film relay/driver IN
+GPIO 16 -> smart film attention buzzer driver IN
 GPIO 17 -> small addressable LED thermometer strip DIN
 GPIO 18 -> electromagnetic lock relay/driver IN
 3.3V -> oven potentiometer outer leg
@@ -346,6 +365,16 @@ The lock only releases when:
 After the oven reaches 350, the Pico re-arms when the potentiometer leaves the target tolerance window.
 
 Thermometer behavior is implemented through `shared/OvenThermometer.h` so the visual pattern can be tuned without repeated hardcoded LED blocks.
+
+When the Raspberry Pi tells Pico 4 to reveal the smart film, Pico 4 pulses GPIO 16 for `SMART_FILM_BUZZER_MS` to alert players that the clue is visible. Use a small active buzzer module or a transistor/driver circuit. Do not connect a high-current buzzer directly to a Pico GPIO pin.
+
+Pico 4 smart-film buzzer wiring:
+
+```text
+Pico GPIO 16 -> active buzzer module signal/IN
+Pico GND     -> buzzer module GND
+Buzzer VCC   -> 3.3V or 5V as required by the buzzer module
+```
 
 ### Pico 5: Color Buttons
 
@@ -450,6 +479,11 @@ tools/activate-pico3.sh       Test-enables Pico 3 painting rotation.
 tools/activate-pico4.sh       Test-enables Pico 4 smart film and oven knob.
 tools/activate-pico5.sh       Test-enables Pico 5 color-button sequence.
 tools/install-pi-autostart.sh Installs boot-time controller autostart.
+tools/setup-room.sh           Installs autostart, starts the controller, and shows status.
+tools/start-room.sh           Starts the autostarted controller service and shows status.
+tools/stop-room.sh            Stops the controller service and shows status.
+tools/room-status.sh          Shows controller service status.
+tools/room-logs.sh            Follows controller service logs.
 ```
 
 `tools/start-venv.sh` can be sourced:
@@ -468,15 +502,16 @@ Install production autostart after the Pi is configured and the controller build
 
 ```bash
 cd /home/admin/escape-room
-tools/install-pi-autostart.sh
-sudo systemctl start escape-room-controller.service
-sudo systemctl status escape-room-controller.service
+tools/setup-room.sh
 ```
 
-After this, the hotspot is configured to autoconnect through NetworkManager, and the controller starts through systemd when the Pi boots. View logs without starting a second controller:
+After this, the hotspot is configured to autoconnect through NetworkManager, and the controller starts through systemd when the Pi boots. Useful service helpers:
 
 ```bash
-journalctl -u escape-room-controller.service -f
+tools/start-room.sh
+tools/stop-room.sh
+tools/room-status.sh
+tools/room-logs.sh
 ```
 
 Do not run `pio run -e raspberry_pi_controller -t exec` in a second terminal while the service is running. Two controller instances use the same MQTT client id and can disconnect each other repeatedly.
@@ -794,7 +829,14 @@ Default audio sink -> Bluetooth sound bar for room effects
 Optional buzzer    -> Pi GPIO or Pico 4 GPIO for local attention cues
 ```
 
-For the smart-film attention cue, the simplest robust option is a short buzzer on Pico 4 because Pico 4 already receives the smart-film reveal command. Wire the buzzer through a transistor/driver if it draws more current than a Pico GPIO can safely provide. Do not power a loud buzzer directly from GPIO unless its current draw is known to be safe.
+Current buzzer behavior:
+
+```text
+Pi GPIO 24     -> pulses when "Bake at 350 Degrees" is displayed.
+Pico 4 GPIO 16 -> pulses when the smart film is activated/revealed.
+```
+
+Wire both buzzers through an appropriate module, transistor, or driver if the buzzer current is not known to be safe for GPIO. Share ground between the controller board and the buzzer driver input side.
 
 Planned TV operator display behavior:
 

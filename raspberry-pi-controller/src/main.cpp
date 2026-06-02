@@ -5,6 +5,7 @@
 #include "ResetControl.h"
 #include "effects/AudioEffect.h"
 #include "effects/DisplayOutput.h"
+#include "effects/GpioBuzzerEffect.h"
 #include "puzzles/CopperPuzzle.h"
 #include "puzzles/PlannedPuzzles.h"
 
@@ -24,6 +25,14 @@ static const char* CLIENT_ID = "raspberry_pi_game_controller";
 static const char* GPIO_CHIP_NAME = "gpiochip0";
 static const char* GPIO_CHIP_PATH = "/dev/gpiochip0";
 static const int POST_ALL_GREEN_MS = 1200;
+
+#ifndef PI_BAKE_BUZZER_GPIO
+#define PI_BAKE_BUZZER_GPIO 24
+#endif
+
+#ifndef PI_BAKE_BUZZER_MS
+#define PI_BAKE_BUZZER_MS 350
+#endif
 
 std::string get_home_dir() {
     const char* home = std::getenv("HOME");
@@ -366,9 +375,10 @@ void on_message(struct mosquitto* mosq, void* userdata, const struct mosquitto_m
 int main() {
     AudioEffect crashingPlatesAudio(get_project_asset_file("crashing_plates.m4a"));
     AudioEffect wrongCodeAudio(get_project_asset_file("buzzer.mp3"));
+    GpioBuzzerEffect bakeAttentionBuzzer(PI_BAKE_BUZZER_GPIO, PI_BAKE_BUZZER_MS);
     DisplayOutput display;
 
-    GameController controller(&crashingPlatesAudio, &display, &wrongCodeAudio);
+    GameController controller(&crashingPlatesAudio, &display, &wrongCodeAudio, &bakeAttentionBuzzer);
     controller.addPuzzle(std::make_unique<StairsPuzzle>());
     controller.addPuzzle(std::make_unique<CopperPuzzle>());
     controller.addPuzzle(std::make_unique<FinalPiecePuzzle>());
@@ -383,6 +393,8 @@ int main() {
     std::cout << "Broker: " << MQTT_HOST << ":" << MQTT_PORT << std::endl;
     std::cout << "Painting audio: " << crashingPlatesAudio.file() << std::endl;
     std::cout << "Wrong-code audio: " << wrongCodeAudio.file() << std::endl;
+    std::cout << "Bake attention buzzer: GPIO " << PI_BAKE_BUZZER_GPIO
+              << " for " << PI_BAKE_BUZZER_MS << " ms" << std::endl;
     std::cout << "Registered puzzle topics:" << std::endl;
     for (const auto& topic : controller.topics()) {
         std::cout << "  " << topic << std::endl;

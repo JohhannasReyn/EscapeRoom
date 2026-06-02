@@ -12,11 +12,13 @@
 GameController::GameController(
     Effect* paintingCrashEffect,
     DisplayOutput* displayOutput,
-    Effect* colorSequenceErrorEffect
+    Effect* colorSequenceErrorEffect,
+    Effect* bakeAttentionEffect
 )
     : paintingCrashEffect(paintingCrashEffect),
       displayOutput(displayOutput),
-      colorSequenceErrorEffect(colorSequenceErrorEffect) {
+      colorSequenceErrorEffect(colorSequenceErrorEffect),
+      bakeAttentionEffect(bakeAttentionEffect) {
 }
 
 void GameController::addPuzzle(std::unique_ptr<PuzzleModule> puzzle) {
@@ -196,6 +198,12 @@ bool GameController::handleFlowEvent(const std::string& topic, const std::string
             displayOutput->flash_message("Bake at 350 Degrees", 6, 0.5);
         } else {
             std::cout << "Display output not configured. Message: Bake at 350 Degrees" << std::endl;
+        }
+
+        if (bakeAttentionEffect != nullptr) {
+            bakeAttentionEffect->trigger(payload);
+        } else {
+            std::cout << "Bake attention buzzer not configured." << std::endl;
         }
 
         transitionTo(RoomState::DISPLAY_BAKE_350, "display bake message requested");

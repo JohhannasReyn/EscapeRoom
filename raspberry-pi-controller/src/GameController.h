@@ -24,7 +24,8 @@ public:
     GameController(
         Effect* paintingCrashEffect = nullptr,
         DisplayOutput* displayOutput = nullptr,
-        Effect* colorSequenceErrorEffect = nullptr
+        Effect* colorSequenceErrorEffect = nullptr,
+        Effect* bakeAttentionEffect = nullptr
     );
 
     void addPuzzle(std::unique_ptr<PuzzleModule> puzzle);
@@ -56,6 +57,7 @@ private:
     Effect* paintingCrashEffect = nullptr;
     DisplayOutput* displayOutput = nullptr;
     Effect* colorSequenceErrorEffect = nullptr;
+    Effect* bakeAttentionEffect = nullptr;
 };
 
 #endif
