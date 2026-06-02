@@ -419,6 +419,68 @@ Build the component diagnostic project from `pico-0-component-tests/`:
 pio run
 ```
 
+---
+
+## Raspberry Pi Operator Scripts
+
+The `tools/` folder contains small Raspberry Pi helper scripts for setup day and party day. Run them from the Raspberry Pi unless noted otherwise.
+
+```bash
+cd /home/admin/escape-room
+```
+
+Make scripts executable after a fresh copy:
+
+```bash
+chmod +x tools/*.sh
+```
+
+Common scripts:
+
+```text
+tools/start-wifi.sh           Starts/verifies the EscapeRoom hotspot.
+tools/verify-wifi.sh          Shows Ethernet, hotspot, and connected Pico clients.
+tools/start-venv.sh           Activates ~/.platformio-venv or opens a shell with it active.
+tools/monitor-puzzles.sh      Starts the production Raspberry Pi controller.
+tools/watch-mqtt.sh           Subscribes to escape/# for live MQTT debugging.
+tools/connect-bluetooth.sh    Reconnects the stored Bluetooth speaker and sets volume.
+tools/activate-pico1.sh       Test-enables Pico 1 cubby light command.
+tools/activate-pico2.sh       Test-enables Pico 2 copper puzzle.
+tools/activate-pico3.sh       Test-enables Pico 3 painting rotation.
+tools/activate-pico4.sh       Test-enables Pico 4 smart film and oven knob.
+tools/activate-pico5.sh       Test-enables Pico 5 color-button sequence.
+tools/install-pi-autostart.sh Installs boot-time controller autostart.
+```
+
+`tools/start-venv.sh` can be sourced:
+
+```bash
+source tools/start-venv.sh
+```
+
+If it is run normally, it opens a new shell with the PlatformIO venv active:
+
+```bash
+tools/start-venv.sh
+```
+
+Install production autostart after the Pi is configured and the controller builds:
+
+```bash
+cd /home/admin/escape-room
+tools/install-pi-autostart.sh
+sudo systemctl start escape-room-controller.service
+sudo systemctl status escape-room-controller.service
+```
+
+After this, the hotspot is configured to autoconnect through NetworkManager, and the controller starts through systemd when the Pi boots. View logs without starting a second controller:
+
+```bash
+journalctl -u escape-room-controller.service -f
+```
+
+Do not run `pio run -e raspberry_pi_controller -t exec` in a second terminal while the service is running. Two controller instances use the same MQTT client id and can disconnect each other repeatedly.
+
 ### Raspberry Pi Hotspot Network
 
 Use this when the escape room needs to move between houses, schools, or venues without rewriting every Pico's WiFi settings. The Raspberry Pi can host its own WiFi network, and every Pico connects to that network instead of the venue WiFi.
@@ -435,7 +497,7 @@ Set up the hotspot on the Raspberry Pi:
 
 ```bash
 cd /home/admin/escape-room
-bash tools/setup-pi-hotspot.sh
+tools/start-wifi.sh
 ```
 
 Customize the hotspot before running the script:
@@ -461,6 +523,32 @@ nmcli connection show
 nmcli connection up escape-room-hotspot
 nmcli connection down escape-room-hotspot
 nmcli device wifi list
+tools/verify-wifi.sh
+```
+
+Recommended network layout for setup day and party day:
+
+```text
+Pi eth0  -> venue router / Mac SSH / internet
+Pi wlan0 -> EscapeRoom hotspot at 10.42.0.1
+Picos    -> EscapeRoom hotspot, MQTT broker 10.42.0.1
+```
+
+Healthy Pi network check:
+
+```bash
+ip -4 addr show eth0
+ip -4 addr show wlan0
+nmcli connection show --active
+sudo iw dev wlan0 station dump
+```
+
+Expected:
+
+```text
+eth0 has a venue/router address such as 192.168.1.x
+wlan0 has 10.42.0.1/24
+sudo iw dev wlan0 station dump shows one station per connected Pico
 ```
 
 The Raspberry Pi controller is a native Linux PlatformIO project. Install its system dependencies on the Pi:
@@ -511,7 +599,21 @@ exit
 Reconnect a previously paired speaker:
 
 ```bash
-bluetoothctl connect AA:BB:CC:DD:EE:FF
+tools/connect-bluetooth.sh
+```
+
+The script defaults to the stored Yamaha ATS-1090 used during testing:
+
+```text
+BT_DEVICE=00:22:6C:12:1D:C3
+BT_NAME=Yamaha ATS-1090
+VOLUME=80%
+```
+
+Override those values if the speaker changes:
+
+```bash
+BT_DEVICE='AA:BB:CC:DD:EE:FF' BT_NAME='Speaker Name' VOLUME='90%' tools/connect-bluetooth.sh
 ```
 
 Test project audio:
@@ -535,11 +637,185 @@ wpctl set-default SINK_ID
 
 Replace `SINK_ID` with the numeric ID shown by `wpctl status`.
 
+Set volume and unmute:
+
+```bash
+wpctl set-volume @DEFAULT_AUDIO_SINK@ 80%
+wpctl set-mute @DEFAULT_AUDIO_SINK@ 0
+```
+
+If `wpctl` is missing on a different Pi image, check fallback tools:
+
+```bash
+command -v wpctl
+command -v pactl
+command -v amixer
+```
+
 Build/run the controller from `raspberry-pi-controller/`:
 
 ```bash
-pio run
-pio run -t exec
+cd /home/admin/escape-room/raspberry-pi-controller
+source ~/.platformio-venv/bin/activate
+pio run -e raspberry_pi_controller
+pio run -e raspberry_pi_controller -t exec
+```
+
+Or use the production helper:
+
+```bash
+cd /home/admin/escape-room
+tools/monitor-puzzles.sh
+```
+
+### Flash and Test Each Active Pico
+
+Use this order every time a Pico is flashed. It prevents chasing a magnet, button, or LED wiring problem before proving WiFi and MQTT are working.
+
+1. Start the Pi hotspot and verify Ethernet is still available:
+
+```bash
+cd /home/admin/escape-room
+tools/start-wifi.sh
+tools/verify-wifi.sh
+```
+
+2. Start the Raspberry Pi controller in one terminal:
+
+```bash
+cd /home/admin/escape-room
+tools/monitor-puzzles.sh
+```
+
+3. Start an MQTT monitor in a second terminal:
+
+```bash
+cd /home/admin/escape-room
+tools/watch-mqtt.sh
+```
+
+4. On the student laptop, open the Pico project folder that matches the board being flashed. Confirm that `platformio.ini` has:
+
+```ini
+[env:pico]
+platform = https://github.com/maxgerhardt/platform-raspberrypi.git
+board = rpipicow
+framework = arduino
+board_build.core = earlephilhower
+
+build_flags =
+    -D WIFI_SSID=\"EscapeRoom\"
+    -D WIFI_PASS=\"BakeAt350\"
+    -D MQTT_BROKER=\"10.42.0.1\"
+```
+
+5. Build, upload, and reboot the Pico:
+
+```bash
+python3 -m platformio run -t clean
+python3 -m platformio run
+python3 -m platformio run -t upload
+```
+
+After upload, unplug/replug the Pico.
+
+6. On the Pi, verify the Pico joined the hotspot:
+
+```bash
+sudo iw dev wlan0 station dump
+```
+
+If this prints no station/MAC address, the Pico is not connected to WiFi yet. Recheck that the board is a Pico W/Pico WH, the correct project was uploaded, and the `EscapeRoom` credentials were compiled.
+
+7. Verify MQTT telemetry for that Pico before testing the physical sensor:
+
+```bash
+mosquitto_sub -h localhost -v -t 'escape/telemetry/#' -t 'escape/post/cubby/+/state'
+```
+
+8. Activate the Pico under test if it normally waits for an earlier puzzle:
+
+```bash
+tools/activate-pico1.sh
+tools/activate-pico2.sh
+tools/activate-pico3.sh
+tools/activate-pico4.sh
+tools/activate-pico5.sh
+```
+
+9. Trigger the physical sensor/component and confirm both telemetry and the event topic.
+
+Pico-specific checks:
+
+```text
+Pico 1:
+  Activate: tools/activate-pico1.sh
+  Telemetry: escape/telemetry/pico1/motion
+  Event: escape/pico1/cubby_approach_detected
+
+Pico 2:
+  Activate: tools/activate-pico2.sh
+  Telemetry: escape/telemetry/pico2/contacts
+  Events: escape/pico2/copper_puzzle_complete, escape/pico2/final_piece_placed
+
+Pico 3:
+  Activate: tools/activate-pico3.sh
+  Telemetry: escape/telemetry/pico3/painting_sensor
+  Event: escape/pico3/painting_rotation_complete
+  Expected enabled telemetry after activation: enabled=1
+
+Pico 4:
+  Activate: tools/activate-pico4.sh
+  Telemetry: escape/telemetry/pico4/oven
+  Events: escape/pico4/oven_target_reached, escape/pico4/electromag_lock_unlocked
+
+Pico 5:
+  Activate: tools/activate-pico5.sh
+  Telemetry: escape/telemetry/pico5/buttons
+  Event: escape/pico5/color_sequence_complete
+```
+
+To force the Raspberry Pi controller forward without using a physical Pico sensor, publish the Pico's event topic directly. Example for the painting puzzle:
+
+```bash
+mosquitto_pub -h localhost -t 'escape/pico3/painting_rotation_complete' -m 'painting rotation complete'
+```
+
+This advances the Pi controller, but it does not change the Pico's internal telemetry counters. Pico counters only change when the Pico firmware sees its physical input.
+
+### TV, HDMI Audio, and Operator Feedback
+
+The current `DisplayOutput` implementation logs display messages to the terminal. The code is already abstracted so it can be replaced with an HDMI/browser/pygame/Tkinter display without changing the puzzle logic.
+
+It is possible for the Pi to send one sound to the Bluetooth sound bar and a different attention sound to the HDMI TV, but the current `AudioEffect` plays to the default audio sink only. To support separate outputs cleanly, add a configurable audio-device field to `AudioEffect` and launch `ffplay` or another player against a selected PipeWire/ALSA sink. Until that is implemented, the most reliable production setup is:
+
+```text
+Default audio sink -> Bluetooth sound bar for room effects
+Optional buzzer    -> Pi GPIO or Pico 4 GPIO for local attention cues
+```
+
+For the smart-film attention cue, the simplest robust option is a short buzzer on Pico 4 because Pico 4 already receives the smart-film reveal command. Wire the buzzer through a transistor/driver if it draws more current than a Pico GPIO can safely provide. Do not power a loud buzzer directly from GPIO unless its current draw is known to be safe.
+
+Planned TV operator display behavior:
+
+```text
+Setup/POST:
+  Show Pico 1-5 readiness boxes.
+  Green means ready.
+  Red means the puzzle still appears completed and should be reset.
+
+During play:
+  Show compact progress boxes or a percentage in the screen corner.
+  Briefly show sensor state changes as each Pico reports telemetry/events.
+
+Bake message:
+  Hide progress boxes.
+  Flash "Bake at 350 Degrees".
+  Optionally play an HDMI/TV attention sound once separate audio routing is implemented.
+
+Room completion:
+  Show "Well Done!" with all five boxes checked.
+  Clear checks again as each puzzle returns to its ready state during reset.
 ```
 
 Run host-side tests from the repository root on Windows:
