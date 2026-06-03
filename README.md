@@ -97,7 +97,7 @@ The Pico folder names now match the active puzzle structure. Pico 6 remains a ho
 | Pico 1 | `pico1-cubby-approach-leds` | 15m 5V addressable cubby LEDs, PIR motion detector | Detect cubby approach and illuminate cubbies when instructed |
 | Pico 2 | `pico2-copper-final-piece` | Copper puzzle contacts, final puzzle piece contact | Report copper completion and final piece placement |
 | Pico 3 | `pico3-painting-rotation` | RC35 or equivalent magnetic/reed/hall sensor | Report correct painting rotation |
-| Pico 4 | `pico4-smart-film-oven` | Smart film, oven knob potentiometer, electromagnetic lock, 10-15 LED thermometer strip | Reveal smart film, track oven knob, drive thermometer, unlock at 350 |
+| Pico 4 | `pico4-smart-film-oven` | Smart film, oven knob potentiometer, electromagnetic lock, smart-film buzzer | Reveal smart film, track oven knob, publish TV oven value, unlock at 350 |
 | Pico 5 | `pico5-color-buttons` | Color-coded buttons | Report correct button sequence |
 | Pico 6 | `pico6-unused-future-puzzles` | None in active runtime | Stores unused/future puzzle code |
 
@@ -130,8 +130,8 @@ Sensor and contact-style Pico events are edge-triggered for repeatable testing: 
 21. Raspberry Pi displays/flashes Bake at 350 Degrees.
 22. Raspberry Pi enables Pico 4's oven knob puzzle.
 23. Player turns the oven knob to 350 degrees.
-24. Pico 4 reads the oven setting from the potentiometer.
-25. Pico 4 unlocks the electromagnetic lock at 350 degrees within tolerance.
+24. Pico 4 reads the oven setting from the potentiometer and publishes the simulated temperature to the TV dashboard.
+25. Pico 4 unlocks the electromagnetic lock only after the dial stays at 350 degrees within tolerance long enough to count as intentional.
 26. The unlocked compartment contains the key to the locked room.
 
 ---
@@ -389,14 +389,15 @@ The painting event publishes once when the sensor input goes HIGH, then re-arms 
 
 ```text
 GPIO 14 -> local reset button -> GND
-GPIO 15 -> smart film relay/driver IN
-GPIO 16 -> smart film attention buzzer driver IN
-GPIO 17 -> small addressable LED thermometer strip DIN
-GPIO 18 -> electromagnetic lock relay/driver IN
+GPIO 15 / physical pin 20 -> smart film relay/driver IN
+GPIO 16 / physical pin 21 -> smart film attention buzzer driver IN
+GPIO 18 / physical pin 24 -> electromagnetic lock relay/driver IN
 3.3V -> oven potentiometer outer leg
 GND -> oven potentiometer outer leg
-GPIO 26 / ADC0 -> oven potentiometer wiper
+GPIO 26 / ADC0 / physical pin 31 -> oven potentiometer wiper
 ```
+
+In the code, `OVEN_POT_PIN = 26` means GPIO 26 / ADC0, not physical header pin 26. This is the Pico analog input on physical pin 31.
 
 Oven constants are centralized near the top of `pico4-smart-film-oven/src/main.cpp`:
 
@@ -405,20 +406,21 @@ constexpr int OVEN_MIN_VALUE = 0;
 constexpr int OVEN_TARGET_VALUE = 350;
 constexpr int OVEN_MAX_VALUE = 500;
 constexpr int OVEN_TARGET_TOLERANCE = 10;
+constexpr unsigned long OVEN_TARGET_HOLD_MS = 1200;
 constexpr int OVEN_POT_MIN_READING = 0;
 constexpr int OVEN_POT_MAX_READING = 4095;
 constexpr int OVEN_POSITION_PUBLISH_DELTA = 2;
-constexpr int THERMOMETER_LED_COUNT = 12;
 ```
 
 The lock only releases when:
 
 - Raspberry Pi has enabled the oven puzzle.
 - The potentiometer-derived oven value is within tolerance of 350.
+- The value remains within that target window for `OVEN_TARGET_HOLD_MS`.
 
 After the oven reaches 350, the Pico re-arms when the potentiometer leaves the target tolerance window.
 
-Thermometer behavior is implemented through `shared/OvenThermometer.h` so the visual pattern can be tuned without repeated hardcoded LED blocks.
+The small LED thermometer strip is no longer used. Pico 4 publishes `escape/pico4/oven_position_update`, and the HDMI TV dashboard shows the simulated temperature under `Bake at 350 Degrees`.
 
 When the Raspberry Pi tells Pico 4 to reveal the smart film, Pico 4 pulses GPIO 16 for `SMART_FILM_BUZZER_MS` to alert players that the clue is visible. Use a small active buzzer module or a transistor/driver circuit. Do not connect a high-current buzzer directly to a Pico GPIO pin.
 
@@ -903,7 +905,7 @@ The current production TV output is `tools/tv-dashboard.sh`. The autostart insta
 ```text
 Setup/POST readiness for Pico 1-5
 Live puzzle progress
-Bake at 350 Degrees after Pico 5 completes
+Bake at 350 Degrees after Pico 5 completes, with live oven value beneath it
 Well Done! after the final electromagnetic lock opens
 ```
 
@@ -936,5 +938,5 @@ Run host-side tests from the repository root on Windows:
 - Confirm the PIR motion detector output voltage before wiring its OUT pin to Pico GPIO 6.
 - Set the real `LEDS_PER_CUBBY` and `LEDS_BETWEEN_CUBBIES` after installing the 15m strip.
 - Confirm the RC35 sensor output behavior for Pico 3 painting detection.
-- Calibrate `OVEN_POT_MIN_READING`, `OVEN_POT_MAX_READING`, `OVEN_TARGET_TOLERANCE`, and thermometer LED count after the oven knob is mounted.
+- Calibrate `OVEN_POT_MIN_READING`, `OVEN_POT_MAX_READING`, `OVEN_TARGET_TOLERANCE`, and `OVEN_TARGET_HOLD_MS` after the oven knob is mounted.
 - Replace the placeholder display implementation with the actual TV/HDMI/browser/pygame/Tkinter path.

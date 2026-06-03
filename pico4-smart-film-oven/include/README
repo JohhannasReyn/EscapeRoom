@@ -1,10 +1,10 @@
 Pico 4 active firmware: smart film and oven knob puzzle.
 
 Hardware:
-- GPIO 15: smart film relay/driver input
-- GPIO 17: small addressable LED thermometer strip DIN
-- GPIO 18: electromagnetic lock relay/driver input
-- GPIO 26 / ADC0: oven potentiometer wiper
+- GPIO 15 / physical pin 20: smart film relay/driver input
+- GPIO 16 / physical pin 21: smart film attention buzzer driver input
+- GPIO 18 / physical pin 24: electromagnetic lock relay/driver input
+- GPIO 26 / ADC0 / physical pin 31: oven potentiometer wiper
 
 Main topics:
 - Publishes escape/pico4/smart_film_ready
@@ -22,7 +22,11 @@ The oven knob puzzle remains disabled until the Raspberry Pi receives the correc
 
 The lock only releases after:
 - oven knob puzzle is enabled
-- potentiometer-derived value reaches 350 within tolerance
+- potentiometer-derived value stays at 350 within tolerance for the configured hold time
 
 After the oven reaches 350, the Pico re-arms when the potentiometer leaves the
 target tolerance window.
+
+The small LED thermometer strip is not used in the current build. Pico 4 publishes
+the simulated oven temperature to MQTT, and the Raspberry Pi TV dashboard displays
+that value under "Bake at 350 Degrees".

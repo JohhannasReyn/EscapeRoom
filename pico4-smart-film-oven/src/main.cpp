@@ -1,11 +1,9 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <PubSubClient.h>
-#include <Adafruit_NeoPixel.h>
 
 #include "../../shared/OvenDial.h"
 #include "../../shared/EscapeRoomProtocol.h"
-#include "../../shared/OvenThermometer.h"
 #include "../../shared/PostState.h"
 
 #ifndef WIFI_SSID
@@ -32,7 +30,6 @@ constexpr int LED_PIN = LED_BUILTIN;
 constexpr int RST_PIN = 14;
 constexpr int SMART_FILM_PIN = 15;
 constexpr int SMART_FILM_BUZZER_PIN = 16;
-constexpr int THERMOMETER_LED_PIN = 17;
 constexpr int LOCK_PIN = 18;
 constexpr int OVEN_POT_PIN = 26;
 
@@ -43,23 +40,22 @@ constexpr int OVEN_TARGET_TOLERANCE = 10;
 constexpr int OVEN_POT_MIN_READING = 0;
 constexpr int OVEN_POT_MAX_READING = 4095;
 constexpr int OVEN_POSITION_PUBLISH_DELTA = 2;
-constexpr int THERMOMETER_LED_COUNT = 12;
-constexpr int THERMOMETER_BRIGHTNESS = 64;
 
 constexpr unsigned long MQTT_RETRY_MS = 3000;
 constexpr unsigned long OVEN_LOCK_RELEASE_MS = 100;
 constexpr unsigned long SMART_FILM_BUZZER_MS = 350;
+constexpr unsigned long OVEN_TARGET_HOLD_MS = 1200;
 constexpr unsigned long SENSOR_TELEMETRY_MS = 1000;
 
 WiFiClient wifiClient;
 PubSubClient mqtt(wifiClient);
-Adafruit_NeoPixel thermometerStrip(THERMOMETER_LED_COUNT, THERMOMETER_LED_PIN, NEO_GRB + NEO_KHZ800);
 
 bool ovenEnabled = false;
 bool ovenSolved = false;
 int ovenLastPublishedValue = -1;
 unsigned long lockOffAt = 0;
 unsigned long smartFilmBuzzerOffAt = 0;
+unsigned long ovenTargetStableStart = 0;
 unsigned long lastSensorTelemetry = 0;
 
 void resetOvenAndOutputs();
@@ -97,21 +93,6 @@ void pulseSmartFilmBuzzer() {
     smartFilmBuzzerOffAt = millis() + SMART_FILM_BUZZER_MS;
 }
 
-void updateThermometer(int ovenValue) {
-    int litCount = litThermometerLedCount(ovenValue, OVEN_MIN_VALUE, OVEN_MAX_VALUE, THERMOMETER_LED_COUNT);
-
-    for (int index = 0; index < THERMOMETER_LED_COUNT; ++index) {
-        RgbColor color = thermometerColor(thermometerBandForIndex(index, litCount));
-        thermometerStrip.setPixelColor(index, thermometerStrip.Color(color.r, color.g, color.b));
-    }
-
-    thermometerStrip.show();
-}
-
-void clearThermometer() {
-    updateThermometer(OVEN_MIN_VALUE);
-}
-
 int readOvenPotValue() {
     int rawReading = analogRead(OVEN_POT_PIN);
     return ovenValueFromPotReading(
@@ -124,8 +105,6 @@ int readOvenPotValue() {
 }
 
 void publishAndDisplayOvenValue(int ovenValue, bool forcePublish = false) {
-    updateThermometer(ovenValue);
-
     if (
         forcePublish ||
         ovenLastPublishedValue < 0 ||
@@ -147,10 +126,19 @@ void checkOvenPotentiometer() {
 
     if (ovenSolved && !atTarget) {
         ovenSolved = false;
+        ovenTargetStableStart = 0;
         publishPostState();
     }
 
-    if (!ovenSolved && atTarget) {
+    if (!ovenSolved && atTarget && ovenTargetStableStart == 0) {
+        ovenTargetStableStart = millis();
+    }
+
+    if (!ovenSolved && !atTarget) {
+        ovenTargetStableStart = 0;
+    }
+
+    if (!ovenSolved && atTarget && millis() - ovenTargetStableStart >= OVEN_TARGET_HOLD_MS) {
         ovenSolved = true;
         publishAndDisplayOvenValue(ovenValue, true);
         publishEvent(EscapeTopic::OVEN_TARGET_REACHED, "oven target reached");
@@ -180,7 +168,11 @@ void handleMessage(char* topic, byte* payload, unsigned int length) {
         ovenEnabled = message != "off";
         ovenSolved = false;
         ovenLastPublishedValue = -1;
-        clearThermometer();
+        ovenTargetStableStart = 0;
+
+        if (ovenEnabled) {
+            publishAndDisplayOvenValue(readOvenPotValue(), true);
+        }
     } else if (topicText == EscapeTopic::UNLOCK_ELECTROMAG_LOCK || topicText == EscapeTopic::LEGACY_LOCK_TRIGGER) {
         setLock(message != "off");
     } else if (topicText == EscapeTopic::STATUS_REQUEST || topicText == EscapeTopic::LEGACY_POST_QUERY) {
@@ -268,12 +260,12 @@ void resetOvenAndOutputs() {
     ovenEnabled = false;
     ovenSolved = false;
     ovenLastPublishedValue = -1;
+    ovenTargetStableStart = 0;
     setLock(false);
     digitalWrite(SMART_FILM_PIN, LOW);
     digitalWrite(SMART_FILM_BUZZER_PIN, LOW);
     smartFilmBuzzerOffAt = 0;
     digitalWrite(LED_PIN, LOW);
-    clearThermometer();
     if (mqtt.connected()) {
         publishPostState();
     }
@@ -290,10 +282,6 @@ void setup() {
     pinMode(LOCK_PIN, OUTPUT);
     pinMode(OVEN_POT_PIN, INPUT);
     analogReadResolution(12);
-
-    thermometerStrip.begin();
-    thermometerStrip.setBrightness(THERMOMETER_BRIGHTNESS);
-    clearThermometer();
 
     resetOvenAndOutputs();
     connectWiFi();
