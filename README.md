@@ -515,6 +515,7 @@ tools/room-logs.sh            Follows controller and TV dashboard service logs.
 tools/start-wifi.sh           Creates/starts/verifies the EscapeRoom hotspot.
 tools/verify-wifi.sh          Shows Ethernet, hotspot, and connected Pico clients.
 tools/connect-bluetooth.sh    Reconnects the stored Bluetooth speaker and sets volume.
+tools/set-tv-font.sh          Sets a larger Raspberry Pi console font for the HDMI TV.
 tools/tv-dashboard.sh         MQTT-driven HDMI TV/console dashboard.
 tools/monitor-puzzles.sh      Runs the controller in the current terminal for development only.
 tools/watch-mqtt.sh           Watches raw MQTT traffic for debugging only.
@@ -871,7 +872,25 @@ This advances the Pi controller, but it does not change the Pico's internal tele
 
 ### TV, HDMI Audio, and Operator Feedback
 
-The current production TV output is `tools/tv-dashboard.sh`. The autostart installer runs it as `escape-room-tv-dashboard.service` and writes it to `/dev/tty1`, which is the Raspberry Pi's HDMI console. The TV should show:
+The current production TV output is `tools/tv-dashboard.sh`. The autostart installer runs it as `escape-room-tv-dashboard.service` and writes it to `/dev/tty1`, which is the Raspberry Pi's HDMI console. Before starting the dashboard, the service runs `tools/set-tv-font.sh` to request a larger console font for readability on the TV.
+
+Default TV font settings:
+
+```text
+TV_CONSOLE=/dev/tty1
+TV_FONT=Lat2-Terminus32x16.psf.gz
+```
+
+To test the larger font manually on the Pi:
+
+```bash
+cd /home/admin/escape-room
+sudo TV_FONT=Lat2-Terminus32x16.psf.gz tools/set-tv-font.sh
+```
+
+If that font is not installed, the script tries several common 32-pixel Terminus console fonts and then falls back to the default console font without stopping the dashboard.
+
+The TV should show:
 
 ```text
 Setup/POST readiness for Pico 1-5

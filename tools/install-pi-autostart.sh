@@ -50,6 +50,9 @@ Type=simple
 User=${RUN_USER}
 WorkingDirectory=${PROJECT_ROOT}
 Environment=TERM=linux
+Environment=TV_CONSOLE=/dev/tty1
+Environment=TV_FONT=Lat2-Terminus32x16.psf.gz
+ExecStartPre=+${PROJECT_ROOT}/tools/set-tv-font.sh
 ExecStart=${PROJECT_ROOT}/tools/tv-dashboard.sh
 StandardInput=tty
 StandardOutput=tty
