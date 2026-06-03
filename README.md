@@ -97,7 +97,7 @@ The Pico folder names now match the active puzzle structure. Pico 6 remains a ho
 | Pico 1 | `pico1-cubby-approach-leds` | 15m 5V addressable cubby LEDs, PIR motion detector | Detect cubby approach and illuminate cubbies when instructed |
 | Pico 2 | `pico2-copper-final-piece` | Copper puzzle contacts, final puzzle piece contact | Report copper completion and final piece placement |
 | Pico 3 | `pico3-painting-rotation` | RC35 or equivalent magnetic/reed/hall sensor | Report correct painting rotation |
-| Pico 4 | `pico4-smart-film-oven` | Smart film, oven knob potentiometer, electromagnetic lock, smart-film buzzer | Reveal smart film, track oven knob, publish TV oven value, unlock at 350 |
+| Pico 4 | `pico4-smart-film-oven` | Smart film, oven knob potentiometer, electromagnetic lock | Reveal smart film, track oven knob, publish TV oven value, unlock at 350 |
 | Pico 5 | `pico5-color-buttons` | Color-coded buttons | Report correct button sequence |
 | Pico 6 | `pico6-unused-future-puzzles` | None in active runtime | Stores unused/future puzzle code |
 
@@ -152,7 +152,6 @@ The controller:
 - Plays `./assets/audio/yeah-you-did-it.mp3`, then `./assets/audio/look-at-the-tv.mp3`, when the color-button counts are correct.
 - Displays or flashes `Bake at 350 Degrees` when the color-button sequence completes.
 - Handles whole-room reset through the Raspberry Pi reset button.
-- Pulses a Raspberry Pi GPIO buzzer when `Bake at 350 Degrees` is displayed.
 - Feeds events to an HDMI console dashboard through MQTT.
 
 State names are defined in `shared/RoomState.h` and include:
@@ -186,24 +185,7 @@ Display support is split into two layers:
 - `raspberry-pi-controller/src/effects/DisplayOutput.*` logs the controller's direct display requests.
 - `tools/tv-dashboard.sh` is the current production HDMI dashboard. It listens to MQTT, shows Pico readiness/progress, displays `Bake at 350 Degrees`, and shows `Well Done!` after the final lock opens.
 
-Audio playback uses `AudioEffect`. `.m4a` and `.mp3` files are played with `ffplay` when available; other files fall back to `aplay`. If the file is missing, the controller logs the issue and continues.
-
-The Bake-message attention buzzer uses Raspberry Pi GPIO 24 by default for 350ms. Change these defaults with build flags if the physical wiring needs different values:
-
-```ini
--D PI_BAKE_BUZZER_GPIO=24
--D PI_BAKE_BUZZER_MS=350
-```
-
-Raspberry Pi Bake-message buzzer wiring:
-
-```text
-Raspberry Pi GPIO 24 -> active buzzer module signal/IN
-Raspberry Pi GND     -> buzzer module GND
-Buzzer VCC           -> 3.3V or 5V as required by the buzzer module
-```
-
-If the buzzer is a bare two-wire buzzer or draws more current than a GPIO-safe module, drive it through a transistor/MOSFET module instead of directly from GPIO.
+Audio playback uses `AudioEffect`. `.m4a` and `.mp3` files are played with `ffplay` when available; other files fall back to `aplay`. If the file is missing, the controller logs the issue and continues. Production attention cues are handled with sound effects rather than physical buzzers.
 
 ---
 
@@ -390,7 +372,6 @@ The painting event publishes once when the sensor input goes HIGH, then re-arms 
 ```text
 GPIO 14 -> local reset button -> GND
 GPIO 15 / physical pin 20 -> smart film relay/driver IN
-GPIO 16 / physical pin 21 -> smart film attention buzzer driver IN
 GPIO 18 / physical pin 24 -> electromagnetic lock relay/driver IN
 3.3V -> oven potentiometer outer leg
 GND -> oven potentiometer outer leg
@@ -421,16 +402,6 @@ The lock only releases when:
 After the oven reaches 350, the Pico re-arms when the potentiometer leaves the target tolerance window.
 
 The small LED thermometer strip is no longer used. Pico 4 publishes `escape/pico4/oven_position_update`, and the HDMI TV dashboard shows the simulated temperature under `Bake at 350 Degrees`.
-
-When the Raspberry Pi tells Pico 4 to reveal the smart film, Pico 4 pulses GPIO 16 for `SMART_FILM_BUZZER_MS` to alert players that the clue is visible. Use a small active buzzer module or a transistor/driver circuit. Do not connect a high-current buzzer directly to a Pico GPIO pin.
-
-Pico 4 smart-film buzzer wiring:
-
-```text
-Pico GPIO 16 -> active buzzer module signal/IN
-Pico GND     -> buzzer module GND
-Buzzer VCC   -> 3.3V or 5V as required by the buzzer module
-```
 
 ### Pico 5: Color Buttons
 
@@ -909,21 +880,7 @@ Bake at 350 Degrees after Pico 5 completes, with live oven value beneath it
 Well Done! after the final electromagnetic lock opens
 ```
 
-It is possible for the Pi to send one sound to the Bluetooth sound bar and a different attention sound to the HDMI TV, but the current `AudioEffect` plays to the default audio sink only. To support separate outputs cleanly, add a configurable audio-device field to `AudioEffect` and launch `ffplay` or another player against a selected PipeWire/ALSA sink. Until that is implemented, the most reliable production setup is:
-
-```text
-Default audio sink -> Bluetooth sound bar for room effects
-Optional buzzer    -> Pi GPIO or Pico 4 GPIO for local attention cues
-```
-
-Current buzzer behavior:
-
-```text
-Pi GPIO 24     -> pulses when "Bake at 350 Degrees" is displayed.
-Pico 4 GPIO 16 -> pulses when the smart film is activated/revealed.
-```
-
-Wire both buzzers through an appropriate module, transistor, or driver if the buzzer current is not known to be safe for GPIO. Share ground between the controller board and the buzzer driver input side.
+Audio attention cues currently play through the Raspberry Pi's default audio output. For the portable setup, pair the Bluetooth speaker/sound bar first, set it as the default sink, then use the sound-effect test commands above to confirm the cue volume before the room starts.
 
 Run host-side tests from the repository root on Windows:
 
