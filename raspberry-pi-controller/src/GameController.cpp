@@ -13,12 +13,18 @@ GameController::GameController(
     Effect* paintingCrashEffect,
     DisplayOutput* displayOutput,
     Effect* colorSequenceErrorEffect,
-    Effect* bakeAttentionEffect
+    Effect* bakeAttentionEffect,
+    Effect* copperCompleteEffect,
+    Effect* colorSequenceSuccessFirstEffect,
+    Effect* colorSequenceSuccessSecondEffect
 )
     : paintingCrashEffect(paintingCrashEffect),
       displayOutput(displayOutput),
       colorSequenceErrorEffect(colorSequenceErrorEffect),
-      bakeAttentionEffect(bakeAttentionEffect) {
+      bakeAttentionEffect(bakeAttentionEffect),
+      copperCompleteEffect(copperCompleteEffect),
+      colorSequenceSuccessFirstEffect(colorSequenceSuccessFirstEffect),
+      colorSequenceSuccessSecondEffect(colorSequenceSuccessSecondEffect) {
 }
 
 void GameController::addPuzzle(std::unique_ptr<PuzzleModule> puzzle) {
@@ -159,6 +165,13 @@ bool GameController::handleFlowEvent(const std::string& topic, const std::string
 
     if (topic == EscapeTopic::COPPER_PUZZLE_COMPLETE || topic == "escape/puzzle/copper/solved") {
         transitionTo(RoomState::COPPER_PUZZLE_COMPLETE, topic);
+
+        if (copperCompleteEffect != nullptr) {
+            copperCompleteEffect->trigger(payload);
+        } else {
+            std::cout << "Copper completion audio effect not configured." << std::endl;
+        }
+
         transitionTo(RoomState::BOTTLE_LOCK_STAGE, "bread clue and bottle lock stage");
         transitionTo(RoomState::PADLOCK_BOX_STAGE, "bottle message opens padlocked box");
         transitionTo(RoomState::RFID_STAGE, "RFID cards recovered");
@@ -204,6 +217,18 @@ bool GameController::handleFlowEvent(const std::string& topic, const std::string
             bakeAttentionEffect->trigger(payload);
         } else {
             std::cout << "Bake attention buzzer not configured." << std::endl;
+        }
+
+        if (colorSequenceSuccessFirstEffect != nullptr) {
+            colorSequenceSuccessFirstEffect->trigger(payload);
+        } else {
+            std::cout << "Color success first audio effect not configured." << std::endl;
+        }
+
+        if (colorSequenceSuccessSecondEffect != nullptr) {
+            colorSequenceSuccessSecondEffect->trigger(payload);
+        } else {
+            std::cout << "Color success second audio effect not configured." << std::endl;
         }
 
         transitionTo(RoomState::DISPLAY_BAKE_350, "display bake message requested");

@@ -77,8 +77,19 @@ int main() {
     RecordingEffect paintingAudio;
     RecordingEffect wrongCodeAudio;
     RecordingEffect bakeBuzzer;
+    RecordingEffect copperAudio;
+    RecordingEffect colorSuccessFirstAudio;
+    RecordingEffect colorSuccessSecondAudio;
     RecordingDisplay display;
-    GameController controller(&paintingAudio, &display, &wrongCodeAudio, &bakeBuzzer);
+    GameController controller(
+        &paintingAudio,
+        &display,
+        &wrongCodeAudio,
+        &bakeBuzzer,
+        &copperAudio,
+        &colorSuccessFirstAudio,
+        &colorSuccessSecondAudio
+    );
     addActivePuzzles(controller);
 
     assert(controller.puzzleCount() == 8);
@@ -122,6 +133,8 @@ int main() {
     assert(enableCopper.topic == EscapeTopic::ENABLE_COPPER_PUZZLE);
 
     assert(controller.handleMessage(EscapeTopic::COPPER_PUZZLE_COMPLETE, "copper done") == true);
+    assert(copperAudio.triggerCount == 1);
+    assert(copperAudio.lastPayload == "copper done");
     assert(controller.currentState() == RoomState::PAINTING_ROTATION_ACTIVE);
     bool sawPaintingEnable = false;
     bool sawCopperCubby = false;
@@ -168,6 +181,10 @@ int main() {
     assert(display.lastMessage == "Bake at 350 Degrees");
     assert(bakeBuzzer.triggerCount == 1);
     assert(bakeBuzzer.lastPayload == "buttons");
+    assert(colorSuccessFirstAudio.triggerCount == 1);
+    assert(colorSuccessFirstAudio.lastPayload == "buttons");
+    assert(colorSuccessSecondAudio.triggerCount == 1);
+    assert(colorSuccessSecondAudio.lastPayload == "buttons");
     assert(controller.currentState() == RoomState::OVEN_KNOB_ACTIVE);
     bool sawOvenEnable = false;
     bool sawLegacyOvenEnable = false;

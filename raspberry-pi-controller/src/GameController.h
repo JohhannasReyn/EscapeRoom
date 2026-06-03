@@ -25,7 +25,10 @@ public:
         Effect* paintingCrashEffect = nullptr,
         DisplayOutput* displayOutput = nullptr,
         Effect* colorSequenceErrorEffect = nullptr,
-        Effect* bakeAttentionEffect = nullptr
+        Effect* bakeAttentionEffect = nullptr,
+        Effect* copperCompleteEffect = nullptr,
+        Effect* colorSequenceSuccessFirstEffect = nullptr,
+        Effect* colorSequenceSuccessSecondEffect = nullptr
     );
 
     void addPuzzle(std::unique_ptr<PuzzleModule> puzzle);
@@ -58,6 +61,9 @@ private:
     DisplayOutput* displayOutput = nullptr;
     Effect* colorSequenceErrorEffect = nullptr;
     Effect* bakeAttentionEffect = nullptr;
+    Effect* copperCompleteEffect = nullptr;
+    Effect* colorSequenceSuccessFirstEffect = nullptr;
+    Effect* colorSequenceSuccessSecondEffect = nullptr;
 };
 
 #endif

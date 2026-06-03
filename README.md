@@ -66,7 +66,10 @@ EscapeRoom/
 ├── assets/
 │   └── audio/
 │       ├── buzzer.mp3
-│       └── crashing_plates.m4a
+│       ├── crashing_plates.m4a
+│       ├── look-at-the-tv.mp3
+│       ├── look-behind-you.mp3
+│       └── yeah-you-did-it.mp3
 ├── pico-0-component-tests/            Standalone component diagnostic firmware
 ├── pico1-cubby-approach-leds/         Pico 1 active firmware
 ├── pico2-copper-final-piece/          Pico 2 active firmware
@@ -113,21 +116,23 @@ Sensor and contact-style Pico events are edge-triggered for repeatable testing: 
 7. Raspberry Pi plays `./assets/audio/crashing_plates.m4a`.
 8. Players complete the copper puzzle.
 9. Pico 2 publishes escape/pico2/copper_puzzle_complete.
-10. The copper puzzle clue points to smart film.
-11. Raspberry Pi tells Pico 4 to reveal the smart film.
-12. The smart film code revealed to open bottle lock.
-13. The bottle message opens another padlocked box.
-14. The box contains colored keys for color coded locks covering utensils.
-15. The utensils reveal directions for directional lock containing key to bread box.
-16. Code is found hidden within the bread to color coded buttons. 
-17. Pico 5 publishes escape/pico5/color_sequence_complete.
-18. Wrong code entered triggers `./assets/audio/buzzer.mp3`; correct code turns on the TV message.
-19. Raspberry Pi displays/flashes Bake at 350 Degrees.
-20. Raspberry Pi enables Pico 4's oven knob puzzle.
-21. Player turns the oven knob to 350 degrees.
-22. Pico 4 reads the oven setting from the potentiometer.
-23. Pico 4 unlocks the electromagnetic lock at 350 degrees within tolerance.
-24. The unlocked compartment contains the key to the locked room.
+10. Raspberry Pi plays `./assets/audio/look-behind-you.mp3`.
+11. The copper puzzle clue points to smart film.
+12. Raspberry Pi tells Pico 4 to reveal the smart film.
+13. The smart film code revealed to open bottle lock.
+14. The bottle message opens another padlocked box.
+15. The box contains colored keys for color coded locks covering utensils.
+16. The utensils reveal directions for directional lock containing key to bread box.
+17. Code is found hidden within the bread to color coded buttons.
+18. Pico 5 publishes escape/pico5/color_sequence_complete.
+19. Wrong code entered or a 10-second input timeout triggers `./assets/audio/buzzer.mp3`.
+20. Correct color-button counts play `yeah-you-did-it.mp3`, then `look-at-the-tv.mp3`.
+21. Raspberry Pi displays/flashes Bake at 350 Degrees.
+22. Raspberry Pi enables Pico 4's oven knob puzzle.
+23. Player turns the oven knob to 350 degrees.
+24. Pico 4 reads the oven setting from the potentiometer.
+25. Pico 4 unlocks the electromagnetic lock at 350 degrees within tolerance.
+26. The unlocked compartment contains the key to the locked room.
 
 ---
 
@@ -142,7 +147,9 @@ The controller:
 - Logs every major state transition.
 - Sends commands to Pico boards.
 - Plays `./assets/audio/crashing_plates.m4a` when the painting puzzle completes.
+- Plays `./assets/audio/look-behind-you.mp3` when the copper puzzle completes.
 - Plays `./assets/audio/buzzer.mp3` when an incorrect color-button code is entered.
+- Plays `./assets/audio/yeah-you-did-it.mp3`, then `./assets/audio/look-at-the-tv.mp3`, when the color-button counts are correct.
 - Displays or flashes `Bake at 350 Degrees` when the color-button sequence completes.
 - Handles whole-room reset through the Raspberry Pi reset button.
 - Pulses a Raspberry Pi GPIO buzzer when `Bake at 350 Degrees` is displayed.
@@ -427,19 +434,32 @@ Buzzer VCC   -> 3.3V or 5V as required by the buzzer module
 
 ```text
 GPIO 14 -> local reset button -> GND
-GPIO 15 -> first configured color button
-GPIO 16 -> second configured color button
+GPIO 15 -> red button
+GPIO 16 -> green button
+GPIO 17 -> yellow button
+GPIO 18 -> blue button
 ```
 
-TODO: set the real color-button sequence in `pico5-color-buttons/src/main.cpp` once the physical code is finalized:
+Each button uses the Pico's internal pull-up resistor:
 
-```cpp
-constexpr const char* CORRECT_SEQUENCE = "";
+```text
+Pico GPIO input -> button -> Pico GND
 ```
 
-Additional color buttons can be added by extending the `buttons[]` array and assigning real GPIO pins.
+Pressed reads LOW; released reads HIGH.
 
-After a correct sequence is reported, the Pico re-arms once all configured buttons are released.
+The order of button presses does not matter. One attempt is complete after 12 total presses. The required counts are:
+
+```text
+Red    = 3 presses
+Green  = 4 presses
+Yellow = 2 presses
+Blue   = 3 presses
+```
+
+If the 12 presses do not match those counts, Pico 5 publishes `escape/pico5/color_sequence_error`, the Raspberry Pi plays `buzzer.mp3`, and Pico 5 resets the attempt for another try. If no button is pressed for 10 seconds during an enabled attempt, Pico 5 also publishes `escape/pico5/color_sequence_error` and resets the attempt.
+
+After a correct count is reported, Pico 5 keeps the puzzle completed until the room reset command is sent.
 
 ### Pico 6: Unused / Future Puzzle Archive
 
@@ -711,6 +731,9 @@ Test project audio:
 ```bash
 ffplay -nodisp -autoexit /home/admin/escape-room/assets/audio/buzzer.mp3
 ffplay -nodisp -autoexit /home/admin/escape-room/assets/audio/crashing_plates.m4a
+ffplay -nodisp -autoexit /home/admin/escape-room/assets/audio/look-behind-you.mp3
+ffplay -nodisp -autoexit /home/admin/escape-room/assets/audio/yeah-you-did-it.mp3
+ffplay -nodisp -autoexit /home/admin/escape-room/assets/audio/look-at-the-tv.mp3
 ```
 
 If the speaker connects but no sound plays, check the active audio output:
@@ -913,6 +936,5 @@ Run host-side tests from the repository root on Windows:
 - Confirm the PIR motion detector output voltage before wiring its OUT pin to Pico GPIO 6.
 - Set the real `LEDS_PER_CUBBY` and `LEDS_BETWEEN_CUBBIES` after installing the 15m strip.
 - Confirm the RC35 sensor output behavior for Pico 3 painting detection.
-- Set the actual Pico 5 color-button sequence and add GPIO pins for any additional buttons.
 - Calibrate `OVEN_POT_MIN_READING`, `OVEN_POT_MAX_READING`, `OVEN_TARGET_TOLERANCE`, and thermometer LED count after the oven knob is mounted.
 - Replace the placeholder display implementation with the actual TV/HDMI/browser/pygame/Tkinter path.
