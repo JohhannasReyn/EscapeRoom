@@ -22,6 +22,7 @@ declare -A post_state=(
 last_event="Waiting for puzzle events..."
 bake_message=0
 room_complete=0
+oven_value="--"
 
 mark_done() {
     puzzle_state["$1"]="done"
@@ -66,6 +67,8 @@ render() {
     elif [ "${bake_message}" -eq 1 ]; then
         echo "Bake at 350 Degrees"
         echo
+        echo "Oven set to: ${oven_value} Degrees"
+        echo
     else
         echo "Progress: $(progress_percent)%"
         echo
@@ -97,6 +100,14 @@ handle_message() {
         escape/pico2/copper_puzzle_complete|escape/pico2/final_piece_placed) mark_done 2 ;;
         escape/pico3/painting_rotation_complete) mark_done 3 ;;
         escape/pico4/oven_target_reached) mark_done 4 ;;
+        escape/pico4/oven_position_update|escape/oven/degrees)
+            oven_value="${payload}"
+            ;;
+        escape/telemetry/pico4/oven)
+            if [[ "${payload}" =~ oven_value=([0-9]+) ]]; then
+                oven_value="${BASH_REMATCH[1]}"
+            fi
+            ;;
         escape/pico4/electromag_lock_unlocked)
             mark_done 4
             room_complete=1
@@ -113,6 +124,7 @@ handle_message() {
             done
             bake_message=0
             room_complete=0
+            oven_value="--"
             ;;
     esac
 
