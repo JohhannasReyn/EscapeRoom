@@ -2,4 +2,5 @@
 set -euo pipefail
 
 sudo systemctl start escape-room-controller.service
-sudo systemctl status escape-room-controller.service
+sudo systemctl start escape-room-tv-dashboard.service
+tools/room-status.sh

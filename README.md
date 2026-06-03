@@ -16,6 +16,49 @@ The Raspberry Pi remains the central brain. Picos report state changes; the Pi c
 
 ---
 
+## Escape Room In A Box
+
+After the Raspberry Pi has been installed at the student site, the intended party-day behavior is:
+
+1. Plug the Raspberry Pi into power.
+2. The Pi starts the `EscapeRoom` WiFi hotspot on `wlan0`.
+3. Pico boards join `EscapeRoom` and connect to MQTT at `10.42.0.1`.
+4. The Pi reconnects the paired Bluetooth speaker if it is available.
+5. The room controller starts automatically.
+6. The HDMI TV shows the escape room dashboard on the Pi console.
+7. The room waits for player/puzzle events.
+
+The one-time install command on the Pi is:
+
+```bash
+cd /home/admin/escape-room
+git pull
+chmod +x tools/*.sh
+tools/setup-room.sh
+```
+
+After that, normal power cycling should be plug-and-play. If a laptop is available for troubleshooting, use:
+
+```bash
+cd /home/admin/escape-room
+tools/room-status.sh
+tools/room-logs.sh
+tools/verify-wifi.sh
+```
+
+Important script meanings:
+
+```text
+tools/monitor-puzzles.sh  Starts the actual game controller in the current terminal.
+tools/watch-mqtt.sh       Watches raw MQTT messages only; it does not run the game.
+tools/room-logs.sh        Watches logs from the autostarted services.
+tools/tv-dashboard.sh     Shows progress on the HDMI TV/console; systemd starts it automatically.
+```
+
+Do not run `tools/monitor-puzzles.sh` manually while `escape-room-controller.service` is already running. That creates two controllers with the same MQTT client id, which can make them disconnect each other.
+
+---
+
 ## Current Structure
 
 ```text
@@ -103,6 +146,7 @@ The controller:
 - Displays or flashes `Bake at 350 Degrees` when the color-button sequence completes.
 - Handles whole-room reset through the Raspberry Pi reset button.
 - Pulses a Raspberry Pi GPIO buzzer when `Bake at 350 Degrees` is displayed.
+- Feeds events to an HDMI console dashboard through MQTT.
 
 State names are defined in `shared/RoomState.h` and include:
 
@@ -130,7 +174,10 @@ ELECTROMAGNETIC_LOCK_RELEASED
 ROOM_KEY_AVAILABLE
 ```
 
-Display support is intentionally abstracted in `raspberry-pi-controller/src/effects/DisplayOutput.*`. The current implementation logs messages to stdout. Replace that implementation with HDMI/browser/pygame/Tkinter display code when the actual display path is chosen.
+Display support is split into two layers:
+
+- `raspberry-pi-controller/src/effects/DisplayOutput.*` logs the controller's direct display requests.
+- `tools/tv-dashboard.sh` is the current production HDMI dashboard. It listens to MQTT, shows Pico readiness/progress, displays `Bake at 350 Degrees`, and shows `Well Done!` after the final lock opens.
 
 Audio playback uses `AudioEffect`. `.m4a` and `.mp3` files are played with `ffplay` when available; other files fall back to `aplay`. If the file is missing, the controller logs the issue and continues.
 
@@ -467,23 +514,24 @@ chmod +x tools/*.sh
 Common scripts:
 
 ```text
-tools/start-wifi.sh           Starts/verifies the EscapeRoom hotspot.
+tools/setup-room.sh           One-time install/start for travel-ready autostart.
+tools/start-room.sh           Starts controller and TV dashboard services.
+tools/stop-room.sh            Stops controller and TV dashboard services.
+tools/room-status.sh          Shows controller and TV dashboard service status.
+tools/room-logs.sh            Follows controller and TV dashboard service logs.
+tools/start-wifi.sh           Creates/starts/verifies the EscapeRoom hotspot.
 tools/verify-wifi.sh          Shows Ethernet, hotspot, and connected Pico clients.
-tools/start-venv.sh           Activates ~/.platformio-venv or opens a shell with it active.
-tools/monitor-puzzles.sh      Starts the production Raspberry Pi controller.
-tools/watch-mqtt.sh           Subscribes to escape/# for live MQTT debugging.
 tools/connect-bluetooth.sh    Reconnects the stored Bluetooth speaker and sets volume.
+tools/tv-dashboard.sh         MQTT-driven HDMI TV/console dashboard.
+tools/monitor-puzzles.sh      Runs the controller in the current terminal for development only.
+tools/watch-mqtt.sh           Watches raw MQTT traffic for debugging only.
+tools/start-venv.sh           Activates ~/.platformio-venv or opens a shell with it active.
 tools/activate-pico1.sh       Test-enables Pico 1 cubby light command.
 tools/activate-pico2.sh       Test-enables Pico 2 copper puzzle.
 tools/activate-pico3.sh       Test-enables Pico 3 painting rotation.
 tools/activate-pico4.sh       Test-enables Pico 4 smart film and oven knob.
 tools/activate-pico5.sh       Test-enables Pico 5 color-button sequence.
-tools/install-pi-autostart.sh Installs boot-time controller autostart.
-tools/setup-room.sh           Installs autostart, starts the controller, and shows status.
-tools/start-room.sh           Starts the autostarted controller service and shows status.
-tools/stop-room.sh            Stops the controller service and shows status.
-tools/room-status.sh          Shows controller service status.
-tools/room-logs.sh            Follows controller service logs.
+tools/install-pi-autostart.sh Lower-level systemd installer used by setup-room.sh.
 ```
 
 `tools/start-venv.sh` can be sourced:
@@ -505,7 +553,14 @@ cd /home/admin/escape-room
 tools/setup-room.sh
 ```
 
-After this, the hotspot is configured to autoconnect through NetworkManager, and the controller starts through systemd when the Pi boots. Useful service helpers:
+After this:
+
+- `escape-room-hotspot` is configured to autoconnect through NetworkManager.
+- `escape-room-controller.service` starts the room controller at boot.
+- `escape-room-controller.service` reconnects the paired Bluetooth speaker before starting the controller.
+- `escape-room-tv-dashboard.service` starts the HDMI dashboard at boot.
+
+Useful service helpers:
 
 ```bash
 tools/start-room.sh
@@ -820,7 +875,14 @@ This advances the Pi controller, but it does not change the Pico's internal tele
 
 ### TV, HDMI Audio, and Operator Feedback
 
-The current `DisplayOutput` implementation logs display messages to the terminal. The code is already abstracted so it can be replaced with an HDMI/browser/pygame/Tkinter display without changing the puzzle logic.
+The current production TV output is `tools/tv-dashboard.sh`. The autostart installer runs it as `escape-room-tv-dashboard.service` and writes it to `/dev/tty1`, which is the Raspberry Pi's HDMI console. The TV should show:
+
+```text
+Setup/POST readiness for Pico 1-5
+Live puzzle progress
+Bake at 350 Degrees after Pico 5 completes
+Well Done! after the final electromagnetic lock opens
+```
 
 It is possible for the Pi to send one sound to the Bluetooth sound bar and a different attention sound to the HDMI TV, but the current `AudioEffect` plays to the default audio sink only. To support separate outputs cleanly, add a configurable audio-device field to `AudioEffect` and launch `ffplay` or another player against a selected PipeWire/ALSA sink. Until that is implemented, the most reliable production setup is:
 
@@ -837,28 +899,6 @@ Pico 4 GPIO 16 -> pulses when the smart film is activated/revealed.
 ```
 
 Wire both buzzers through an appropriate module, transistor, or driver if the buzzer current is not known to be safe for GPIO. Share ground between the controller board and the buzzer driver input side.
-
-Planned TV operator display behavior:
-
-```text
-Setup/POST:
-  Show Pico 1-5 readiness boxes.
-  Green means ready.
-  Red means the puzzle still appears completed and should be reset.
-
-During play:
-  Show compact progress boxes or a percentage in the screen corner.
-  Briefly show sensor state changes as each Pico reports telemetry/events.
-
-Bake message:
-  Hide progress boxes.
-  Flash "Bake at 350 Degrees".
-  Optionally play an HDMI/TV attention sound once separate audio routing is implemented.
-
-Room completion:
-  Show "Well Done!" with all five boxes checked.
-  Clear checks again as each puzzle returns to its ready state during reset.
-```
 
 Run host-side tests from the repository root on Windows:
 

@@ -4,6 +4,7 @@ set -euo pipefail
 PROJECT_ROOT="${PROJECT_ROOT:-/home/admin/escape-room}"
 RUN_USER="${RUN_USER:-admin}"
 SERVICE_PATH="/etc/systemd/system/escape-room-controller.service"
+TV_SERVICE_PATH="/etc/systemd/system/escape-room-tv-dashboard.service"
 
 echo "Installing escape room autostart for project root: ${PROJECT_ROOT}"
 
@@ -19,8 +20,8 @@ fi
 cat <<SERVICE | sudo tee "${SERVICE_PATH}" >/dev/null
 [Unit]
 Description=Escape Room Raspberry Pi Controller
-After=network-online.target mosquitto.service
-Wants=network-online.target
+After=network-online.target bluetooth.service mosquitto.service
+Wants=network-online.target bluetooth.service
 Requires=mosquitto.service
 
 [Service]
@@ -29,7 +30,32 @@ User=${RUN_USER}
 WorkingDirectory=${PROJECT_ROOT}
 Environment=PROJECT_ROOT=${PROJECT_ROOT}
 Environment=PLATFORMIO_VENV=/home/${RUN_USER}/.platformio-venv
+ExecStartPre=-${PROJECT_ROOT}/tools/connect-bluetooth.sh
 ExecStart=${PROJECT_ROOT}/tools/monitor-puzzles.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+SERVICE
+
+cat <<SERVICE | sudo tee "${TV_SERVICE_PATH}" >/dev/null
+[Unit]
+Description=Escape Room HDMI TV Dashboard
+After=mosquitto.service escape-room-controller.service
+Requires=mosquitto.service
+
+[Service]
+Type=simple
+User=${RUN_USER}
+WorkingDirectory=${PROJECT_ROOT}
+Environment=TERM=linux
+ExecStart=${PROJECT_ROOT}/tools/tv-dashboard.sh
+StandardInput=tty
+StandardOutput=tty
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
 Restart=always
 RestartSec=5
 
@@ -39,14 +65,15 @@ SERVICE
 
 sudo systemctl daemon-reload
 sudo systemctl enable escape-room-controller.service
+sudo systemctl enable escape-room-tv-dashboard.service
 
 echo
 echo "Autostart installed."
 echo "Start now with:"
-echo "  sudo systemctl start escape-room-controller.service"
+echo "  tools/start-room.sh"
 echo
 echo "Check status with:"
-echo "  sudo systemctl status escape-room-controller.service"
+echo "  tools/room-status.sh"
 echo
 echo "Watch logs with:"
-echo "  journalctl -u escape-room-controller.service -f"
+echo "  tools/room-logs.sh"
