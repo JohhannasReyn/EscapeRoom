@@ -28,24 +28,39 @@
 constexpr int LED_PIN = LED_BUILTIN;
 constexpr int RST_PIN = 14;
 constexpr int BUTTON_RED_PIN = 15;
-constexpr int BUTTON_BLUE_PIN = 16;
+constexpr int BUTTON_GREEN_PIN = 16;
+constexpr int BUTTON_YELLOW_PIN = 17;
+constexpr int BUTTON_BLUE_PIN = 18;
 constexpr unsigned long DEBOUNCE_MS = 150;
 constexpr unsigned long MQTT_RETRY_MS = 3000;
 constexpr unsigned long SENSOR_TELEMETRY_MS = 1000;
-
-// TODO: Replace with the actual color sequence after the physical puzzle code is finalized.
-constexpr const char* CORRECT_SEQUENCE = "";
+constexpr unsigned long ATTEMPT_TIMEOUT_MS = 10000;
+constexpr int REQUIRED_RED_PRESSES = 3;
+constexpr int REQUIRED_GREEN_PRESSES = 4;
+constexpr int REQUIRED_YELLOW_PRESSES = 2;
+constexpr int REQUIRED_BLUE_PRESSES = 3;
+constexpr int REQUIRED_TOTAL_PRESSES =
+    REQUIRED_RED_PRESSES +
+    REQUIRED_GREEN_PRESSES +
+    REQUIRED_YELLOW_PRESSES +
+    REQUIRED_BLUE_PRESSES;
 
 struct ColorButton {
     char code;
+    const char* name;
     int pin;
+    int requiredPresses;
+    int pressCount;
     int lastState;
     unsigned long stableStart;
+    bool pressRegistered;
 };
 
 ColorButton buttons[] = {
-    {'R', BUTTON_RED_PIN, HIGH, 0},
-    {'B', BUTTON_BLUE_PIN, HIGH, 0},
+    {'R', "red", BUTTON_RED_PIN, REQUIRED_RED_PRESSES, 0, HIGH, 0, false},
+    {'G', "green", BUTTON_GREEN_PIN, REQUIRED_GREEN_PRESSES, 0, HIGH, 0, false},
+    {'Y', "yellow", BUTTON_YELLOW_PIN, REQUIRED_YELLOW_PRESSES, 0, HIGH, 0, false},
+    {'B', "blue", BUTTON_BLUE_PIN, REQUIRED_BLUE_PRESSES, 0, HIGH, 0, false},
 };
 
 WiFiClient wifiClient;
@@ -53,35 +68,62 @@ PubSubClient mqtt(wifiClient);
 
 bool sequenceEnabled = false;
 bool sequenceSolved = false;
-String enteredSequence;
+int totalPresses = 0;
+unsigned long lastPressAt = 0;
 unsigned long lastSensorTelemetry = 0;
 
 void publishPostState();
 
-bool allButtonsReleased() {
-    for (ColorButton& button : buttons) {
-        if (digitalRead(button.pin) == LOW) {
-            return false;
-        }
-    }
+void clearAttempt() {
+    totalPresses = 0;
 
-    return true;
+    for (ColorButton& button : buttons) {
+        button.pressCount = 0;
+    }
 }
 
 void resetSequence() {
     sequenceEnabled = false;
     sequenceSolved = false;
-    enteredSequence = "";
+    clearAttempt();
+    lastPressAt = 0;
 
     for (ColorButton& button : buttons) {
         button.lastState = digitalRead(button.pin);
         button.stableStart = millis();
+        button.pressRegistered = false;
     }
 
     digitalWrite(LED_PIN, LOW);
     if (mqtt.connected()) {
         publishPostState();
     }
+}
+
+void publishEvent(const char* topic, const char* payload) {
+    if (!mqtt.publish(topic, payload)) {
+        Serial.println("MQTT publish failed.");
+    }
+}
+
+void publishAttemptError(const char* reason) {
+    publishEvent(EscapeTopic::COLOR_SEQUENCE_ERROR, reason);
+    clearAttempt();
+    lastPressAt = millis();
+}
+
+bool currentAttemptIsCorrect() {
+    if (totalPresses != REQUIRED_TOTAL_PRESSES) {
+        return false;
+    }
+
+    for (ColorButton& button : buttons) {
+        if (button.pressCount != button.requiredPresses) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 void handleMessage(char* topic, byte* payload, unsigned int length) {
@@ -96,7 +138,12 @@ void handleMessage(char* topic, byte* payload, unsigned int length) {
     if (topicText == EscapeTopic::ENABLE_COLOR_BUTTON_SEQUENCE) {
         sequenceEnabled = message != "off";
         sequenceSolved = false;
-        enteredSequence = "";
+        clearAttempt();
+        lastPressAt = millis();
+
+        for (ColorButton& button : buttons) {
+            button.pressRegistered = false;
+        }
     } else if (topicText == EscapeTopic::STATUS_REQUEST || topicText == EscapeTopic::LEGACY_POST_QUERY) {
         publishPostState();
     } else if (topicText == EscapeTopic::RESET_PUZZLE || topicText == EscapeTopic::LEGACY_GAME_RESET) {
@@ -145,12 +192,6 @@ void connectMQTT() {
     }
 }
 
-void publishEvent(const char* topic, const char* payload) {
-    if (!mqtt.publish(topic, payload)) {
-        Serial.println("MQTT publish failed.");
-    }
-}
-
 void publishPostState() {
     publishEvent(postStateTopic(5).c_str(), postStatePayload(sequenceSolved));
 }
@@ -163,11 +204,18 @@ void publishSensorTelemetry() {
     lastSensorTelemetry = millis();
     String payload = "enabled=" + String(sequenceEnabled ? 1 : 0);
     payload += ",solved=" + String(sequenceSolved ? 1 : 0);
-    payload += ",entered=" + enteredSequence;
+    payload += ",total_presses=" + String(totalPresses);
+    payload += ",required_total=" + String(REQUIRED_TOTAL_PRESSES);
 
     for (ColorButton& button : buttons) {
         payload += ",";
-        payload += button.code;
+        payload += button.name;
+        payload += "=";
+        payload += String(button.pressCount);
+        payload += "/";
+        payload += String(button.requiredPresses);
+        payload += ",pin_";
+        payload += button.name;
         payload += "=";
         payload += String(digitalRead(button.pin));
     }
@@ -175,29 +223,27 @@ void publishSensorTelemetry() {
     mqtt.publish("escape/telemetry/pico5/buttons", payload.c_str());
 }
 
-void registerButtonPress(char code) {
+void registerButtonPress(ColorButton& pressedButton) {
     if (!sequenceEnabled || sequenceSolved) {
         return;
     }
 
-    if (String(CORRECT_SEQUENCE).length() == 0) {
-        publishEvent(EscapeTopic::COLOR_SEQUENCE_ERROR, "color sequence not configured");
+    ++pressedButton.pressCount;
+    ++totalPresses;
+    lastPressAt = millis();
+
+    if (totalPresses < REQUIRED_TOTAL_PRESSES) {
         return;
     }
 
-    enteredSequence += code;
-
-    if (!String(CORRECT_SEQUENCE).startsWith(enteredSequence)) {
-        publishEvent(EscapeTopic::COLOR_SEQUENCE_ERROR, "incorrect color sequence");
-        enteredSequence = "";
-        return;
-    }
-
-    if (enteredSequence == CORRECT_SEQUENCE) {
+    if (currentAttemptIsCorrect()) {
         sequenceSolved = true;
+        sequenceEnabled = false;
         digitalWrite(LED_PIN, HIGH);
-        publishEvent(EscapeTopic::COLOR_SEQUENCE_COMPLETE, "color sequence complete");
+        publishEvent(EscapeTopic::COLOR_SEQUENCE_COMPLETE, "color button counts complete");
         publishPostState();
+    } else {
+        publishAttemptError("incorrect color button counts");
     }
 }
 
@@ -236,6 +282,14 @@ void loop() {
 
     unsigned long now = millis();
 
+    if (
+        sequenceEnabled &&
+        !sequenceSolved &&
+        now - lastPressAt >= ATTEMPT_TIMEOUT_MS
+    ) {
+        publishAttemptError("color button attempt timed out");
+    }
+
     for (ColorButton& button : buttons) {
         int state = digitalRead(button.pin);
 
@@ -244,21 +298,14 @@ void loop() {
             button.stableStart = now;
         }
 
-        if (state == LOW && now - button.stableStart >= DEBOUNCE_MS) {
-            registerButtonPress(button.code);
-
-            while (digitalRead(button.pin) == LOW) {
-                mqtt.loop();
-                delay(10);
-            }
+        if (state == LOW && !button.pressRegistered && now - button.stableStart >= DEBOUNCE_MS) {
+            button.pressRegistered = true;
+            registerButtonPress(button);
         }
-    }
 
-    if (sequenceSolved && allButtonsReleased()) {
-        sequenceSolved = false;
-        enteredSequence = "";
-        digitalWrite(LED_PIN, LOW);
-        publishPostState();
+        if (state == HIGH && button.pressRegistered && now - button.stableStart >= DEBOUNCE_MS) {
+            button.pressRegistered = false;
+        }
     }
 
     publishSensorTelemetry();

@@ -375,10 +375,21 @@ void on_message(struct mosquitto* mosq, void* userdata, const struct mosquitto_m
 int main() {
     AudioEffect crashingPlatesAudio(get_project_asset_file("crashing_plates.m4a"));
     AudioEffect wrongCodeAudio(get_project_asset_file("buzzer.mp3"));
+    AudioEffect lookBehindAudio(get_project_asset_file("look-behind-you.mp3"));
+    AudioEffect yeahYouDidItAudio(get_project_asset_file("yeah-you-did-it.mp3"), false);
+    AudioEffect lookAtTheTvAudio(get_project_asset_file("look-at-the-tv.mp3"), false);
     GpioBuzzerEffect bakeAttentionBuzzer(PI_BAKE_BUZZER_GPIO, PI_BAKE_BUZZER_MS);
     DisplayOutput display;
 
-    GameController controller(&crashingPlatesAudio, &display, &wrongCodeAudio, &bakeAttentionBuzzer);
+    GameController controller(
+        &crashingPlatesAudio,
+        &display,
+        &wrongCodeAudio,
+        &bakeAttentionBuzzer,
+        &lookBehindAudio,
+        &yeahYouDidItAudio,
+        &lookAtTheTvAudio
+    );
     controller.addPuzzle(std::make_unique<StairsPuzzle>());
     controller.addPuzzle(std::make_unique<CopperPuzzle>());
     controller.addPuzzle(std::make_unique<FinalPiecePuzzle>());
@@ -393,6 +404,9 @@ int main() {
     std::cout << "Broker: " << MQTT_HOST << ":" << MQTT_PORT << std::endl;
     std::cout << "Painting audio: " << crashingPlatesAudio.file() << std::endl;
     std::cout << "Wrong-code audio: " << wrongCodeAudio.file() << std::endl;
+    std::cout << "Copper-complete audio: " << lookBehindAudio.file() << std::endl;
+    std::cout << "Color success audio 1: " << yeahYouDidItAudio.file() << std::endl;
+    std::cout << "Color success audio 2: " << lookAtTheTvAudio.file() << std::endl;
     std::cout << "Bake attention buzzer: GPIO " << PI_BAKE_BUZZER_GPIO
               << " for " << PI_BAKE_BUZZER_MS << " ms" << std::endl;
     std::cout << "Registered puzzle topics:" << std::endl;

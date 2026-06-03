@@ -7,13 +7,14 @@
 
 class AudioEffect : public Effect {
 public:
-    explicit AudioEffect(std::string audioFile);
+    explicit AudioEffect(std::string audioFile, bool playInBackground = true);
 
     void trigger(const std::string& payload) override;
     std::string file() const;
 
 private:
     std::string audioFile;
+    bool playInBackground;
 };
 
 #endif

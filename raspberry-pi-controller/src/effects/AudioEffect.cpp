@@ -5,7 +5,8 @@
 #include <iostream>
 #include <utility>
 
-AudioEffect::AudioEffect(std::string audioFile) : audioFile(std::move(audioFile)) {
+AudioEffect::AudioEffect(std::string audioFile, bool playInBackground)
+    : audioFile(std::move(audioFile)), playInBackground(playInBackground) {
 }
 
 void AudioEffect::trigger(const std::string& payload) {
@@ -24,9 +25,13 @@ void AudioEffect::trigger(const std::string& payload) {
         (audioFile.size() >= 4 && audioFile.substr(audioFile.size() - 4) == ".mp3");
 
     if (useFfplay) {
-        cmd = "ffplay -nodisp -autoexit -loglevel quiet \"" + audioFile + "\" &";
+        cmd = "ffplay -nodisp -autoexit -loglevel quiet \"" + audioFile + "\"";
     } else {
-        cmd = "aplay \"" + audioFile + "\" &";
+        cmd = "aplay \"" + audioFile + "\"";
+    }
+
+    if (playInBackground) {
+        cmd += " &";
     }
 
     int result = std::system(cmd.c_str());
