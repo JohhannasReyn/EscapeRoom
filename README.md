@@ -73,7 +73,7 @@ On the Raspberry Pi:
 ```bash
 cd /home/admin/escape-room
 git pull
-chmod +x tools/*.sh tools/connect
+chmod +x tools/*.sh
 ```
 
 Install the controller dependencies if needed:
@@ -88,8 +88,8 @@ sudo systemctl start mosquitto
 Set up PlatformIO on the Pi:
 
 ```bash
-python3 -m venv ~/.platformio-venv
-source ~/.platformio-venv/bin/activate
+python3 -m venv ~/.venv
+source ~/.venv/bin/activate
 python -m pip install -U pip platformio
 ```
 
@@ -196,22 +196,25 @@ Pico GPIO 17        -> LED strip DIN through a 330-470 ohm resistor
 
 ### Pico 2: One-Piece Copper Puzzle
 
-Use one shared signal node if one puzzle piece should complete the whole copper stage:
+Pico 2 uses the Pico's internal pull-up resistor. The puzzle contact only needs to connect the input pin to GND when the piece is placed:
 
 ```text
-Pico 3V3 -> puzzle contact -> shared signal row
-shared signal row -> GPIO 15
-shared signal row -> optional GPIO 16 legacy final-piece input
-shared signal row -> 10k resistor -> GND
+GPIO 15 -> puzzle contact -> GND
 ```
 
 The active controller flow only needs GPIO 15:
 
 ```text
-GPIO 15 HIGH -> escape/pico2/copper_puzzle_complete
+GPIO 15 LOW -> escape/pico2/copper_puzzle_complete
 ```
 
-GPIO 16 can remain wired for legacy/manual final-piece behavior, but it is no longer required.
+GPIO 16 can remain wired the same way for legacy/manual final-piece behavior:
+
+```text
+GPIO 16 -> optional legacy final-piece contact -> GND
+```
+
+No external 10k resistor is needed for Pico 2 puzzle inputs.
 
 ### Pico 3: Painting Rotation
 
@@ -265,7 +268,7 @@ Blue   = 3 presses
 Make scripts executable:
 
 ```bash
-chmod +x tools/*.sh tools/connect
+chmod +x tools/*.sh
 ```
 
 Show available tools:
@@ -284,7 +287,7 @@ Bluetooth speaker:
 
 ```bash
 tools/pair.sh
-tools/connect
+tools/connect.sh
 tools/set-volume.sh -v 50
 tools/volume-up.sh
 tools/volume-down.sh

@@ -37,6 +37,8 @@ constexpr unsigned long DEBOUNCE_MS = 750;
 constexpr unsigned long MQTT_RETRY_MS = 3000;
 constexpr unsigned long SENSOR_TELEMETRY_MS = 1000;
 constexpr int MQTT_ATTEMPTS_PER_HOST = 3;
+constexpr int PUZZLE_ACTIVE_STATE = LOW;
+constexpr int PUZZLE_INACTIVE_STATE = HIGH;
 
 struct DigitalPuzzle {
     const char* name;
@@ -50,8 +52,8 @@ struct DigitalPuzzle {
 };
 
 DigitalPuzzle puzzles[] = {
-    {"Copper puzzle", EscapeTopic::COPPER_PUZZLE_COMPLETE, "copper puzzle complete", COPPER_COMPLETE_PIN, true, false, LOW, 0},
-    {"Final puzzle piece", EscapeTopic::FINAL_PIECE_PLACED, "final puzzle piece placed", FINAL_PIECE_PIN, true, false, LOW, 0},
+    {"Copper puzzle", EscapeTopic::COPPER_PUZZLE_COMPLETE, "copper puzzle complete", COPPER_COMPLETE_PIN, true, false, PUZZLE_INACTIVE_STATE, 0},
+    {"Final puzzle piece", EscapeTopic::FINAL_PIECE_PLACED, "final puzzle piece placed", FINAL_PIECE_PIN, true, false, PUZZLE_INACTIVE_STATE, 0},
 };
 
 WiFiClient wifiClient;
@@ -158,7 +160,9 @@ void publishEvent(const char* topic, const char* payload) {
 }
 
 void publishPostState() {
-    bool completed = digitalRead(COPPER_COMPLETE_PIN) == HIGH || digitalRead(FINAL_PIECE_PIN) == HIGH;
+    bool completed =
+        digitalRead(COPPER_COMPLETE_PIN) == PUZZLE_ACTIVE_STATE ||
+        digitalRead(FINAL_PIECE_PIN) == PUZZLE_ACTIVE_STATE;
     publishEvent(postStateTopic(2).c_str(), postStatePayload(completed));
 }
 
@@ -183,7 +187,7 @@ void setup() {
     pinMode(RST_PIN, INPUT_PULLUP);
 
     for (DigitalPuzzle& puzzle : puzzles) {
-        pinMode(puzzle.pin, INPUT);
+        pinMode(puzzle.pin, INPUT_PULLUP);
         puzzle.lastState = digitalRead(puzzle.pin);
         puzzle.stableStart = millis();
     }
@@ -218,13 +222,13 @@ void loop() {
             puzzle.stableStart = now;
         }
 
-        if (state == LOW && puzzle.solved && now - puzzle.stableStart >= DEBOUNCE_MS) {
+        if (state == PUZZLE_INACTIVE_STATE && puzzle.solved && now - puzzle.stableStart >= DEBOUNCE_MS) {
             puzzle.solved = false;
             digitalWrite(LED_PIN, LOW);
             publishPostState();
         }
 
-        if (puzzle.enabled && state == HIGH && !puzzle.solved && now - puzzle.stableStart >= DEBOUNCE_MS) {
+        if (puzzle.enabled && state == PUZZLE_ACTIVE_STATE && !puzzle.solved && now - puzzle.stableStart >= DEBOUNCE_MS) {
             puzzle.solved = true;
             publishEvent(puzzle.topic, puzzle.payload);
         }

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-VENV_PATH="${PLATFORMIO_VENV:-${HOME}/.platformio-venv}"
+VENV_PATH="${PLATFORMIO_VENV:-${HOME}/.venv}"
 
 if [ ! -f "${VENV_PATH}/bin/activate" ]; then
     echo "PlatformIO venv not found at ${VENV_PATH}."

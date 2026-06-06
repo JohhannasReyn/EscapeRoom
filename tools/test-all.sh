@@ -57,7 +57,7 @@ run_step \
     "escape/pico2/copper_puzzle_complete" \
     "manual walkthrough" \
     "escape/cmd/pico4/reveal_smart_film" \
-    "Pico 2 should publish escape/pico2/copper_puzzle_complete; copper signal on GPIO 15 with 10k pulldown."
+    "Pico 2 should publish escape/pico2/copper_puzzle_complete; GPIO 15 should connect through the puzzle contact to GND."
 
 run_step \
     "3. Color button sequence completes and should enable oven" \
