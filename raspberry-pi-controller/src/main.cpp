@@ -15,6 +15,7 @@
 #include <cstring>
 #include <fstream>
 #include <iostream>
+#include <map>
 #include <memory>
 #include <string>
 #include <thread>
@@ -354,9 +355,19 @@ void on_message(struct mosquitto* mosq, void* userdata, const struct mosquitto_m
     }
 
     bool isTelemetry = topic.rfind("escape/telemetry/", 0) == 0;
+    static std::map<std::string, std::string> lastTelemetryPayloadByTopic;
+
+    if (isTelemetry) {
+        auto previous = lastTelemetryPayloadByTopic.find(topic);
+        if (previous != lastTelemetryPayloadByTopic.end() && previous->second == payload) {
+            return;
+        }
+
+        lastTelemetryPayloadByTopic[topic] = payload;
+    }
 
     std::cout << std::endl;
-    std::cout << (isTelemetry ? "Sensor telemetry received." : "MQTT message received.") << std::endl;
+    std::cout << (isTelemetry ? "Sensor telemetry changed." : "MQTT message received.") << std::endl;
     std::cout << "Topic: " << topic << std::endl;
     std::cout << "Payload: " << payload << std::endl;
 

@@ -172,11 +172,11 @@ bool GameController::handleFlowEvent(const std::string& topic, const std::string
             std::cout << "Copper completion audio effect not configured." << std::endl;
         }
 
-        transitionTo(RoomState::BOTTLE_LOCK_STAGE, "bread clue and bottle lock stage");
-        transitionTo(RoomState::PADLOCK_BOX_STAGE, "bottle message opens padlocked box");
-        transitionTo(RoomState::RFID_STAGE, "RFID cards recovered");
-        pendingCommands.push_back({EscapeTopic::ENABLE_PAINTING_ROTATION, "on"});
-        transitionTo(RoomState::PAINTING_ROTATION_ACTIVE, "painting rotation enabled");
+        pendingCommands.push_back({EscapeTopic::REVEAL_SMART_FILM, "on"});
+        pendingCommands.push_back({EscapeTopic::LEGACY_PDLC_ON, "on"});
+        transitionTo(RoomState::SMART_FILM_REVEALED, "smart film reveal command queued");
+        pendingCommands.push_back({EscapeTopic::ENABLE_COLOR_BUTTON_SEQUENCE, "on"});
+        transitionTo(RoomState::COLOR_BUTTON_SEQUENCE_ACTIVE, "color button sequence enabled");
         return false;
     }
 

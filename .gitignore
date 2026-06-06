@@ -27,6 +27,8 @@ Thumbs.db
 # Secrets / local config
 .env
 .env.*
+pi-wifi.env
+bluetooth-speaker.env
 secrets.h
 wifi_config.h
 
