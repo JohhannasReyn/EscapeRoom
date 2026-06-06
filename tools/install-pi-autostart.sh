@@ -7,7 +7,7 @@ SERVICE_PATH="/etc/systemd/system/escape-room-controller.service"
 
 echo "Installing escape room controller autostart for project root: ${PROJECT_ROOT}"
 
-sudo chmod +x "${PROJECT_ROOT}"/tools/*.sh "${PROJECT_ROOT}"/tools/connect 2>/dev/null || true
+sudo chmod +x "${PROJECT_ROOT}"/tools/*.sh 2>/dev/null || true
 
 cat <<SERVICE | sudo tee "${SERVICE_PATH}" >/dev/null
 [Unit]
@@ -21,7 +21,7 @@ Type=simple
 User=${RUN_USER}
 WorkingDirectory=${PROJECT_ROOT}
 Environment=PROJECT_ROOT=${PROJECT_ROOT}
-Environment=PLATFORMIO_VENV=/home/${RUN_USER}/.platformio-venv
+Environment=PLATFORMIO_VENV=/home/${RUN_USER}/.venv
 ExecStartPre=-${PROJECT_ROOT}/tools/connect.sh
 ExecStart=${PROJECT_ROOT}/tools/monitor-puzzles.sh
 Restart=always

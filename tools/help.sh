@@ -6,7 +6,7 @@ Escape room tools
 
 Setup / operation:
   tools/start.sh              Start the controller in the terminal, without TV dashboard.
-  tools/connect or connect.sh Connect paired Bluetooth speaker and play a success sound.
+  tools/connect.sh            Connect paired Bluetooth speaker and play a success sound.
   tools/pair.sh               Scan, select, pair, trust, and save a Bluetooth speaker.
   tools/rebase.sh             Pull latest public repo folders, prepare venv, and build controller.
 

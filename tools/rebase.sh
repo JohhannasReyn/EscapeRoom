@@ -4,7 +4,7 @@ set -euo pipefail
 PROJECT_ROOT="${PROJECT_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 REMOTE_REPO="${REMOTE_REPO:-https://github.com/JohhannasReyn/EscapeRoom.git}"
 BRANCH="${BRANCH:-main}"
-VENV_PATH="${PLATFORMIO_VENV:-${HOME}/.platformio-venv}"
+VENV_PATH="${PLATFORMIO_VENV:-${HOME}/.venv}"
 tmp_dir="$(mktemp -d)"
 
 cleanup() {
@@ -22,7 +22,7 @@ cp -R "${tmp_dir}/EscapeRoom/raspberry-pi-controller" .
 cp -R "${tmp_dir}/EscapeRoom/tools" .
 cp -R "${tmp_dir}/EscapeRoom/assets" .
 cp -R "${tmp_dir}/EscapeRoom/shared" .
-chmod +x tools/*.sh tools/connect 2>/dev/null || true
+chmod +x tools/*.sh 2>/dev/null || true
 
 if [ ! -d "${VENV_PATH}" ]; then
     echo "Creating PlatformIO venv at ${VENV_PATH}..."

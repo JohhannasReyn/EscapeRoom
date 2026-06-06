@@ -2,7 +2,7 @@
 set -euo pipefail
 
 PROJECT_ROOT="${PROJECT_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
-VENV_PATH="${PLATFORMIO_VENV:-${HOME}/.platformio-venv}"
+VENV_PATH="${PLATFORMIO_VENV:-${HOME}/.venv}"
 
 cd "${PROJECT_ROOT}"
 
