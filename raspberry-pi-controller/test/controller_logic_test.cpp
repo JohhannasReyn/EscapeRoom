@@ -135,26 +135,22 @@ int main() {
     assert(controller.handleMessage(EscapeTopic::COPPER_PUZZLE_COMPLETE, "copper done") == true);
     assert(copperAudio.triggerCount == 1);
     assert(copperAudio.lastPayload == "copper done");
-    assert(controller.currentState() == RoomState::PAINTING_ROTATION_ACTIVE);
-    bool sawPaintingEnable = false;
+    assert(controller.currentState() == RoomState::COLOR_BUTTON_SEQUENCE_ACTIVE);
     bool sawCopperCubby = false;
+    bool sawSmartFilmFromCopper = false;
+    bool sawLegacyFilmFromCopper = false;
+    bool sawColorEnableFromCopper = false;
     while (controller.pendingCommandCount() > 0) {
         MqttCommand command = controller.takeNextPendingCommand();
-        sawPaintingEnable = sawPaintingEnable || command.topic == EscapeTopic::ENABLE_PAINTING_ROTATION;
         sawCopperCubby = sawCopperCubby || command.topic == "escape/cubby/2/light_on";
+        sawSmartFilmFromCopper = sawSmartFilmFromCopper || command.topic == EscapeTopic::REVEAL_SMART_FILM;
+        sawLegacyFilmFromCopper = sawLegacyFilmFromCopper || command.topic == EscapeTopic::LEGACY_PDLC_ON;
+        sawColorEnableFromCopper = sawColorEnableFromCopper || command.topic == EscapeTopic::ENABLE_COLOR_BUTTON_SEQUENCE;
     }
-    assert(sawPaintingEnable == true);
     assert(sawCopperCubby == true);
-
-    assert(controller.handleMessage(EscapeTopic::PAINTING_ROTATION_COMPLETE, "painting") == true);
-    assert(paintingAudio.triggerCount == 1);
-    assert(paintingAudio.lastPayload == "painting");
-    assert(controller.currentState() == RoomState::FINAL_PIECE_ACTIVE);
-
-    assert(controller.handleMessage(EscapeTopic::PAINTING_ROTATION_COMPLETE, "painting again") == true);
-    assert(paintingAudio.triggerCount == 2);
-    assert(paintingAudio.lastPayload == "painting again");
-    assert(controller.currentState() == RoomState::FINAL_PIECE_ACTIVE);
+    assert(sawSmartFilmFromCopper == true);
+    assert(sawLegacyFilmFromCopper == true);
+    assert(sawColorEnableFromCopper == true);
 
     assert(controller.handleMessage(EscapeTopic::FINAL_PIECE_PLACED, "piece") == true);
     assert(controller.currentState() == RoomState::COLOR_BUTTON_SEQUENCE_ACTIVE);

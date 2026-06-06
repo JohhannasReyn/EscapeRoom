@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=tools/lib-room.sh
+source "${SCRIPT_DIR}/lib-room.sh"
+
+STEP_DELAY="${STEP_DELAY:-6}"
+
+need_cmd mosquitto_pub
+need_cmd mosquitto_sub
+need_cmd timeout
+
+echo "Checking Pico connectivity before walkthrough..."
+wait_for_topics_once "${PICO_STATUS_TIMEOUT}"
+echo
+echo "Simulating complete walkthrough with ${STEP_DELAY}s between steps."
+echo
+
+run_step() {
+    local label="$1"
+    local topic="$2"
+    local payload="$3"
+    local expected="$4"
+    local hint="$5"
+    local tmp_file
+    tmp_file="$(mktemp)"
+
+    echo "${label}"
+    echo "  publish ${topic} -> ${payload}"
+    timeout "${STEP_DELAY}" mosquitto_sub -h "${MQTT_HOST}" -v -t "${MQTT_TOPIC_ROOT}/#" >"${tmp_file}" 2>/dev/null &
+    sub_pid=$!
+    sleep 1
+    publish "${topic}" "${payload}"
+    wait "${sub_pid}" || true
+
+    if grep -q "^${expected} " "${tmp_file}"; then
+        echo "  ok: observed ${expected}"
+    else
+        echo "  issue: did not observe expected ${expected}"
+        echo "  expected wiring/topic check: ${hint}"
+    fi
+
+    rm -f "${tmp_file}"
+    echo
+}
+
+run_step \
+    "1. Motion sensor starts cubby LEDs" \
+    "escape/pico1/cubby_approach_detected" \
+    "manual walkthrough" \
+    "escape/cmd/pico1/enable_cubby_light" \
+    "Pico 1 should publish escape/pico1/cubby_approach_detected; PIR OUT on GPIO 6, LED DIN on GPIO 17."
+
+run_step \
+    "2. One-piece copper puzzle completes and should reveal smart film" \
+    "escape/pico2/copper_puzzle_complete" \
+    "manual walkthrough" \
+    "escape/cmd/pico4/reveal_smart_film" \
+    "Pico 2 should publish escape/pico2/copper_puzzle_complete; copper signal on GPIO 15 with 10k pulldown."
+
+run_step \
+    "3. Color button sequence completes and should enable oven" \
+    "escape/pico5/color_sequence_complete" \
+    "manual walkthrough" \
+    "escape/cmd/pico4/enable_oven_knob" \
+    "Pico 5 should publish escape/pico5/color_sequence_complete after 3 red, 4 green, 2 yellow, 3 blue presses."
+
+run_step \
+    "4. Oven target reached and should unlock final lock" \
+    "escape/pico4/oven_target_reached" \
+    "manual walkthrough" \
+    "escape/cmd/pico4/unlock_electromag_lock" \
+    "Pico 4 should publish escape/pico4/oven_target_reached; oven pot wiper on GPIO 26, lock relay on GPIO 18."
+
+echo
+echo "Walkthrough messages sent. If a step did not propagate, run tools/room-logs.sh or tools/watch-mqtt.sh and verify:"
+for entry in "${PICO_TOPICS[@]}"; do
+    IFS=: read -r pico topic label wiring <<<"${entry}"
+    echo "- ${label}: ${wiring}"
+done

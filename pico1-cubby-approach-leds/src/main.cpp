@@ -9,15 +9,19 @@
 #include "../../shared/PostState.h"
 
 #ifndef WIFI_SSID
-#define WIFI_SSID "EscapeRoom"
+#define WIFI_SSID "VenueWifi"
 #endif
 
 #ifndef WIFI_PASS
-#define WIFI_PASS "BakeAt350"
+#define WIFI_PASS "VenuePassword"
 #endif
 
 #ifndef MQTT_BROKER
-#define MQTT_BROKER "10.42.0.1"
+#define MQTT_BROKER "ceenypie.local"
+#endif
+
+#ifndef MQTT_BROKER_FALLBACK
+#define MQTT_BROKER_FALLBACK ""
 #endif
 
 #ifndef MQTT_BROKER_PORT
@@ -47,6 +51,7 @@ constexpr int LED_FULL_WHITE_CURRENT_MA = 60;
 constexpr unsigned long MQTT_RETRY_MS = 3000;
 constexpr unsigned long SENSOR_TELEMETRY_MS = 1000;
 constexpr unsigned long MOTION_DEBOUNCE_MS = 250;
+constexpr int MQTT_ATTEMPTS_PER_HOST = 3;
 
 constexpr int TOTAL_CUBBY_LEDS = totalCubbyLedCount(CUBBY_COUNT, LEDS_PER_CUBBY, LEDS_BETWEEN_CUBBIES);
 
@@ -219,13 +224,17 @@ void connectWiFi() {
     blink(2);
 }
 
-void connectMQTT() {
-    mqtt.setServer(MQTT_BROKER, MQTT_BROKER_PORT);
+bool tryConnectMQTT(const char* broker) {
+    if (broker == nullptr || broker[0] == '\0') {
+        return false;
+    }
+
+    mqtt.setServer(broker, MQTT_BROKER_PORT);
     mqtt.setCallback(handleMessage);
 
-    while (!mqtt.connected()) {
+    for (int attempt = 0; attempt < MQTT_ATTEMPTS_PER_HOST && !mqtt.connected(); ++attempt) {
         Serial.print("Connecting to MQTT broker: ");
-        Serial.println(MQTT_BROKER);
+        Serial.println(broker);
 
         if (mqtt.connect(MQTT_CLIENT_ID)) {
             mqtt.subscribe(EscapeTopic::ENABLE_CUBBY_LIGHT);
@@ -242,12 +251,22 @@ void connectMQTT() {
             mqtt.subscribe("escape/cubby/all/status");
             blink(3);
             publishPostState();
-            return;
+            return true;
         }
 
         Serial.print("MQTT failed, state=");
         Serial.println(mqtt.state());
         delay(MQTT_RETRY_MS);
+    }
+
+    return false;
+}
+
+void connectMQTT() {
+    while (!mqtt.connected()) {
+        if (tryConnectMQTT(MQTT_BROKER) || tryConnectMQTT(MQTT_BROKER_FALLBACK)) {
+            return;
+        }
     }
 }
 

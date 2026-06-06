@@ -7,15 +7,19 @@
 #include "../../shared/PostState.h"
 
 #ifndef WIFI_SSID
-#define WIFI_SSID "EscapeRoom"
+#define WIFI_SSID "VenueWifi"
 #endif
 
 #ifndef WIFI_PASS
-#define WIFI_PASS "BakeAt350"
+#define WIFI_PASS "VenuePassword"
 #endif
 
 #ifndef MQTT_BROKER
-#define MQTT_BROKER "10.42.0.1"
+#define MQTT_BROKER "ceenypie.local"
+#endif
+
+#ifndef MQTT_BROKER_FALLBACK
+#define MQTT_BROKER_FALLBACK ""
 #endif
 
 #ifndef MQTT_BROKER_PORT
@@ -46,6 +50,7 @@ constexpr unsigned long OVEN_LOCK_RELEASE_MS = 100;
 constexpr unsigned long SMART_FILM_BUZZER_MS = 350;
 constexpr unsigned long OVEN_TARGET_HOLD_MS = 1200;
 constexpr unsigned long SENSOR_TELEMETRY_MS = 1000;
+constexpr int MQTT_ATTEMPTS_PER_HOST = 3;
 
 WiFiClient wifiClient;
 PubSubClient mqtt(wifiClient);
@@ -203,11 +208,15 @@ void connectWiFi() {
     blink(2);
 }
 
-void connectMQTT() {
-    mqtt.setServer(MQTT_BROKER, MQTT_BROKER_PORT);
+bool tryConnectMQTT(const char* broker) {
+    if (broker == nullptr || broker[0] == '\0') {
+        return false;
+    }
+
+    mqtt.setServer(broker, MQTT_BROKER_PORT);
     mqtt.setCallback(handleMessage);
 
-    while (!mqtt.connected()) {
+    for (int attempt = 0; attempt < MQTT_ATTEMPTS_PER_HOST && !mqtt.connected(); ++attempt) {
         if (mqtt.connect(MQTT_CLIENT_ID)) {
             mqtt.subscribe(EscapeTopic::REVEAL_SMART_FILM);
             mqtt.subscribe(EscapeTopic::ENABLE_OVEN_KNOB);
@@ -221,10 +230,20 @@ void connectMQTT() {
             mqtt.subscribe(EscapeTopic::LEGACY_GAME_RESET);
             blink(3);
             publishPostState();
-            return;
+            return true;
         }
 
         delay(MQTT_RETRY_MS);
+    }
+
+    return false;
+}
+
+void connectMQTT() {
+    while (!mqtt.connected()) {
+        if (tryConnectMQTT(MQTT_BROKER) || tryConnectMQTT(MQTT_BROKER_FALLBACK)) {
+            return;
+        }
     }
 }
 
