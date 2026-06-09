@@ -7,13 +7,13 @@ SERVICE_PATH="/etc/systemd/system/escape-room-controller.service"
 
 echo "Installing escape room controller autostart for project root: ${PROJECT_ROOT}"
 
-sudo chmod +x "${PROJECT_ROOT}"/tools/*.sh 2>/dev/null || true
+sudo chmod +x "${PROJECT_ROOT}"/tools/*.sh "${PROJECT_ROOT}"/fire/* 2>/dev/null || true
 
 cat <<SERVICE | sudo tee "${SERVICE_PATH}" >/dev/null
 [Unit]
 Description=Escape Room Raspberry Pi Controller
-After=network-online.target bluetooth.service mosquitto.service
-Wants=network-online.target bluetooth.service
+After=network-online.target mosquitto.service sound.target
+Wants=network-online.target sound.target
 Requires=mosquitto.service
 
 [Service]

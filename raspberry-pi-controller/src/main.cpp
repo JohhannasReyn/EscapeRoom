@@ -327,7 +327,16 @@ void on_connect(struct mosquitto* mosq, void* userdata, int rc) {
             std::cout << "Subscribe failed for sensor telemetry. Error code: " << telemetry_rc << std::endl;
         }
 
+        int fire_rc = mosquitto_subscribe(mosq, nullptr, EscapeTopic::FIRE_COMMAND_WILDCARD, 0);
+
+        if (fire_rc == MOSQ_ERR_SUCCESS) {
+            std::cout << "Subscribed to topic: " << EscapeTopic::FIRE_COMMAND_WILDCARD << std::endl;
+        } else {
+            std::cout << "Subscribe failed for fire panel commands. Error code: " << fire_rc << std::endl;
+        }
+
         controller->queuePostQueryCommand();
+        controller->queueGameReadyCommands();
         publish_pending_commands(mosq, *controller);
     } else {
         std::cout << "MQTT connection failed. Code: " << rc << std::endl;
@@ -371,22 +380,22 @@ void on_message(struct mosquitto* mosq, void* userdata, const struct mosquitto_m
     std::cout << "Topic: " << topic << std::endl;
     std::cout << "Payload: " << payload << std::endl;
 
-    if (isTelemetry) {
-        return;
-    }
-
     auto* controller = static_cast<GameController*>(userdata);
 
     if (controller != nullptr) {
         controller->handleMessage(topic, payload);
         publish_pending_commands(mosq, *controller);
     }
+
+    if (isTelemetry) {
+        return;
+    }
 }
 
 int main() {
     AudioEffect crashingPlatesAudio(get_project_asset_file("crashing_plates.m4a"));
     AudioEffect wrongCodeAudio(get_project_asset_file("buzzer.mp3"));
-    AudioEffect lookBehindAudio(get_project_asset_file("look-behind-you.mp3"));
+    AudioEffect checkOvenAudio(get_project_asset_file("check-the-oven.wav"));
     AudioEffect yeahYouDidItAudio(get_project_asset_file("yeah-you-did-it.mp3"), false);
     AudioEffect bakeAt350Audio(get_project_asset_file("bake_at_350.wav"), false);
     GpioBuzzerEffect bakeAttentionBuzzer(PI_BAKE_BUZZER_GPIO, PI_BAKE_BUZZER_MS);
@@ -397,11 +406,10 @@ int main() {
         &display,
         &wrongCodeAudio,
         &bakeAttentionBuzzer,
-        &lookBehindAudio,
+        &checkOvenAudio,
         &yeahYouDidItAudio,
         &bakeAt350Audio
     );
-    controller.addPuzzle(std::make_unique<StairsPuzzle>());
     controller.addPuzzle(std::make_unique<CopperPuzzle>());
     controller.addPuzzle(std::make_unique<FinalPiecePuzzle>());
     controller.addPuzzle(std::make_unique<PaintingRotationPuzzle>());
@@ -415,7 +423,7 @@ int main() {
     std::cout << "Broker: " << MQTT_HOST << ":" << MQTT_PORT << std::endl;
     std::cout << "Painting audio: " << crashingPlatesAudio.file() << std::endl;
     std::cout << "Wrong-code audio: " << wrongCodeAudio.file() << std::endl;
-    std::cout << "Copper-complete audio: " << lookBehindAudio.file() << std::endl;
+    std::cout << "Copper-complete audio: " << checkOvenAudio.file() << std::endl;
     std::cout << "Color success audio 1: " << yeahYouDidItAudio.file() << std::endl;
     std::cout << "Color success audio 2: " << bakeAt350Audio.file() << std::endl;
     std::cout << "Bake attention buzzer: GPIO " << PI_BAKE_BUZZER_GPIO

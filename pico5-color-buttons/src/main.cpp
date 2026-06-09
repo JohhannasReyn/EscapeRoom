@@ -71,7 +71,7 @@ ColorButton buttons[] = {
 WiFiClient wifiClient;
 PubSubClient mqtt(wifiClient);
 
-bool sequenceEnabled = false;
+bool sequenceEnabled = true;
 bool sequenceSolved = false;
 int totalPresses = 0;
 unsigned long lastPressAt = 0;
@@ -88,7 +88,7 @@ void clearAttempt() {
 }
 
 void resetSequence() {
-    sequenceEnabled = false;
+    sequenceEnabled = true;
     sequenceSolved = false;
     clearAttempt();
     lastPressAt = 0;
@@ -278,6 +278,7 @@ void setup() {
         button.lastState = digitalRead(button.pin);
         button.stableStart = millis();
     }
+    sequenceEnabled = true;
 
     connectWiFi();
     connectMQTT();
@@ -304,6 +305,7 @@ void loop() {
     if (
         sequenceEnabled &&
         !sequenceSolved &&
+        totalPresses > 0 &&
         now - lastPressAt >= ATTEMPT_TIMEOUT_MS
     ) {
         publishAttemptError("color button attempt timed out");

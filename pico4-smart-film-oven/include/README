@@ -27,6 +27,8 @@ The lock only releases after:
 After the oven reaches 350, the Pico re-arms when the potentiometer leaves the
 target tolerance window.
 
+If the oven is already at 350 when the oven knob is enabled, the Pico requires a
+physical reset by moving the knob away from 350 before it can solve.
+
 The small LED thermometer strip is not used in the current build. Pico 4 publishes
-the simulated oven temperature to MQTT, and the Raspberry Pi TV dashboard displays
-that value under "Bake at 350 Degrees".
+the simulated oven temperature to MQTT for the Raspberry Pi controller and fire panel.

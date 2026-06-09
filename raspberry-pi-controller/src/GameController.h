@@ -39,14 +39,18 @@ public:
     MqttCommand takeNextPendingCommand();
     int lastOvenDegrees() const;
     RoomState currentState() const;
+    void queueGameReadyCommands();
     void queuePostQueryCommand();
     void queueReadyCommand();
     void resetPostState();
 
 private:
+    bool handleFireCommand(const std::string& topic, const std::string& payload);
+    bool handleSensorTelemetry(const std::string& topic, const std::string& payload);
     bool handlePostStateReport(const std::string& topic, const std::string& payload);
     bool handleOvenDegreesReport(const std::string& topic, const std::string& payload);
     bool handleFlowEvent(const std::string& topic, const std::string& payload);
+    void queueFirePanelLedCommand(const std::string& zone, const std::string& mode);
     void queueCommandsForTopic(const std::string& topic);
     void markPuzzleSolved(const std::string& topic);
     void transitionTo(RoomState nextState, const std::string& reason);
@@ -55,8 +59,10 @@ private:
     std::deque<MqttCommand> pendingCommands;
     std::array<bool, 5> postReady = {false, false, false, false, false};
     std::set<std::string> solvedTopics;
-    RoomState state = RoomState::WAITING_FOR_CUBBY_APPROACH;
+    RoomState state = RoomState::COPPER_PUZZLE_ACTIVE;
     int ovenDegrees = 0;
+    bool paintingRotationHandled = false;
+    bool ovenPhysicalResetSignaled = false;
     Effect* paintingCrashEffect = nullptr;
     DisplayOutput* displayOutput = nullptr;
     Effect* colorSequenceErrorEffect = nullptr;

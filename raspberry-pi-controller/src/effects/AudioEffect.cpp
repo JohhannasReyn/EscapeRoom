@@ -38,7 +38,7 @@ void AudioEffect::trigger(const std::string& payload) {
 
     if (result != 0) {
         std::cout << "Audio command returned non-zero result: " << result << std::endl;
-        std::cout << "If no sound played, verify the file exists and audio output is configured." << std::endl;
+        std::cout << "If no sound played, verify the 3.5mm speaker is powered, plugged in, and selected as the Pi audio output." << std::endl;
     }
 }
 

@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PROJECT_ROOT="${PROJECT_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+
+# shellcheck source=tools/lib-room.sh
+source "${PROJECT_ROOT}/tools/lib-room.sh"
+
+if [ "$#" -ne 1 ]; then
+    echo "Usage: fire/<command>"
+    exit 1
+fi
+
+publish "escape/fire/$1" "$1"

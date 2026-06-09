@@ -46,18 +46,18 @@ run_step() {
 }
 
 run_step \
-    "1. Motion sensor starts cubby LEDs" \
-    "escape/pico1/cubby_approach_detected" \
-    "manual walkthrough" \
-    "escape/cmd/pico1/enable_cubby_light" \
-    "Pico 1 should publish escape/pico1/cubby_approach_detected; PIR OUT on GPIO 6, LED DIN on GPIO 17."
-
-run_step \
-    "2. One-piece copper puzzle completes and should reveal smart film" \
+    "1. One-piece copper puzzle completes and should reveal smart film" \
     "escape/pico2/copper_puzzle_complete" \
     "manual walkthrough" \
     "escape/cmd/pico4/reveal_smart_film" \
     "Pico 2 should publish escape/pico2/copper_puzzle_complete; GPIO 15 should connect through the puzzle contact to GND."
+
+run_step \
+    "2. Picture rotation should play crash sound once" \
+    "escape/pico3/painting_rotation_complete" \
+    "manual walkthrough" \
+    "escape/cmd/fire-panel/led" \
+    "Pico 3 should publish escape/pico3/painting_rotation_complete when the picture reaches the magnet sensor."
 
 run_step \
     "3. Color button sequence completes and should enable oven" \

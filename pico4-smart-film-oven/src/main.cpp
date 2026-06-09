@@ -57,6 +57,7 @@ PubSubClient mqtt(wifiClient);
 
 bool ovenEnabled = false;
 bool ovenSolved = false;
+bool ovenNeedsPhysicalReset = false;
 int ovenLastPublishedValue = -1;
 unsigned long lockOffAt = 0;
 unsigned long smartFilmBuzzerOffAt = 0;
@@ -129,6 +130,15 @@ void checkOvenPotentiometer() {
     publishAndDisplayOvenValue(ovenValue);
     bool atTarget = ovenValueIsAtTarget(ovenValue, OVEN_TARGET_VALUE, OVEN_TARGET_TOLERANCE);
 
+    if (ovenNeedsPhysicalReset) {
+        if (!atTarget) {
+            ovenNeedsPhysicalReset = false;
+            ovenTargetStableStart = 0;
+            publishPostState();
+        }
+        return;
+    }
+
     if (ovenSolved && !atTarget) {
         ovenSolved = false;
         ovenTargetStableStart = 0;
@@ -176,7 +186,11 @@ void handleMessage(char* topic, byte* payload, unsigned int length) {
         ovenTargetStableStart = 0;
 
         if (ovenEnabled) {
-            publishAndDisplayOvenValue(readOvenPotValue(), true);
+            int ovenValue = readOvenPotValue();
+            ovenNeedsPhysicalReset = ovenValueIsAtTarget(ovenValue, OVEN_TARGET_VALUE, OVEN_TARGET_TOLERANCE);
+            publishAndDisplayOvenValue(ovenValue, true);
+        } else {
+            ovenNeedsPhysicalReset = false;
         }
     } else if (topicText == EscapeTopic::UNLOCK_ELECTROMAG_LOCK || topicText == EscapeTopic::LEGACY_LOCK_TRIGGER) {
         setLock(message != "off");
@@ -269,6 +283,7 @@ void publishSensorTelemetry() {
     payload += ",oven_value=" + String(ovenValue);
     payload += ",enabled=" + String(ovenEnabled ? 1 : 0);
     payload += ",solved=" + String(ovenSolved ? 1 : 0);
+    payload += ",needs_reset=" + String(ovenNeedsPhysicalReset ? 1 : 0);
     payload += ",smart_film=" + String(digitalRead(SMART_FILM_PIN));
     payload += ",smart_film_buzzer=" + String(digitalRead(SMART_FILM_BUZZER_PIN));
     payload += ",lock=" + String(digitalRead(LOCK_PIN));
@@ -278,6 +293,7 @@ void publishSensorTelemetry() {
 void resetOvenAndOutputs() {
     ovenEnabled = false;
     ovenSolved = false;
+    ovenNeedsPhysicalReset = false;
     ovenLastPublishedValue = -1;
     ovenTargetStableStart = 0;
     setLock(false);
