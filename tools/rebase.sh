@@ -5,24 +5,52 @@ PROJECT_ROOT="${PROJECT_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 REMOTE_REPO="${REMOTE_REPO:-https://github.com/JohhannasReyn/EscapeRoom.git}"
 BRANCH="${BRANCH:-main}"
 VENV_PATH="${PLATFORMIO_VENV:-${HOME}/.venv}"
-tmp_dir="$(mktemp -d)"
+SELF="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
+
+# Reuse the clone handed over by a self-update re-exec; otherwise make a new one.
+if [ -n "${REBASE_TMP_DIR:-}" ] && [ -d "${REBASE_TMP_DIR}/EscapeRoom" ]; then
+    tmp_dir="${REBASE_TMP_DIR}"
+    cloned_here=0
+else
+    tmp_dir="$(mktemp -d)"
+    cloned_here=1
+fi
 
 cleanup() {
     rm -rf "${tmp_dir}"
 }
 trap cleanup EXIT
 
-echo "Fetching latest EscapeRoom from ${REMOTE_REPO} (${BRANCH})..."
-git clone --depth 1 --branch "${BRANCH}" "${REMOTE_REPO}" "${tmp_dir}/EscapeRoom"
+if [ "${cloned_here}" -eq 1 ]; then
+    echo "Fetching latest EscapeRoom from ${REMOTE_REPO} (${BRANCH})..."
+    git clone --depth 1 --branch "${BRANCH}" "${REMOTE_REPO}" "${tmp_dir}/EscapeRoom"
+fi
+
+# Self-update: if rebase.sh changed upstream, atomically replace this file and
+# re-run the fresh copy (guarded so it happens at most once per run). The clone
+# is handed to the re-exec via REBASE_TMP_DIR so the second pass does not
+# re-download. mv is atomic, so the running shell keeps reading the old inode
+# safely until exec swaps in the new process image.
+new_self="${tmp_dir}/EscapeRoom/tools/rebase.sh"
+if [ "${REBASE_SELF_UPDATED:-0}" != "1" ] && [ -f "${new_self}" ] && ! cmp -s "${new_self}" "${SELF}"; then
+    echo "rebase.sh changed upstream; updating it and re-running the new version..."
+    cp "${new_self}" "${SELF}.tmp.$$"
+    chmod +x "${SELF}.tmp.$$"
+    mv -f "${SELF}.tmp.$$" "${SELF}"
+    trap - EXIT
+    REBASE_SELF_UPDATED=1 REBASE_TMP_DIR="${tmp_dir}" exec "${SELF}" "$@"
+fi
 
 cd "${PROJECT_ROOT}"
-echo "Updating raspberry-pi-controller, tools, assets, and shared..."
-rm -rf raspberry-pi-controller tools assets shared
+echo "Updating raspberry-pi-controller, tools, fire, assets, and shared..."
+rm -rf raspberry-pi-controller tools fire assets shared
 cp -R "${tmp_dir}/EscapeRoom/raspberry-pi-controller" .
 cp -R "${tmp_dir}/EscapeRoom/tools" .
+cp -R "${tmp_dir}/EscapeRoom/fire" .
 cp -R "${tmp_dir}/EscapeRoom/assets" .
 cp -R "${tmp_dir}/EscapeRoom/shared" .
 chmod +x tools/*.sh 2>/dev/null || true
+chmod +x fire/* 2>/dev/null || true
 
 if [ ! -d "${VENV_PATH}" ]; then
     echo "Creating PlatformIO venv at ${VENV_PATH}..."
