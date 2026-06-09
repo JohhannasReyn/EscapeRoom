@@ -5,6 +5,33 @@
 #include <iostream>
 #include <utility>
 
+namespace {
+std::string shellQuote(const std::string& value) {
+    std::string quoted = "'";
+
+    for (char ch : value) {
+        if (ch == '\'') {
+            quoted += "'\\''";
+        } else {
+            quoted += ch;
+        }
+    }
+
+    quoted += "'";
+    return quoted;
+}
+
+std::string audioDevice() {
+    const char* configuredDevice = std::getenv("ESCAPE_AUDIO_DEVICE");
+
+    if (configuredDevice != nullptr && configuredDevice[0] != '\0') {
+        return configuredDevice;
+    }
+
+    return "plughw:CARD=Headphones,DEV=0";
+}
+}
+
 AudioEffect::AudioEffect(std::string audioFile, bool playInBackground)
     : audioFile(std::move(audioFile)), playInBackground(playInBackground) {
 }
@@ -25,9 +52,9 @@ void AudioEffect::trigger(const std::string& payload) {
         (audioFile.size() >= 4 && audioFile.substr(audioFile.size() - 4) == ".mp3");
 
     if (useFfplay) {
-        cmd = "ffplay -nodisp -autoexit -loglevel quiet \"" + audioFile + "\"";
+        cmd = "ffplay -nodisp -autoexit -loglevel quiet " + shellQuote(audioFile);
     } else {
-        cmd = "aplay \"" + audioFile + "\"";
+        cmd = "aplay -D " + shellQuote(audioDevice()) + " " + shellQuote(audioFile);
     }
 
     if (playInBackground) {
