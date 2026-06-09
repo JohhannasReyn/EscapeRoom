@@ -357,6 +357,19 @@ fire/unlock
 fire/reset-all
 ```
 
+WAV cues default to the Raspberry Pi 3.5mm jack ALSA device:
+
+```text
+plughw:CARD=Headphones,DEV=0
+```
+
+If a Pi exposes the headphone jack under a different ALSA name, override it when
+starting the controller:
+
+```bash
+ESCAPE_AUDIO_DEVICE="default:CARD=Headphones" tools/start.sh
+```
+
 The physical fire-panel reset button must be held for 5 seconds. During the hold,
 the five red LEDs flash one at a time as a countdown; after reset fires, all five
 red LEDs flash together and the controller requests status before re-arming the
