@@ -5,8 +5,10 @@ This folder is the active Pico 5 project. The old phone/window prop code is arch
 ../../pico6-unused-future-puzzles/unused-future-puzzles/
 
 Hardware:
-- GPIO 15: first configured color button
-- GPIO 16: second configured color button
+- GPIO 15: red button
+- GPIO 16: green button
+- GPIO 17: yellow button
+- GPIO 18: blue button
 
 Main topics:
 - Publishes escape/pico5/color_sequence_complete
@@ -15,7 +17,12 @@ Main topics:
 - Subscribes escape/cmd/all/status_request
 - Subscribes escape/cmd/all/reset_puzzle
 
-After a correct sequence is reported, the Pico re-arms once all configured
-buttons are released.
+The color-button sequence is enabled from startup/reset. The attempt timeout
+starts only after the first button press so the puzzle can sit ready without
+playing the buzzer.
 
-TODO: set the real color sequence and add GPIO entries for any additional buttons.
+Required counts:
+- Red: 3 presses
+- Green: 4 presses
+- Yellow: 2 presses
+- Blue: 3 presses

@@ -1,0 +1,31 @@
+Pico 7 fire panel firmware.
+
+Buttons:
+- GP2: status
+- GP3: film-on
+- GP4: film-off
+- GP5: sound-look
+- GP6: sound-crash
+- GP7: sound-fail
+- GP8: sound-pass
+- GP9: sound-bake
+- GP10: unlock
+- GP11: reset-all, hold for 5 seconds
+
+Each button connects GPIO to GND. Internal pull-ups are enabled.
+
+Status LEDs:
+- G1/R1: film
+- G2/R2: sound
+- G3/R3: picture
+- G4/R4: buttons
+- G5/R5: potentiometer / Raspberry Pi
+
+The panel publishes escape/fire/... button events and subscribes to
+escape/cmd/fire-panel/led for LED state updates.
+
+Reset safety:
+- Hold GP11 for 5 seconds.
+- The five red LEDs flash one at a time as a countdown.
+- After the hold completes, all five red LEDs flash together.
+- The panel publishes escape/fire/reset-all, then starts the status sequence.

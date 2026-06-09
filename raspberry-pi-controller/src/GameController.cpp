@@ -32,6 +32,14 @@ void GameController::addPuzzle(std::unique_ptr<PuzzleModule> puzzle) {
 }
 
 bool GameController::handleMessage(const std::string& topic, const std::string& payload) {
+    if (handleFireCommand(topic, payload)) {
+        return true;
+    }
+
+    if (handleSensorTelemetry(topic, payload)) {
+        return true;
+    }
+
     if (handlePostStateReport(topic, payload)) {
         return true;
     }
@@ -53,6 +61,88 @@ bool GameController::handleMessage(const std::string& topic, const std::string& 
     }
 
     std::cout << "No puzzle handler registered for topic: " << topic << std::endl;
+    return false;
+}
+
+bool GameController::handleFireCommand(const std::string& topic, const std::string& payload) {
+    if (topic == EscapeTopic::FIRE_STATUS) {
+        queueFirePanelLedCommand("all", "checking");
+        queueFirePanelLedCommand("sound", "ready");
+        pendingCommands.push_back({EscapeTopic::STATUS_REQUEST, "status"});
+        queueGameReadyCommands();
+        return true;
+    }
+
+    if (topic == EscapeTopic::FIRE_FILM_ON) {
+        queueFirePanelLedCommand("film", "active");
+        pendingCommands.push_back({EscapeTopic::REVEAL_SMART_FILM, "on"});
+        pendingCommands.push_back({EscapeTopic::LEGACY_PDLC_ON, "on"});
+        return true;
+    }
+
+    if (topic == EscapeTopic::FIRE_FILM_OFF) {
+        queueFirePanelLedCommand("film", "ready");
+        pendingCommands.push_back({EscapeTopic::REVEAL_SMART_FILM, "off"});
+        pendingCommands.push_back({EscapeTopic::LEGACY_PDLC_ON, "off"});
+        return true;
+    }
+
+    if (topic == EscapeTopic::FIRE_SOUND_LOOK) {
+        queueFirePanelLedCommand("sound", "playing");
+        if (copperCompleteEffect != nullptr) {
+            copperCompleteEffect->trigger(payload);
+        }
+        return true;
+    }
+
+    if (topic == EscapeTopic::FIRE_SOUND_CRASH) {
+        queueFirePanelLedCommand("sound", "playing");
+        if (paintingCrashEffect != nullptr) {
+            paintingCrashEffect->trigger(payload);
+        }
+        return true;
+    }
+
+    if (topic == EscapeTopic::FIRE_SOUND_FAIL) {
+        queueFirePanelLedCommand("sound", "wrong");
+        if (colorSequenceErrorEffect != nullptr) {
+            colorSequenceErrorEffect->trigger(payload);
+        }
+        return true;
+    }
+
+    if (topic == EscapeTopic::FIRE_SOUND_PASS) {
+        queueFirePanelLedCommand("sound", "playing");
+        if (colorSequenceSuccessFirstEffect != nullptr) {
+            colorSequenceSuccessFirstEffect->trigger(payload);
+        }
+        return true;
+    }
+
+    if (topic == EscapeTopic::FIRE_SOUND_BAKE) {
+        queueFirePanelLedCommand("sound", "playing");
+        if (colorSequenceSuccessSecondEffect != nullptr) {
+            colorSequenceSuccessSecondEffect->trigger(payload);
+        }
+        return true;
+    }
+
+    if (topic == EscapeTopic::FIRE_UNLOCK) {
+        queueFirePanelLedCommand("pot", "active");
+        pendingCommands.push_back({EscapeTopic::UNLOCK_ELECTROMAG_LOCK, "on"});
+        pendingCommands.push_back({EscapeTopic::LEGACY_LOCK_TRIGGER, "on"});
+        return true;
+    }
+
+    if (topic == EscapeTopic::FIRE_RESET_ALL) {
+        queueFirePanelLedCommand("all", "checking");
+        pendingCommands.push_back({EscapeTopic::RESET_PUZZLE, "reset"});
+        pendingCommands.push_back({EscapeTopic::LEGACY_GAME_RESET, "reset"});
+        pendingCommands.push_back({EscapeTopic::STATUS_REQUEST, "status"});
+        queueGameReadyCommands();
+        return true;
+    }
+
     return false;
 }
 
@@ -90,6 +180,17 @@ int GameController::lastOvenDegrees() const {
 
 RoomState GameController::currentState() const {
     return state;
+}
+
+void GameController::queueGameReadyCommands() {
+    queueFirePanelLedCommand("film", "ready");
+    queueFirePanelLedCommand("sound", "ready");
+    queueFirePanelLedCommand("picture", "ready");
+    queueFirePanelLedCommand("buttons", "ready");
+    queueFirePanelLedCommand("pot", "ready");
+    pendingCommands.push_back({EscapeTopic::ENABLE_COPPER_PUZZLE, "on"});
+    pendingCommands.push_back({EscapeTopic::ENABLE_PAINTING_ROTATION, "on"});
+    pendingCommands.push_back({EscapeTopic::ENABLE_COLOR_BUTTON_SEQUENCE, "on"});
 }
 
 void GameController::queuePostQueryCommand() {
@@ -152,6 +253,38 @@ bool GameController::handlePostStateReport(const std::string& topic, const std::
     return true;
 }
 
+bool GameController::handleSensorTelemetry(const std::string& topic, const std::string& payload) {
+    if (topic != "escape/telemetry/pico4/oven") {
+        return false;
+    }
+
+    const std::string key = "oven_value=";
+    std::size_t start = payload.find(key);
+    if (start == std::string::npos) {
+        return true;
+    }
+
+    start += key.size();
+    std::size_t end = payload.find(',', start);
+    std::string valueText = payload.substr(start, end == std::string::npos ? std::string::npos : end - start);
+
+    try {
+        int telemetryOvenValue = std::stoi(valueText);
+        bool atTarget = telemetryOvenValue >= 340 && telemetryOvenValue <= 360;
+
+        if (currentState() != RoomState::OVEN_KNOB_ACTIVE && atTarget && !ovenPhysicalResetSignaled) {
+            queueFirePanelLedCommand("pot", "physical-reset");
+            ovenPhysicalResetSignaled = true;
+        } else if (!atTarget && ovenPhysicalResetSignaled && currentState() != RoomState::OVEN_KNOB_ACTIVE) {
+            queueFirePanelLedCommand("pot", "ready");
+            ovenPhysicalResetSignaled = false;
+        }
+    } catch (const std::exception&) {
+    }
+
+    return true;
+}
+
 bool GameController::handleFlowEvent(const std::string& topic, const std::string& payload) {
     if (topic == EscapeTopic::CUBBY_APPROACH_DETECTED || topic == "escape/puzzle/stairs/triggered") {
         transitionTo(RoomState::CUBBY_APPROACH_DETECTED, topic);
@@ -174,20 +307,29 @@ bool GameController::handleFlowEvent(const std::string& topic, const std::string
 
         pendingCommands.push_back({EscapeTopic::REVEAL_SMART_FILM, "on"});
         pendingCommands.push_back({EscapeTopic::LEGACY_PDLC_ON, "on"});
+        queueFirePanelLedCommand("film", "active");
         transitionTo(RoomState::SMART_FILM_REVEALED, "smart film reveal command queued");
         pendingCommands.push_back({EscapeTopic::ENABLE_COLOR_BUTTON_SEQUENCE, "on"});
+        queueFirePanelLedCommand("buttons", "active");
         transitionTo(RoomState::COLOR_BUTTON_SEQUENCE_ACTIVE, "color button sequence enabled");
         return false;
     }
 
     if (topic == EscapeTopic::PAINTING_ROTATION_COMPLETE) {
+        if (paintingRotationHandled) {
+            return true;
+        }
+
         transitionTo(RoomState::PAINTING_ROTATION_COMPLETE, topic);
+        queueFirePanelLedCommand("picture", "triggered");
 
         if (paintingCrashEffect != nullptr) {
             paintingCrashEffect->trigger(payload);
         } else {
             std::cout << "Painting crash audio effect not configured." << std::endl;
         }
+
+        paintingRotationHandled = true;
 
         transitionTo(RoomState::CRASHING_PLATES_PLAYED, "crashing plates effect requested");
         transitionTo(RoomState::FINAL_PIECE_ACTIVE, "painting clue points to final piece");
@@ -198,14 +340,17 @@ bool GameController::handleFlowEvent(const std::string& topic, const std::string
         transitionTo(RoomState::FINAL_PIECE_PLACED, topic);
         pendingCommands.push_back({EscapeTopic::REVEAL_SMART_FILM, "on"});
         pendingCommands.push_back({EscapeTopic::LEGACY_PDLC_ON, "on"});
+        queueFirePanelLedCommand("film", "active");
         transitionTo(RoomState::SMART_FILM_REVEALED, "smart film reveal command queued");
         pendingCommands.push_back({EscapeTopic::ENABLE_COLOR_BUTTON_SEQUENCE, "on"});
+        queueFirePanelLedCommand("buttons", "active");
         transitionTo(RoomState::COLOR_BUTTON_SEQUENCE_ACTIVE, "color button sequence enabled");
         return true;
     }
 
     if (topic == EscapeTopic::COLOR_SEQUENCE_COMPLETE) {
         transitionTo(RoomState::COLOR_BUTTON_SEQUENCE_COMPLETE, topic);
+        queueFirePanelLedCommand("buttons", "ready");
 
         if (displayOutput != nullptr) {
             displayOutput->flash_message("Bake at 350 Degrees", 6, 0.5);
@@ -234,11 +379,13 @@ bool GameController::handleFlowEvent(const std::string& topic, const std::string
         transitionTo(RoomState::DISPLAY_BAKE_350, "display bake message requested");
         pendingCommands.push_back({EscapeTopic::ENABLE_OVEN_KNOB, "on"});
         pendingCommands.push_back({EscapeTopic::LEGACY_OVEN_ENABLE, "on"});
+        queueFirePanelLedCommand("pot", "active");
         transitionTo(RoomState::OVEN_KNOB_ACTIVE, "oven knob enabled");
         return true;
     }
 
     if (topic == EscapeTopic::COLOR_SEQUENCE_ERROR) {
+        queueFirePanelLedCommand("buttons", "wrong");
         if (colorSequenceErrorEffect != nullptr) {
             colorSequenceErrorEffect->trigger(payload);
         } else {
@@ -252,6 +399,7 @@ bool GameController::handleFlowEvent(const std::string& topic, const std::string
         transitionTo(RoomState::OVEN_TARGET_REACHED, topic);
         pendingCommands.push_back({EscapeTopic::UNLOCK_ELECTROMAG_LOCK, "on"});
         pendingCommands.push_back({EscapeTopic::LEGACY_LOCK_TRIGGER, "on"});
+        queueFirePanelLedCommand("pot", "ready");
         transitionTo(RoomState::ELECTROMAGNETIC_LOCK_RELEASED, "oven target reached");
         return true;
     }
@@ -288,6 +436,10 @@ bool GameController::handleOvenDegreesReport(const std::string& topic, const std
     }
 
     return true;
+}
+
+void GameController::queueFirePanelLedCommand(const std::string& zone, const std::string& mode) {
+    pendingCommands.push_back({EscapeTopic::FIRE_PANEL_LED_COMMAND, zone + "=" + mode});
 }
 
 void GameController::queueCommandsForTopic(const std::string& topic) {

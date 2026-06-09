@@ -40,7 +40,7 @@ constexpr int MQTT_ATTEMPTS_PER_HOST = 3;
 WiFiClient wifiClient;
 PubSubClient mqtt(wifiClient);
 
-bool paintingEnabled = false;
+bool paintingEnabled = true;
 bool paintingTriggered = false;
 int paintingLastState = LOW;
 unsigned long paintingStableStart = 0;
@@ -50,7 +50,7 @@ unsigned long paintingTriggerCount = 0;
 void publishPostState();
 
 void resetPainting() {
-    paintingEnabled = false;
+    paintingEnabled = true;
     paintingTriggered = false;
     paintingTriggerCount = 0;
     paintingLastState = digitalRead(PAINTING_SENSOR_PIN);
@@ -171,6 +171,7 @@ void setup() {
     pinMode(PAINTING_SENSOR_PIN, INPUT);
     paintingLastState = digitalRead(PAINTING_SENSOR_PIN);
     paintingStableStart = millis();
+    paintingEnabled = true;
 
     connectWiFi();
     connectMQTT();

@@ -7,7 +7,7 @@ The current build uses:
 - One Raspberry Pi as the central controller and MQTT broker.
 - Five active Pico WH boards on the same local WiFi as the Pi.
 - No TV dashboard.
-- A paired Bluetooth speaker for audio cues.
+- A powered speaker connected to the Raspberry Pi 3.5mm audio jack for audio cues.
 - A one-piece copper puzzle that advances directly to the smart-film stage.
 
 Core runtime pattern:
@@ -80,7 +80,7 @@ Install the controller dependencies if needed:
 
 ```bash
 sudo apt update
-sudo apt install -y mosquitto mosquitto-clients libmosquitto-dev libgpiod-dev ffmpeg bluetooth bluez pipewire wireplumber
+sudo apt install -y mosquitto mosquitto-clients libmosquitto-dev libgpiod-dev ffmpeg alsa-utils pipewire wireplumber
 sudo systemctl enable mosquitto
 sudo systemctl start mosquitto
 ```
@@ -142,12 +142,13 @@ If upload detection fails, plug the Pico in while holding `BOOTSEL`, then run `p
 
 | Pico | Folder | Active Hardware | Responsibility |
 | --- | --- | --- | --- |
-| Pico 1 | `pico1-cubby-approach-leds` | Cubby LEDs, PIR motion detector | Detect approach and illuminate cubbies |
+| Pico 1 | `pico1-cubby-approach-leds` | Retired | Previous cubby LEDs and PIR motion detector |
 | Pico 2 | `pico2-copper-final-piece` | One-piece copper puzzle contact | Report copper completion and advance smart-film stage |
-| Pico 3 | `pico3-painting-rotation` | Painting rotation sensor | Kept for manual/legacy testing |
+| Pico 3 | `pico3-painting-rotation` | Painting rotation sensor | Report picture rotation |
 | Pico 4 | `pico4-smart-film-oven` | Smart film, oven knob, electromagnetic lock | Reveal film, track oven, unlock at 350 |
 | Pico 5 | `pico5-color-buttons` | Color-coded buttons | Report correct button sequence |
 | Pico 6 | `pico6-unused-future-puzzles` | None | Archive/future code |
+| Pico 7 | `pico7-fire-panel` | 10-button fire panel with red/green status LEDs | Operator fallback controls and state display |
 
 Pin numbers are GPIO numbers, not physical header pin numbers.
 
@@ -155,19 +156,26 @@ Pin numbers are GPIO numbers, not physical header pin numbers.
 
 ## Current Game Flow
 
-1. Pico 1 detects motion with the PIR sensor.
-2. Pico 1 publishes `escape/pico1/cubby_approach_detected`.
-3. Raspberry Pi tells Pico 1 to illuminate the cubby LEDs.
-4. Pico 2 detects the one-piece copper puzzle contact.
-5. Pico 2 publishes `escape/pico2/copper_puzzle_complete`.
-6. Raspberry Pi plays `look-behind-you.mp3`.
-7. Raspberry Pi tells Pico 4 to reveal the smart film.
-8. Raspberry Pi enables Pico 5 color buttons.
-9. Pico 5 publishes `escape/pico5/color_sequence_complete`.
-10. Raspberry Pi plays success audio and enables Pico 4 oven knob.
-11. Player turns the oven knob to 350.
-12. Pico 4 publishes `escape/pico4/oven_target_reached`.
-13. Raspberry Pi tells Pico 4 to unlock the electromagnetic lock.
+When the controller enters ready state, Pico 2, Pico 3, and Pico 5 are armed:
+
+1. Pico 2 waits for the puzzle piece placement.
+2. Pico 3 actively listens for the picture rotation magnet sensor.
+3. Pico 5 actively listens for the color-button combination.
+4. Pico 4 reports oven telemetry, but the oven knob puzzle remains disabled.
+
+Active room progression:
+
+1. Pico 2 publishes `escape/pico2/copper_puzzle_complete` when the puzzle piece is placed.
+2. Raspberry Pi plays `check-the-oven.wav`.
+3. Raspberry Pi tells Pico 4 to reveal the smart film.
+4. If Pico 3 publishes `escape/pico3/painting_rotation_complete`, Raspberry Pi plays `crashing_plates.m4a` once for that sensor event.
+5. If Pico 5 publishes `escape/pico5/color_sequence_error`, Raspberry Pi plays `buzzer.mp3`.
+6. Pico 5 publishes `escape/pico5/color_sequence_complete` after the correct combo.
+7. Raspberry Pi plays `yeah-you-did-it.mp3`, then `bake_at_350.wav`, then enables Pico 4's oven knob.
+8. If the oven is already at 350 when the room starts or when the knob is enabled, the fire panel's potentiometer status flashes green until the knob is moved away from 350.
+9. Player turns the oven knob to 350 and holds it there.
+10. Pico 4 publishes `escape/pico4/oven_target_reached`.
+11. Raspberry Pi tells Pico 4 to unlock the electromagnetic lock.
 
 The legacy final-piece topic still exists for manual testing, but it is no longer required in the active flow.
 
@@ -175,7 +183,10 @@ The legacy final-piece topic still exists for manual testing, but it is no longe
 
 ## Wiring Notes
 
-### Pico 1: Cubby Approach and LEDs
+### Pico 1: Retired Cubby Approach and LEDs
+
+Pico 1 is no longer part of the active room flow. The old firmware remains in
+the repository for reference only.
 
 ```text
 GPIO 14 -> local reset button -> GND
@@ -268,7 +279,7 @@ Blue   = 3 presses
 Make scripts executable:
 
 ```bash
-chmod +x tools/*.sh
+chmod +x tools/*.sh fire/*
 ```
 
 Show available tools:
@@ -283,10 +294,9 @@ Start the room:
 tools/start.sh
 ```
 
-Bluetooth speaker:
+Wired speaker:
 
 ```bash
-tools/pair.sh
 tools/connect.sh
 tools/set-volume.sh -v 50
 tools/volume-up.sh
@@ -298,7 +308,6 @@ Connectivity and walkthrough tests:
 ```bash
 tools/test-connection.sh
 tools/test-all.sh
-tools/test-pico1.sh
 tools/test-pico2.sh
 tools/test-pico3.sh
 tools/test-pico4.sh
@@ -311,6 +320,26 @@ Raw MQTT/debug:
 tools/watch-mqtt.sh
 tools/room-logs.sh
 ```
+
+Manual fire commands:
+
+```bash
+fire/status
+fire/film-on
+fire/film-off
+fire/sound-look
+fire/sound-crash
+fire/sound-fail
+fire/sound-pass
+fire/sound-bake
+fire/unlock
+fire/reset-all
+```
+
+The physical fire-panel reset button must be held for 5 seconds. During the hold,
+the five red LEDs flash one at a time as a countdown; after reset fires, all five
+red LEDs flash together and the controller requests status before re-arming the
+room.
 
 Update Pi-side folders from the public repo and rebuild:
 
@@ -325,7 +354,6 @@ tools/rebase.sh
 Important Pico events:
 
 ```text
-escape/pico1/cubby_approach_detected
 escape/pico2/copper_puzzle_complete
 escape/pico2/final_piece_placed          # legacy/manual
 escape/pico3/painting_rotation_complete  # legacy/manual
@@ -338,7 +366,6 @@ escape/pico5/color_sequence_error
 Commands from the Pi:
 
 ```text
-escape/cmd/pico1/enable_cubby_light
 escape/cmd/pico2/enable_copper_puzzle
 escape/cmd/pico4/reveal_smart_film
 escape/cmd/pico5/enable_color_button_sequence
@@ -346,16 +373,32 @@ escape/cmd/pico4/enable_oven_knob
 escape/cmd/pico4/unlock_electromag_lock
 escape/cmd/all/reset_puzzle
 escape/cmd/all/status_request
+escape/cmd/fire-panel/led
+```
+
+Fire panel events:
+
+```text
+escape/fire/status
+escape/fire/film-on
+escape/fire/film-off
+escape/fire/sound-look
+escape/fire/sound-crash
+escape/fire/sound-fail
+escape/fire/sound-pass
+escape/fire/sound-bake
+escape/fire/unlock
+escape/fire/reset-all
 ```
 
 Telemetry:
 
 ```text
-escape/telemetry/pico1/motion
 escape/telemetry/pico2/contacts
 escape/telemetry/pico3/painting_sensor
 escape/telemetry/pico4/oven
 escape/telemetry/pico5/buttons
+escape/telemetry/fire-panel/status
 ```
 
 The controller subscribes to telemetry but only prints it when the payload changes.

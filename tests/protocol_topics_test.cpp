@@ -23,6 +23,18 @@ int main() {
     assert(std::string(EscapeTopic::RESET_PUZZLE) == "escape/cmd/all/reset_puzzle");
     assert(std::string(EscapeTopic::STATUS_REQUEST) == "escape/cmd/all/status_request");
     assert(std::string(EscapeTopic::SENSOR_TELEMETRY_WILDCARD) == "escape/telemetry/#");
+    assert(std::string(EscapeTopic::FIRE_COMMAND_WILDCARD) == "escape/fire/#");
+    assert(std::string(EscapeTopic::FIRE_STATUS) == "escape/fire/status");
+    assert(std::string(EscapeTopic::FIRE_FILM_ON) == "escape/fire/film-on");
+    assert(std::string(EscapeTopic::FIRE_FILM_OFF) == "escape/fire/film-off");
+    assert(std::string(EscapeTopic::FIRE_SOUND_LOOK) == "escape/fire/sound-look");
+    assert(std::string(EscapeTopic::FIRE_SOUND_CRASH) == "escape/fire/sound-crash");
+    assert(std::string(EscapeTopic::FIRE_SOUND_FAIL) == "escape/fire/sound-fail");
+    assert(std::string(EscapeTopic::FIRE_SOUND_PASS) == "escape/fire/sound-pass");
+    assert(std::string(EscapeTopic::FIRE_SOUND_BAKE) == "escape/fire/sound-bake");
+    assert(std::string(EscapeTopic::FIRE_UNLOCK) == "escape/fire/unlock");
+    assert(std::string(EscapeTopic::FIRE_RESET_ALL) == "escape/fire/reset-all");
+    assert(std::string(EscapeTopic::FIRE_PANEL_LED_COMMAND) == "escape/cmd/fire-panel/led");
 
     return 0;
 }
