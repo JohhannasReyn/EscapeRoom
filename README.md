@@ -6,7 +6,7 @@ The current build uses:
 
 - One Raspberry Pi as the central controller and MQTT broker.
 - Five active Pico WH boards on the same local WiFi as the Pi.
-- No TV dashboard.
+- No TV dashboard (the controller logs display/cue messages such as "Bake at 350 Degrees" to the console only).
 - A powered speaker connected to the Raspberry Pi 3.5mm audio jack for audio cues.
 - A one-piece copper puzzle that advances directly to the smart-film stage.
 
@@ -56,7 +56,13 @@ MQTT_BROKER_FALLBACK="192.168.1.50"
 MQTT_BROKER_PORT="1883"
 ```
 
-Edit `pico-wifi.env` before flashing Picos. Each active Pico project reads this file during PlatformIO builds.
+`pico-wifi.env` is git-ignored, so it does not ship in the repo. Create it once by copying the template, then edit it:
+
+```bash
+cp pico-wifi.env.example pico-wifi.env
+```
+
+Edit `pico-wifi.env` before flashing Picos. Each active Pico project reads this file during PlatformIO builds (`tools/platformio_pico_wifi.py`), and the build fails with "Missing shared Pico WiFi config" if the file is absent.
 
 Optional Pi-side WiFi notes can be copied from:
 
@@ -177,7 +183,18 @@ Active room progression:
 10. Pico 4 publishes `escape/pico4/oven_target_reached`.
 11. Raspberry Pi tells Pico 4 to unlock the electromagnetic lock.
 
+The electromagnetic lock stays released (Pico 4 holds `GPIO 18` HIGH) until the
+room is reset, so the door remains open for the group. A fire-panel `reset-all`
+or the Pi reset button re-locks the door, re-arms Pico 2/3/5, disables the oven
+knob, and clears the controller's one-shot cues (including the once-per-game
+crashing-plates sound) so the next group gets a clean run.
+
 The legacy final-piece topic still exists for manual testing, but it is no longer required in the active flow.
+
+The `escape/post/cubby/+/state` handshake and `escape/cubby/N/...` status topics
+are carried over from the old multi-cubby room. They are inert in the current
+one-piece build (no cubby 1 reporter exists, so the POST "all green" path never
+fires) and can be ignored.
 
 ---
 
@@ -231,16 +248,20 @@ No external 10k resistor is needed for Pico 2 puzzle inputs.
 
 ```text
 GPIO 14 -> local reset button -> GND
-GPIO 15 -> RC35/reed/hall sensor output
+GPIO 15 -> RC35/reed/hall sensor output (drives the pin HIGH when the painting is rotated into position)
 ```
 
-This Pico is still buildable and testable, but no longer required in the active room flow.
+This Pico is armed when the room reaches ready and actively listens for the
+painting rotation magnet sensor. Rotating the painting into position publishes
+`escape/pico3/painting_rotation_complete`, and the Raspberry Pi plays the
+crashing-plates cue once per game.
 
 ### Pico 4: Smart Film and Oven Knob
 
 ```text
 GPIO 14 -> local reset button -> GND
 GPIO 15 / physical pin 20 -> smart film relay/driver IN
+GPIO 16 / physical pin 21 -> smart film reveal buzzer + (buzzer - -> GND)
 GPIO 18 / physical pin 24 -> electromagnetic lock relay/driver IN
 3.3V -> oven potentiometer outer leg
 GND -> oven potentiometer outer leg
@@ -356,7 +377,7 @@ Important Pico events:
 ```text
 escape/pico2/copper_puzzle_complete
 escape/pico2/final_piece_placed          # legacy/manual
-escape/pico3/painting_rotation_complete  # legacy/manual
+escape/pico3/painting_rotation_complete
 escape/pico4/oven_target_reached
 escape/pico4/electromag_lock_unlocked
 escape/pico5/color_sequence_complete

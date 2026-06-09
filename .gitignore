@@ -37,6 +37,7 @@ wifi_config.h
 *.mp3
 *.mp4
 *.mov
+!assets/audio/*.wav
 !assets/audio/*.mp3
 
 # Keep optional placeholder folders
