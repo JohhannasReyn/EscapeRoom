@@ -46,7 +46,6 @@ constexpr int OVEN_POT_MAX_READING = 4095;
 constexpr int OVEN_POSITION_PUBLISH_DELTA = 2;
 
 constexpr unsigned long MQTT_RETRY_MS = 3000;
-constexpr unsigned long OVEN_LOCK_RELEASE_MS = 100;
 constexpr unsigned long SMART_FILM_BUZZER_MS = 350;
 constexpr unsigned long OVEN_TARGET_HOLD_MS = 1200;
 constexpr unsigned long SENSOR_TELEMETRY_MS = 1000;
@@ -59,7 +58,6 @@ bool ovenEnabled = false;
 bool ovenSolved = false;
 bool ovenNeedsPhysicalReset = false;
 int ovenLastPublishedValue = -1;
-unsigned long lockOffAt = 0;
 unsigned long smartFilmBuzzerOffAt = 0;
 unsigned long ovenTargetStableStart = 0;
 unsigned long lastSensorTelemetry = 0;
@@ -83,14 +81,14 @@ void publishOvenDegrees(int ovenDegrees) {
 }
 
 void setLock(bool on) {
+    // HIGH = electromagnetic lock released (room unlocked). The release is held
+    // until the room is reset so the door stays open; resetOvenAndOutputs()
+    // drives LOCK_PIN LOW again to re-arm the lock for the next group.
     digitalWrite(LOCK_PIN, on ? HIGH : LOW);
     digitalWrite(LED_PIN, on ? HIGH : LOW);
 
     if (on) {
-        lockOffAt = millis() + OVEN_LOCK_RELEASE_MS;
         publishEvent(EscapeTopic::ELECTROMAG_LOCK_UNLOCKED, "electromagnetic lock unlocked");
-    } else {
-        lockOffAt = 0;
     }
 }
 
@@ -341,10 +339,6 @@ void loop() {
 
     checkOvenPotentiometer();
     publishSensorTelemetry();
-
-    if (lockOffAt != 0 && millis() >= lockOffAt) {
-        setLock(false);
-    }
 
     if (smartFilmBuzzerOffAt != 0 && millis() >= smartFilmBuzzerOffAt) {
         digitalWrite(SMART_FILM_BUZZER_PIN, LOW);

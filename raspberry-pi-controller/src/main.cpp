@@ -133,7 +133,9 @@ void handle_reset_button_value(
         if (!resetPublishedForPress && resetPressReady(heldMs, pressed)) {
             publish_reset(mosq);
             std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            controller.resetGameProgress();
             controller.queuePostQueryCommand();
+            controller.queueGameReadyCommands();
             publish_pending_commands(mosq, controller);
             resetPublishedForPress = true;
         }

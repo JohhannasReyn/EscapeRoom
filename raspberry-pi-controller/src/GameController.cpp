@@ -135,6 +135,7 @@ bool GameController::handleFireCommand(const std::string& topic, const std::stri
     }
 
     if (topic == EscapeTopic::FIRE_RESET_ALL) {
+        resetGameProgress();
         queueFirePanelLedCommand("all", "checking");
         pendingCommands.push_back({EscapeTopic::RESET_PUZZLE, "reset"});
         pendingCommands.push_back({EscapeTopic::LEGACY_GAME_RESET, "reset"});
@@ -204,6 +205,16 @@ void GameController::queueReadyCommand() {
 
 void GameController::resetPostState() {
     postReady.fill(false);
+}
+
+void GameController::resetGameProgress() {
+    // Clear the one-shot flags and the state machine so a room reset re-arms the
+    // full flow for the next group. Without this the painting crash sound (a
+    // once-per-game cue) would never replay after the first playthrough.
+    state = RoomState::COPPER_PUZZLE_ACTIVE;
+    paintingRotationHandled = false;
+    ovenPhysicalResetSignaled = false;
+    solvedTopics.clear();
 }
 
 bool GameController::handlePostStateReport(const std::string& topic, const std::string& payload) {

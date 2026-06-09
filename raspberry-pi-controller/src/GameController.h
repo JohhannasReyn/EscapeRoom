@@ -43,6 +43,7 @@ public:
     void queuePostQueryCommand();
     void queueReadyCommand();
     void resetPostState();
+    void resetGameProgress();
 
 private:
     bool handleFireCommand(const std::string& topic, const std::string& payload);
