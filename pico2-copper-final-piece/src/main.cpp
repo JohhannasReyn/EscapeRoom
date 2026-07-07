@@ -44,7 +44,6 @@ struct DigitalPuzzle {
     const char* topic;
     const char* payload;
     int pin;
-    bool enabled;
     bool solved;
     int lastState;
     unsigned long stableStart;
@@ -55,7 +54,6 @@ DigitalPuzzle copperPuzzle = {
     EscapeTopic::COPPER_PUZZLE_COMPLETE,
     "Complete",
     COPPER_COMPLETE_PIN,
-    true,
     false,
     PUZZLE_INACTIVE_STATE,
     0,
@@ -91,8 +89,6 @@ void handleMessage(char* topic, byte* payload, unsigned int length) {
         publishPostState();
     } else if (topicText == EscapeTopic::RESET_PUZZLE || topicText == EscapeTopic::LEGACY_GAME_RESET) {
         resetPuzzles();
-    } else if (topicText == EscapeTopic::ENABLE_COPPER_PUZZLE) {
-        copperPuzzle.enabled = message != "off";
     }
 }
 
@@ -127,7 +123,6 @@ bool tryConnectMQTT(const char* broker) {
 
     for (int attempt = 0; attempt < MQTT_ATTEMPTS_PER_HOST && !mqtt.connected(); ++attempt) {
         if (mqtt.connect(MQTT_CLIENT_ID)) {
-            mqtt.subscribe(EscapeTopic::ENABLE_COPPER_PUZZLE);
             mqtt.subscribe(EscapeTopic::STATUS_REQUEST);
             mqtt.subscribe(EscapeTopic::RESET_PUZZLE);
             mqtt.subscribe(EscapeTopic::LEGACY_POST_QUERY);
@@ -224,7 +219,7 @@ void loop() {
         publishPostState();
     }
 
-    if (copperPuzzle.enabled && state == PUZZLE_ACTIVE_STATE && !copperPuzzle.solved && now - copperPuzzle.stableStart >= DEBOUNCE_MS) {
+    if (state == PUZZLE_ACTIVE_STATE && !copperPuzzle.solved && now - copperPuzzle.stableStart >= DEBOUNCE_MS) {
         copperPuzzle.solved = true;
         publishEvent(copperPuzzle.topic, copperPuzzle.payload);
     }

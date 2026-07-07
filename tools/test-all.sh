@@ -56,15 +56,15 @@ run_step \
     "2. Picture rotation should keep color buttons active" \
     "escape/pico3/painting_rotation_complete" \
     "manual walkthrough" \
-    "escape/cmd/pico5/enable_color_button_sequence" \
-    "Pico 3 should publish escape/pico3/painting_rotation_complete when the picture reaches the magnet sensor; the Pi should not wait for a separate final-piece event."
+    "escape/cmd/fire-panel/led" \
+    "Pico 3 should publish escape/pico3/painting_rotation_complete when the picture reaches the magnet sensor; the Pi should not wait for any enable command."
 
 run_step \
-    "3. Color button sequence completes and should enable oven" \
+    "3. Color button sequence completes and should mark oven active" \
     "escape/pico5/color_sequence_complete" \
     "manual walkthrough" \
-    "escape/cmd/pico4/enable_oven_knob" \
-    "Pico 5 should publish escape/pico5/color_sequence_complete after 3 red, 4 green, 2 yellow, 3 blue presses."
+    "escape/cmd/fire-panel/led" \
+    "Pico 5 should publish escape/pico5/color_sequence_complete after 3 red, 4 green, 2 yellow, 3 blue presses; Pico 4 already listens to the oven knob."
 
 run_step \
     "4. Oven target reached and should unlock final lock" \

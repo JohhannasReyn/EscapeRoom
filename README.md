@@ -108,19 +108,31 @@ tools/start.sh
 
 The controller prints puzzle events and telemetry changes only. Repeated identical telemetry is suppressed to keep the terminal readable.
 
+If the fire-panel remote/manual MQTT events work but the physical Pico sensors
+do not trigger anything, first check whether the Picos are online:
+
+```bash
+tools/watch-mqtt.sh
+```
+
+or:
+
+```bash
+tools/test-all.sh
+```
+
+The active Picos should publish `escape/telemetry/...` messages. If telemetry is
+missing, the Picos are usually flashed with stale WiFi/MQTT settings or are not
+on the same network as the Pi. Recreate/edit `pico-wifi.env`, rebuild, and
+reflash the affected Picos.
+
 ---
 
 ## Flashing Picos
 
 Before flashing, edit root `pico-wifi.env` with the venue WiFi SSID/password and the Pi broker host.
 
-For each Pico:
-
-```text
-Open VS Code -> Select Terminal -> New Terminal -> Select the correct Pico folder to flash
-```
-
-Create and activate a virtual environment:
+Create and activate a virtual environment on the Mac or Raspberry Pi:
 
 ```bash
 python3 -m venv .venv
@@ -140,7 +152,26 @@ pio run
 pio run -t upload
 ```
 
-If upload detection fails, plug the Pico in while holding `BOOTSEL`, then run `pio run -t upload` again.
+The Raspberry Pi can flash Picos as long as the Pico is connected with a USB
+data cable and is in BOOTSEL mode. To flash without VS Code, use:
+
+```bash
+tools/flash-pico.sh pico2
+tools/flash-pico.sh pico3
+tools/flash-pico.sh pico4
+tools/flash-pico.sh pico5
+tools/flash-pico.sh pico7
+```
+
+or flash all active Picos one after another:
+
+```bash
+tools/flash-pico.sh all
+```
+
+For each Pico, unplug it, hold `BOOTSEL`, plug it into the Mac or Raspberry Pi,
+release `BOOTSEL`, then press Enter when the script prompts you. If upload
+detection fails, repeat that BOOTSEL plug-in step and run the same command again.
 
 ---
 
@@ -162,13 +193,12 @@ Pin numbers are GPIO numbers, not physical header pin numbers.
 
 ## Current Game Flow
 
-When the controller enters ready state, Pico 2 and Pico 5 are armed; Pico 3 is
-always active:
+When powered and connected to MQTT, all active sensor Picos listen immediately:
 
 1. Pico 2 waits for the puzzle piece placement.
 2. Pico 3 always listens for the picture rotation magnet sensor.
-3. Pico 5 actively listens for the color-button combination.
-4. Pico 4 reports oven telemetry, but the oven knob puzzle remains disabled.
+3. Pico 5 listens for the color-button combination.
+4. Pico 4 listens to the oven potentiometer and reports oven telemetry.
 
 Active room progression:
 
@@ -178,16 +208,17 @@ Active room progression:
 4. Whenever Pico 3 publishes `escape/pico3/painting_rotation_complete`, Raspberry Pi plays `crashing_plates.m4a` and keeps the color buttons active.
 5. If Pico 5 publishes `escape/pico5/color_sequence_error`, Raspberry Pi plays `buzzer.mp3`.
 6. Pico 5 publishes `escape/pico5/color_sequence_complete` after the correct combo.
-7. Raspberry Pi plays `yeah-you-did-it.mp3`, then `bake_at_350.wav`, then enables Pico 4's oven knob.
-8. If the oven is already at 350 when the room starts or when the knob is enabled, the fire panel's potentiometer status flashes green until the knob is moved away from 350.
+7. Raspberry Pi plays `yeah-you-did-it.mp3`, then `bake_at_350.wav`; Pico 4's oven knob is already listening.
+8. If the oven is already at 350 when the room starts or resets, the fire panel's potentiometer status flashes green until the knob is moved away from 350.
 9. Player turns the oven knob to 350 and holds it there.
 10. Pico 4 publishes `escape/pico4/oven_target_reached`.
 11. Raspberry Pi tells Pico 4 to unlock the electromagnetic lock.
 
 The electromagnetic lock stays released (Pico 4 holds `GPIO 18` HIGH) until the
 room is reset, so the door remains open for the group. A fire-panel `reset-all`
-or the Pi reset button re-locks the door, re-arms Pico 2/3/5, disables the oven
-knob, and clears transient controller state so the next group gets a clean run.
+or the Pi reset button re-locks the door, clears Pico 2/3/5 solved latches,
+clears Pico 4's oven target latch, and clears transient controller state so the
+next group gets a clean run.
 
 There is no separate final-piece MQTT event in the active flow; Pico 2's single
 GPIO 15 copper contact is the only piece-placement input.
@@ -395,10 +426,7 @@ escape/pico5/color_sequence_error
 Commands from the Pi:
 
 ```text
-escape/cmd/pico2/enable_copper_puzzle
 escape/cmd/pico4/reveal_smart_film
-escape/cmd/pico5/enable_color_button_sequence
-escape/cmd/pico4/enable_oven_knob
 escape/cmd/pico4/unlock_electromag_lock
 escape/cmd/all/reset_puzzle
 escape/cmd/all/status_request

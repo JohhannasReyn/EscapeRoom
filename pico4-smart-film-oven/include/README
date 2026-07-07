@@ -13,22 +13,18 @@ Main topics:
 - Publishes escape/pico4/electromag_lock_unlocked
 - Publishes escape/pico4/oven_error
 - Subscribes escape/cmd/pico4/reveal_smart_film
-- Subscribes escape/cmd/pico4/enable_oven_knob
 - Subscribes escape/cmd/pico4/unlock_electromag_lock
 - Subscribes escape/cmd/all/status_request
 - Subscribes escape/cmd/all/reset_puzzle
 
-The oven knob puzzle remains disabled until the Raspberry Pi receives the correct color-button sequence from Pico 5.
-
 The lock only releases after:
-- oven knob puzzle is enabled
 - potentiometer-derived value stays at 350 within tolerance for the configured hold time
 
 After the oven reaches 350, the Pico re-arms when the potentiometer leaves the
 target tolerance window.
 
-If the oven is already at 350 when the oven knob is enabled, the Pico requires a
-physical reset by moving the knob away from 350 before it can solve.
+If the oven is already at 350 on startup/reset, the Pico requires a physical
+reset by moving the knob away from 350 before it can solve.
 
 The small LED thermometer strip is not used in the current build. Pico 4 publishes
 the simulated oven temperature to MQTT for the Raspberry Pi controller and fire panel.

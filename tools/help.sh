@@ -13,11 +13,13 @@ Setup / operation:
 Testing:
   tools/test-connection.sh    Print one-line connected/not-found status for each Pico.
   tools/test-all.sh           Simulate the full walkthrough with delays between steps.
+  tools/run-host-tests.sh     Build and run host-side logic tests on macOS/Linux/Pi.
   tools/test-pico1.sh         Retired Pico 1 manual legacy test.
   tools/test-pico2.sh         Simulate one-piece copper puzzle completion.
   tools/test-pico3.sh         Simulate painting rotation completion.
-  tools/test-pico4.sh         Reveal smart film and enable oven knob.
-  tools/test-pico5.sh         Enable color button sequence.
+  tools/test-pico4.sh         Reveal smart film and simulate oven completion.
+  tools/test-pico5.sh         Simulate color button sequence completion.
+  tools/flash-pico.sh pico3   Flash a Pico from macOS/Linux/Pi using PlatformIO.
 
 Audio:
   tools/set-volume.sh -v 50   Set speaker volume to 50%.

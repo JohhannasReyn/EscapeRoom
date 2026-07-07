@@ -2,7 +2,13 @@
 
 These tests check the logic that can be verified without Raspberry Pi or Pico hardware attached.
 
-Run from the repository root in PowerShell:
+Run from the repository root on macOS, Linux, or Raspberry Pi:
+
+```bash
+tools/run-host-tests.sh
+```
+
+Run from the repository root in Windows PowerShell:
 
 ```powershell
 .\tools\run-host-tests.ps1
