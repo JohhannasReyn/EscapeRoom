@@ -7,7 +7,6 @@ inline constexpr const char* CUBBY_LED_READY = "escape/pico1/cubby_led_ready";
 inline constexpr const char* CUBBY_LED_ERROR = "escape/pico1/cubby_led_error";
 
 inline constexpr const char* COPPER_PUZZLE_COMPLETE = "escape/pico2/copper_puzzle_complete";
-inline constexpr const char* FINAL_PIECE_PLACED = "escape/pico2/final_piece_placed";
 
 inline constexpr const char* PAINTING_ROTATION_COMPLETE = "escape/pico3/painting_rotation_complete";
 

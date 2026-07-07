@@ -43,11 +43,6 @@ public:
     StairsPuzzle() : PlannedPuzzle("Cubby approach sensor", EscapeTopic::CUBBY_APPROACH_DETECTED) {}
 };
 
-class FinalPiecePuzzle : public PlannedPuzzle {
-public:
-    FinalPiecePuzzle() : PlannedPuzzle("Final puzzle piece", EscapeTopic::FINAL_PIECE_PLACED) {}
-};
-
 class PaintingRotationPuzzle : public PlannedPuzzle {
 public:
     PaintingRotationPuzzle() : PlannedPuzzle("Painting rotation puzzle", EscapeTopic::PAINTING_ROTATION_COMPLETE) {}
