@@ -413,7 +413,6 @@ int main() {
         &bakeAt350Audio
     );
     controller.addPuzzle(std::make_unique<CopperPuzzle>());
-    controller.addPuzzle(std::make_unique<FinalPiecePuzzle>());
     controller.addPuzzle(std::make_unique<PaintingRotationPuzzle>());
     controller.addPuzzle(std::make_unique<ColorButtonSequencePuzzle>());
     controller.addPuzzle(std::make_unique<ColorButtonSequenceErrorPuzzle>());
