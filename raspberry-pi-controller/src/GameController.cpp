@@ -190,7 +190,6 @@ void GameController::queueGameReadyCommands() {
     queueFirePanelLedCommand("buttons", "ready");
     queueFirePanelLedCommand("pot", "ready");
     pendingCommands.push_back({EscapeTopic::ENABLE_COPPER_PUZZLE, "on"});
-    pendingCommands.push_back({EscapeTopic::ENABLE_PAINTING_ROTATION, "on"});
     pendingCommands.push_back({EscapeTopic::ENABLE_COLOR_BUTTON_SEQUENCE, "on"});
 }
 
@@ -208,11 +207,9 @@ void GameController::resetPostState() {
 }
 
 void GameController::resetGameProgress() {
-    // Clear the one-shot flags and the state machine so a room reset re-arms the
-    // full flow for the next group. Without this the painting crash sound (a
-    // once-per-game cue) would never replay after the first playthrough.
+    // Clear transient flags and the state machine so a room reset re-arms the
+    // full flow for the next group.
     state = RoomState::COPPER_PUZZLE_ACTIVE;
-    paintingRotationHandled = false;
     ovenPhysicalResetSignaled = false;
     solvedTopics.clear();
 }
@@ -327,10 +324,6 @@ bool GameController::handleFlowEvent(const std::string& topic, const std::string
     }
 
     if (topic == EscapeTopic::PAINTING_ROTATION_COMPLETE) {
-        if (paintingRotationHandled) {
-            return true;
-        }
-
         transitionTo(RoomState::PAINTING_ROTATION_COMPLETE, topic);
         queueFirePanelLedCommand("picture", "triggered");
 
@@ -339,8 +332,6 @@ bool GameController::handleFlowEvent(const std::string& topic, const std::string
         } else {
             std::cout << "Painting crash audio effect not configured." << std::endl;
         }
-
-        paintingRotationHandled = true;
 
         transitionTo(RoomState::CRASHING_PLATES_PLAYED, "crashing plates effect requested");
         pendingCommands.push_back({EscapeTopic::ENABLE_COLOR_BUTTON_SEQUENCE, "on"});

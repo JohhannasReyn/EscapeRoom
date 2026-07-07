@@ -62,7 +62,6 @@ private:
     std::set<std::string> solvedTopics;
     RoomState state = RoomState::COPPER_PUZZLE_ACTIVE;
     int ovenDegrees = 0;
-    bool paintingRotationHandled = false;
     bool ovenPhysicalResetSignaled = false;
     Effect* paintingCrashEffect = nullptr;
     DisplayOutput* displayOutput = nullptr;
