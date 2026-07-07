@@ -70,6 +70,11 @@ $tests = @(
         Name = "pico_post_mapping_test"
         Sources = @("tests\pico_post_mapping_test.cpp")
         Includes = @("shared")
+    },
+    @{
+        Name = "pico2_copper_single_input_test"
+        Sources = @("tests\pico2_copper_single_input_test.cpp")
+        Includes = @()
     }
 )
 

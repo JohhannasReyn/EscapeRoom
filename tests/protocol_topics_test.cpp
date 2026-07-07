@@ -6,7 +6,6 @@
 int main() {
     assert(std::string(EscapeTopic::CUBBY_APPROACH_DETECTED) == "escape/pico1/cubby_approach_detected");
     assert(std::string(EscapeTopic::COPPER_PUZZLE_COMPLETE) == "escape/pico2/copper_puzzle_complete");
-    assert(std::string(EscapeTopic::FINAL_PIECE_PLACED) == "escape/pico2/final_piece_placed");
     assert(std::string(EscapeTopic::PAINTING_ROTATION_COMPLETE) == "escape/pico3/painting_rotation_complete");
     assert(std::string(EscapeTopic::OVEN_POSITION_UPDATE) == "escape/pico4/oven_position_update");
     assert(std::string(EscapeTopic::OVEN_TARGET_REACHED) == "escape/pico4/oven_target_reached");

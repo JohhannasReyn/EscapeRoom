@@ -1,19 +1,17 @@
-Pico 2 active firmware: copper puzzle and final puzzle piece.
+Pico 2 active firmware: one-piece copper puzzle.
 
 This folder is the active Pico 2 project. The old dowels/wine puzzle code is archived in:
 
 ../../pico6-unused-future-puzzles/unused-future-puzzles/
 
 Hardware:
-- GPIO 15: copper puzzle complete contact
-- GPIO 16: final puzzle piece placed contact
+- GPIO 15: copper puzzle complete contact to GND
 
 Main topics:
 - Publishes escape/pico2/copper_puzzle_complete
-- Publishes escape/pico2/final_piece_placed
 - Subscribes escape/cmd/pico2/enable_copper_puzzle
 - Subscribes escape/cmd/all/status_request
 - Subscribes escape/cmd/all/reset_puzzle
 
-Each contact publishes once when its input goes HIGH, then re-arms after the
-input returns LOW.
+The contact uses INPUT_PULLUP and publishes once when GPIO 15 goes LOW, then
+re-arms after the input returns HIGH.

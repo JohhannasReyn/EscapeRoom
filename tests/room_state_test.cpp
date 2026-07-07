@@ -15,8 +15,6 @@ int main() {
     assert(std::string(roomStateName(RoomState::PAINTING_ROTATION_ACTIVE)) == "PAINTING_ROTATION_ACTIVE");
     assert(std::string(roomStateName(RoomState::PAINTING_ROTATION_COMPLETE)) == "PAINTING_ROTATION_COMPLETE");
     assert(std::string(roomStateName(RoomState::CRASHING_PLATES_PLAYED)) == "CRASHING_PLATES_PLAYED");
-    assert(std::string(roomStateName(RoomState::FINAL_PIECE_ACTIVE)) == "FINAL_PIECE_ACTIVE");
-    assert(std::string(roomStateName(RoomState::FINAL_PIECE_PLACED)) == "FINAL_PIECE_PLACED");
     assert(std::string(roomStateName(RoomState::SMART_FILM_REVEALED)) == "SMART_FILM_REVEALED");
     assert(std::string(roomStateName(RoomState::COLOR_BUTTON_SEQUENCE_ACTIVE)) == "COLOR_BUTTON_SEQUENCE_ACTIVE");
     assert(std::string(roomStateName(RoomState::COLOR_BUTTON_SEQUENCE_COMPLETE)) == "COLOR_BUTTON_SEQUENCE_COMPLETE");

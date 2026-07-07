@@ -174,7 +174,7 @@ Active room progression:
 1. Pico 2 publishes `escape/pico2/copper_puzzle_complete` when the puzzle piece is placed.
 2. Raspberry Pi plays `check-the-oven.wav`.
 3. Raspberry Pi tells Pico 4 to reveal the smart film.
-4. If Pico 3 publishes `escape/pico3/painting_rotation_complete`, Raspberry Pi plays `crashing_plates.m4a` once for that sensor event.
+4. If Pico 3 publishes `escape/pico3/painting_rotation_complete`, Raspberry Pi plays `crashing_plates.m4a` once for that sensor event and keeps the color buttons active.
 5. If Pico 5 publishes `escape/pico5/color_sequence_error`, Raspberry Pi plays `buzzer.mp3`.
 6. Pico 5 publishes `escape/pico5/color_sequence_complete` after the correct combo.
 7. Raspberry Pi plays `yeah-you-did-it.mp3`, then `bake_at_350.wav`, then enables Pico 4's oven knob.
@@ -189,7 +189,8 @@ or the Pi reset button re-locks the door, re-arms Pico 2/3/5, disables the oven
 knob, and clears the controller's one-shot cues (including the once-per-game
 crashing-plates sound) so the next group gets a clean run.
 
-The legacy final-piece topic still exists for manual testing, but it is no longer required in the active flow.
+There is no separate final-piece MQTT event in the active flow; Pico 2's single
+GPIO 15 copper contact is the only piece-placement input.
 
 The `escape/post/cubby/+/state` handshake and `escape/cubby/N/...` status topics
 are carried over from the old multi-cubby room. They are inert in the current
@@ -230,19 +231,13 @@ Pico 2 uses the Pico's internal pull-up resistor. The puzzle contact only needs 
 GPIO 15 -> puzzle contact -> GND
 ```
 
-The active controller flow only needs GPIO 15:
+The firmware only reads GPIO 15:
 
 ```text
 GPIO 15 LOW -> escape/pico2/copper_puzzle_complete
 ```
 
-GPIO 16 can remain wired the same way for legacy/manual final-piece behavior:
-
-```text
-GPIO 16 -> optional legacy final-piece contact -> GND
-```
-
-No external 10k resistor is needed for Pico 2 puzzle inputs.
+No external 10k resistor is needed for the Pico 2 puzzle input.
 
 ### Pico 3: Painting Rotation
 
@@ -254,7 +249,7 @@ GPIO 15 -> RC35/reed/hall sensor output (drives the pin HIGH when the painting i
 This Pico is armed when the room reaches ready and actively listens for the
 painting rotation magnet sensor. Rotating the painting into position publishes
 `escape/pico3/painting_rotation_complete`, and the Raspberry Pi plays the
-crashing-plates cue once per game.
+crashing-plates cue once per game while keeping the Pico 5 color buttons active.
 
 ### Pico 4: Smart Film and Oven Knob
 
@@ -389,7 +384,6 @@ Important Pico events:
 
 ```text
 escape/pico2/copper_puzzle_complete
-escape/pico2/final_piece_placed          # legacy/manual
 escape/pico3/painting_rotation_complete
 escape/pico4/oven_target_reached
 escape/pico4/electromag_lock_unlocked

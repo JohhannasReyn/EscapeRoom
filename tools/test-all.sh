@@ -53,11 +53,11 @@ run_step \
     "Pico 2 should publish escape/pico2/copper_puzzle_complete; GPIO 15 should connect through the puzzle contact to GND."
 
 run_step \
-    "2. Picture rotation should play crash sound once" \
+    "2. Picture rotation should keep color buttons active" \
     "escape/pico3/painting_rotation_complete" \
     "manual walkthrough" \
-    "escape/cmd/fire-panel/led" \
-    "Pico 3 should publish escape/pico3/painting_rotation_complete when the picture reaches the magnet sensor."
+    "escape/cmd/pico5/enable_color_button_sequence" \
+    "Pico 3 should publish escape/pico3/painting_rotation_complete when the picture reaches the magnet sensor; the Pi should not wait for a separate final-piece event."
 
 run_step \
     "3. Color button sequence completes and should enable oven" \
