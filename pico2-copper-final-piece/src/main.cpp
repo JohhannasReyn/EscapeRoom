@@ -32,7 +32,6 @@
 constexpr int LED_PIN = LED_BUILTIN;
 constexpr int RST_PIN = 14;
 constexpr int COPPER_COMPLETE_PIN = 15;
-constexpr int FINAL_PIECE_PIN = 16;
 constexpr unsigned long DEBOUNCE_MS = 750;
 constexpr unsigned long MQTT_RETRY_MS = 3000;
 constexpr unsigned long SENSOR_TELEMETRY_MS = 1000;
@@ -51,9 +50,15 @@ struct DigitalPuzzle {
     unsigned long stableStart;
 };
 
-DigitalPuzzle puzzles[] = {
-    {"Copper puzzle", EscapeTopic::COPPER_PUZZLE_COMPLETE, "copper puzzle complete", COPPER_COMPLETE_PIN, true, false, PUZZLE_INACTIVE_STATE, 0},
-    {"Final puzzle piece", EscapeTopic::FINAL_PIECE_PLACED, "final puzzle piece placed", FINAL_PIECE_PIN, true, false, PUZZLE_INACTIVE_STATE, 0},
+DigitalPuzzle copperPuzzle = {
+    "Copper puzzle",
+    EscapeTopic::COPPER_PUZZLE_COMPLETE,
+    "Complete",
+    COPPER_COMPLETE_PIN,
+    true,
+    false,
+    PUZZLE_INACTIVE_STATE,
+    0,
 };
 
 WiFiClient wifiClient;
@@ -63,11 +68,9 @@ unsigned long lastSensorTelemetry = 0;
 void publishPostState();
 
 void resetPuzzles() {
-    for (DigitalPuzzle& puzzle : puzzles) {
-        puzzle.solved = false;
-        puzzle.lastState = digitalRead(puzzle.pin);
-        puzzle.stableStart = millis();
-    }
+    copperPuzzle.solved = false;
+    copperPuzzle.lastState = digitalRead(copperPuzzle.pin);
+    copperPuzzle.stableStart = millis();
 
     digitalWrite(LED_PIN, LOW);
     if (mqtt.connected()) {
@@ -89,7 +92,7 @@ void handleMessage(char* topic, byte* payload, unsigned int length) {
     } else if (topicText == EscapeTopic::RESET_PUZZLE || topicText == EscapeTopic::LEGACY_GAME_RESET) {
         resetPuzzles();
     } else if (topicText == EscapeTopic::ENABLE_COPPER_PUZZLE) {
-        puzzles[0].enabled = message != "off";
+        copperPuzzle.enabled = message != "off";
     }
 }
 
@@ -160,9 +163,7 @@ void publishEvent(const char* topic, const char* payload) {
 }
 
 void publishPostState() {
-    bool completed =
-        digitalRead(COPPER_COMPLETE_PIN) == PUZZLE_ACTIVE_STATE ||
-        digitalRead(FINAL_PIECE_PIN) == PUZZLE_ACTIVE_STATE;
+    bool completed = digitalRead(COPPER_COMPLETE_PIN) == PUZZLE_ACTIVE_STATE;
     publishEvent(postStateTopic(2).c_str(), postStatePayload(completed));
 }
 
@@ -173,9 +174,7 @@ void publishSensorTelemetry() {
 
     lastSensorTelemetry = millis();
     String payload = "copper=" + String(digitalRead(COPPER_COMPLETE_PIN));
-    payload += ",final_piece=" + String(digitalRead(FINAL_PIECE_PIN));
-    payload += ",copper_solved=" + String(puzzles[0].solved ? 1 : 0);
-    payload += ",final_solved=" + String(puzzles[1].solved ? 1 : 0);
+    payload += ",copper_solved=" + String(copperPuzzle.solved ? 1 : 0);
     mqtt.publish("escape/telemetry/pico2/contacts", payload.c_str());
 }
 
@@ -186,11 +185,9 @@ void setup() {
     pinMode(LED_PIN, OUTPUT);
     pinMode(RST_PIN, INPUT_PULLUP);
 
-    for (DigitalPuzzle& puzzle : puzzles) {
-        pinMode(puzzle.pin, INPUT_PULLUP);
-        puzzle.lastState = digitalRead(puzzle.pin);
-        puzzle.stableStart = millis();
-    }
+    pinMode(copperPuzzle.pin, INPUT_PULLUP);
+    copperPuzzle.lastState = digitalRead(copperPuzzle.pin);
+    copperPuzzle.stableStart = millis();
 
     connectWiFi();
     connectMQTT();
@@ -214,24 +211,22 @@ void loop() {
 
     unsigned long now = millis();
 
-    for (DigitalPuzzle& puzzle : puzzles) {
-        int state = digitalRead(puzzle.pin);
+    int state = digitalRead(copperPuzzle.pin);
 
-        if (state != puzzle.lastState) {
-            puzzle.lastState = state;
-            puzzle.stableStart = now;
-        }
+    if (state != copperPuzzle.lastState) {
+        copperPuzzle.lastState = state;
+        copperPuzzle.stableStart = now;
+    }
 
-        if (state == PUZZLE_INACTIVE_STATE && puzzle.solved && now - puzzle.stableStart >= DEBOUNCE_MS) {
-            puzzle.solved = false;
-            digitalWrite(LED_PIN, LOW);
-            publishPostState();
-        }
+    if (state == PUZZLE_INACTIVE_STATE && copperPuzzle.solved && now - copperPuzzle.stableStart >= DEBOUNCE_MS) {
+        copperPuzzle.solved = false;
+        digitalWrite(LED_PIN, LOW);
+        publishPostState();
+    }
 
-        if (puzzle.enabled && state == PUZZLE_ACTIVE_STATE && !puzzle.solved && now - puzzle.stableStart >= DEBOUNCE_MS) {
-            puzzle.solved = true;
-            publishEvent(puzzle.topic, puzzle.payload);
-        }
+    if (copperPuzzle.enabled && state == PUZZLE_ACTIVE_STATE && !copperPuzzle.solved && now - copperPuzzle.stableStart >= DEBOUNCE_MS) {
+        copperPuzzle.solved = true;
+        publishEvent(copperPuzzle.topic, copperPuzzle.payload);
     }
 
     publishSensorTelemetry();

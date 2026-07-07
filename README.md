@@ -230,19 +230,13 @@ Pico 2 uses the Pico's internal pull-up resistor. The puzzle contact only needs 
 GPIO 15 -> puzzle contact -> GND
 ```
 
-The active controller flow only needs GPIO 15:
+The firmware only reads GPIO 15:
 
 ```text
 GPIO 15 LOW -> escape/pico2/copper_puzzle_complete
 ```
 
-GPIO 16 can remain wired the same way for legacy/manual final-piece behavior:
-
-```text
-GPIO 16 -> optional legacy final-piece contact -> GND
-```
-
-No external 10k resistor is needed for Pico 2 puzzle inputs.
+No external 10k resistor is needed for the Pico 2 puzzle input.
 
 ### Pico 3: Painting Rotation
 
@@ -389,7 +383,6 @@ Important Pico events:
 
 ```text
 escape/pico2/copper_puzzle_complete
-escape/pico2/final_piece_placed          # legacy/manual
 escape/pico3/painting_rotation_complete
 escape/pico4/oven_target_reached
 escape/pico4/electromag_lock_unlocked
