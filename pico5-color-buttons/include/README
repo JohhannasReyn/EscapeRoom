@@ -13,13 +13,12 @@ Hardware:
 Main topics:
 - Publishes escape/pico5/color_sequence_complete
 - Publishes escape/pico5/color_sequence_error
-- Subscribes escape/cmd/pico5/enable_color_button_sequence
 - Subscribes escape/cmd/all/status_request
 - Subscribes escape/cmd/all/reset_puzzle
 
-The color-button sequence is enabled from startup/reset. The attempt timeout
-starts only after the first button press so the puzzle can sit ready without
-playing the buzzer.
+The color-button sequence listens from startup/reset. The attempt timeout starts
+only after the first button press so the puzzle can sit ready without playing
+the buzzer.
 
 Required counts:
 - Red: 3 presses

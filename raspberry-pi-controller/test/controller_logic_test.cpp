@@ -94,23 +94,17 @@ int main() {
     assert(controller.currentState() == RoomState::COPPER_PUZZLE_ACTIVE);
 
     controller.queueGameReadyCommands();
-    bool sawReadyCopper = false;
-    bool sawReadyButtons = false;
     bool sawReadyFilm = false;
     bool sawReadySound = false;
     bool sawReadyPicture = false;
     bool sawReadyPot = false;
     while (controller.pendingCommandCount() > 0) {
         MqttCommand command = controller.takeNextPendingCommand();
-        sawReadyCopper = sawReadyCopper || (command.topic == EscapeTopic::ENABLE_COPPER_PUZZLE && command.payload == "on");
-        sawReadyButtons = sawReadyButtons || (command.topic == EscapeTopic::ENABLE_COLOR_BUTTON_SEQUENCE && command.payload == "on");
         sawReadyFilm = sawReadyFilm || (command.topic == EscapeTopic::FIRE_PANEL_LED_COMMAND && command.payload == "film=ready");
         sawReadySound = sawReadySound || (command.topic == EscapeTopic::FIRE_PANEL_LED_COMMAND && command.payload == "sound=ready");
         sawReadyPicture = sawReadyPicture || (command.topic == EscapeTopic::FIRE_PANEL_LED_COMMAND && command.payload == "picture=ready");
         sawReadyPot = sawReadyPot || (command.topic == EscapeTopic::FIRE_PANEL_LED_COMMAND && command.payload == "pot=ready");
     }
-    assert(sawReadyCopper == true);
-    assert(sawReadyButtons == true);
     assert(sawReadyFilm == true);
     assert(sawReadySound == true);
     assert(sawReadyPicture == true);
@@ -151,18 +145,19 @@ int main() {
     bool sawCopperCubby = false;
     bool sawSmartFilmFromCopper = false;
     bool sawLegacyFilmFromCopper = false;
-    bool sawColorEnableFromCopper = false;
+    bool sawColorButtonsActiveFromCopper = false;
     while (controller.pendingCommandCount() > 0) {
         MqttCommand command = controller.takeNextPendingCommand();
         sawCopperCubby = sawCopperCubby || command.topic == "escape/cubby/2/light_on";
         sawSmartFilmFromCopper = sawSmartFilmFromCopper || command.topic == EscapeTopic::REVEAL_SMART_FILM;
         sawLegacyFilmFromCopper = sawLegacyFilmFromCopper || command.topic == EscapeTopic::LEGACY_PDLC_ON;
-        sawColorEnableFromCopper = sawColorEnableFromCopper || command.topic == EscapeTopic::ENABLE_COLOR_BUTTON_SEQUENCE;
+        sawColorButtonsActiveFromCopper = sawColorButtonsActiveFromCopper ||
+            (command.topic == EscapeTopic::FIRE_PANEL_LED_COMMAND && command.payload == "buttons=active");
     }
     assert(sawCopperCubby == true);
     assert(sawSmartFilmFromCopper == true);
     assert(sawLegacyFilmFromCopper == true);
-    assert(sawColorEnableFromCopper == true);
+    assert(sawColorButtonsActiveFromCopper == true);
 
     assert(controller.handleMessage(EscapeTopic::COLOR_SEQUENCE_ERROR, "wrong code") == true);
     assert(wrongCodeAudio.triggerCount == 1);
@@ -173,12 +168,13 @@ int main() {
     assert(paintingAudio.triggerCount == 1);
     assert(paintingAudio.lastPayload == "picture");
     assert(controller.currentState() == RoomState::COLOR_BUTTON_SEQUENCE_ACTIVE);
-    bool sawColorEnableFromPainting = false;
+    bool sawColorButtonsActiveFromPainting = false;
     while (controller.pendingCommandCount() > 0) {
         MqttCommand command = controller.takeNextPendingCommand();
-        sawColorEnableFromPainting = sawColorEnableFromPainting || command.topic == EscapeTopic::ENABLE_COLOR_BUTTON_SEQUENCE;
+        sawColorButtonsActiveFromPainting = sawColorButtonsActiveFromPainting ||
+            (command.topic == EscapeTopic::FIRE_PANEL_LED_COMMAND && command.payload == "buttons=active");
     }
-    assert(sawColorEnableFromPainting == true);
+    assert(sawColorButtonsActiveFromPainting == true);
     assert(controller.handleMessage(EscapeTopic::PAINTING_ROTATION_COMPLETE, "picture again") == true);
     assert(paintingAudio.triggerCount == 2);
     assert(paintingAudio.lastPayload == "picture again");
@@ -186,7 +182,7 @@ int main() {
         controller.takeNextPendingCommand();
     }
 
-    assert(controller.handleMessage("escape/telemetry/pico4/oven", "oven_raw=2867,oven_value=350,enabled=0,solved=0,smart_film=0,smart_film_buzzer=0,lock=0") == true);
+    assert(controller.handleMessage("escape/telemetry/pico4/oven", "oven_raw=2867,oven_value=350,solved=0,smart_film=0,smart_film_buzzer=0,lock=0") == true);
     MqttCommand physicalResetLed = controller.takeNextPendingCommand();
     assert(physicalResetLed.topic == EscapeTopic::FIRE_PANEL_LED_COMMAND);
     assert(physicalResetLed.payload == "pot=physical-reset");
@@ -201,15 +197,13 @@ int main() {
     assert(colorSuccessSecondAudio.triggerCount == 1);
     assert(colorSuccessSecondAudio.lastPayload == "buttons");
     assert(controller.currentState() == RoomState::OVEN_KNOB_ACTIVE);
-    bool sawOvenEnable = false;
-    bool sawLegacyOvenEnable = false;
+    bool sawPotActive = false;
     while (controller.pendingCommandCount() > 0) {
         MqttCommand command = controller.takeNextPendingCommand();
-        sawOvenEnable = sawOvenEnable || command.topic == EscapeTopic::ENABLE_OVEN_KNOB;
-        sawLegacyOvenEnable = sawLegacyOvenEnable || command.topic == EscapeTopic::LEGACY_OVEN_ENABLE;
+        sawPotActive = sawPotActive ||
+            (command.topic == EscapeTopic::FIRE_PANEL_LED_COMMAND && command.payload == "pot=active");
     }
-    assert(sawOvenEnable == true);
-    assert(sawLegacyOvenEnable == true);
+    assert(sawPotActive == true);
 
     assert(controller.handleMessage(EscapeTopic::OVEN_POSITION_UPDATE, "370") == true);
     assert(controller.lastOvenDegrees() == 370);
@@ -245,12 +239,9 @@ int main() {
     MqttCommand fireStatus = controller.takeNextPendingCommand();
     assert(fireStatus.topic == EscapeTopic::STATUS_REQUEST);
     assert(fireStatus.payload == "status");
-    bool sawFireStatusReady = false;
     while (controller.pendingCommandCount() > 0) {
-        MqttCommand command = controller.takeNextPendingCommand();
-        sawFireStatusReady = sawFireStatusReady || (command.topic == EscapeTopic::ENABLE_COPPER_PUZZLE && command.payload == "on");
+        controller.takeNextPendingCommand();
     }
-    assert(sawFireStatusReady == true);
 
     assert(controller.handleMessage(EscapeTopic::FIRE_FILM_ON, "button") == true);
     MqttCommand fireFilmOnLed = controller.takeNextPendingCommand();
@@ -337,12 +328,9 @@ int main() {
     MqttCommand fireResetStatus = controller.takeNextPendingCommand();
     assert(fireResetStatus.topic == EscapeTopic::STATUS_REQUEST);
     assert(fireResetStatus.payload == "status");
-    bool sawFireResetReady = false;
     while (controller.pendingCommandCount() > 0) {
-        MqttCommand command = controller.takeNextPendingCommand();
-        sawFireResetReady = sawFireResetReady || (command.topic == EscapeTopic::ENABLE_COPPER_PUZZLE && command.payload == "on");
+        controller.takeNextPendingCommand();
     }
-    assert(sawFireResetReady == true);
 
     return 0;
 }

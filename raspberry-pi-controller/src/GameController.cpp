@@ -189,8 +189,6 @@ void GameController::queueGameReadyCommands() {
     queueFirePanelLedCommand("picture", "ready");
     queueFirePanelLedCommand("buttons", "ready");
     queueFirePanelLedCommand("pot", "ready");
-    pendingCommands.push_back({EscapeTopic::ENABLE_COPPER_PUZZLE, "on"});
-    pendingCommands.push_back({EscapeTopic::ENABLE_COLOR_BUTTON_SEQUENCE, "on"});
 }
 
 void GameController::queuePostQueryCommand() {
@@ -299,8 +297,7 @@ bool GameController::handleFlowEvent(const std::string& topic, const std::string
         pendingCommands.push_back({EscapeTopic::ENABLE_CUBBY_LIGHT, "1"});
         pendingCommands.push_back({EscapeTopic::LEGACY_CUBBY_1_LIGHT_ON, "on"});
         transitionTo(RoomState::FIRST_CUBBY_LIT, "first cubby light command queued");
-        pendingCommands.push_back({EscapeTopic::ENABLE_COPPER_PUZZLE, "on"});
-        transitionTo(RoomState::COPPER_PUZZLE_ACTIVE, "copper puzzle enabled");
+        transitionTo(RoomState::COPPER_PUZZLE_ACTIVE, "copper puzzle already listening");
         return true;
     }
 
@@ -317,9 +314,8 @@ bool GameController::handleFlowEvent(const std::string& topic, const std::string
         pendingCommands.push_back({EscapeTopic::LEGACY_PDLC_ON, "on"});
         queueFirePanelLedCommand("film", "active");
         transitionTo(RoomState::SMART_FILM_REVEALED, "smart film reveal command queued");
-        pendingCommands.push_back({EscapeTopic::ENABLE_COLOR_BUTTON_SEQUENCE, "on"});
         queueFirePanelLedCommand("buttons", "active");
-        transitionTo(RoomState::COLOR_BUTTON_SEQUENCE_ACTIVE, "color button sequence enabled");
+        transitionTo(RoomState::COLOR_BUTTON_SEQUENCE_ACTIVE, "color buttons already listening");
         return false;
     }
 
@@ -334,9 +330,8 @@ bool GameController::handleFlowEvent(const std::string& topic, const std::string
         }
 
         transitionTo(RoomState::CRASHING_PLATES_PLAYED, "crashing plates effect requested");
-        pendingCommands.push_back({EscapeTopic::ENABLE_COLOR_BUTTON_SEQUENCE, "on"});
         queueFirePanelLedCommand("buttons", "active");
-        transitionTo(RoomState::COLOR_BUTTON_SEQUENCE_ACTIVE, "color button sequence enabled");
+        transitionTo(RoomState::COLOR_BUTTON_SEQUENCE_ACTIVE, "color buttons already listening");
         return true;
     }
 
@@ -369,10 +364,8 @@ bool GameController::handleFlowEvent(const std::string& topic, const std::string
         }
 
         transitionTo(RoomState::DISPLAY_BAKE_350, "display bake message requested");
-        pendingCommands.push_back({EscapeTopic::ENABLE_OVEN_KNOB, "on"});
-        pendingCommands.push_back({EscapeTopic::LEGACY_OVEN_ENABLE, "on"});
         queueFirePanelLedCommand("pot", "active");
-        transitionTo(RoomState::OVEN_KNOB_ACTIVE, "oven knob enabled");
+        transitionTo(RoomState::OVEN_KNOB_ACTIVE, "oven knob already listening");
         return true;
     }
 

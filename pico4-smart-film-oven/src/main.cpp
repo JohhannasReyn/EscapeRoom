@@ -54,7 +54,6 @@ constexpr int MQTT_ATTEMPTS_PER_HOST = 3;
 WiFiClient wifiClient;
 PubSubClient mqtt(wifiClient);
 
-bool ovenEnabled = false;
 bool ovenSolved = false;
 bool ovenNeedsPhysicalReset = false;
 int ovenLastPublishedValue = -1;
@@ -120,10 +119,6 @@ void publishAndDisplayOvenValue(int ovenValue, bool forcePublish = false) {
 }
 
 void checkOvenPotentiometer() {
-    if (!ovenEnabled) {
-        return;
-    }
-
     int ovenValue = readOvenPotValue();
     publishAndDisplayOvenValue(ovenValue);
     bool atTarget = ovenValueIsAtTarget(ovenValue, OVEN_TARGET_VALUE, OVEN_TARGET_TOLERANCE);
@@ -177,19 +172,6 @@ void handleMessage(char* topic, byte* payload, unsigned int length) {
         }
 
         publishEvent(EscapeTopic::SMART_FILM_READY, revealSmartFilm ? "transparent" : "opaque");
-    } else if (topicText == EscapeTopic::ENABLE_OVEN_KNOB || topicText == EscapeTopic::LEGACY_OVEN_ENABLE) {
-        ovenEnabled = message != "off";
-        ovenSolved = false;
-        ovenLastPublishedValue = -1;
-        ovenTargetStableStart = 0;
-
-        if (ovenEnabled) {
-            int ovenValue = readOvenPotValue();
-            ovenNeedsPhysicalReset = ovenValueIsAtTarget(ovenValue, OVEN_TARGET_VALUE, OVEN_TARGET_TOLERANCE);
-            publishAndDisplayOvenValue(ovenValue, true);
-        } else {
-            ovenNeedsPhysicalReset = false;
-        }
     } else if (topicText == EscapeTopic::UNLOCK_ELECTROMAG_LOCK || topicText == EscapeTopic::LEGACY_LOCK_TRIGGER) {
         setLock(message != "off");
     } else if (topicText == EscapeTopic::STATUS_REQUEST || topicText == EscapeTopic::LEGACY_POST_QUERY) {
@@ -231,12 +213,10 @@ bool tryConnectMQTT(const char* broker) {
     for (int attempt = 0; attempt < MQTT_ATTEMPTS_PER_HOST && !mqtt.connected(); ++attempt) {
         if (mqtt.connect(MQTT_CLIENT_ID)) {
             mqtt.subscribe(EscapeTopic::REVEAL_SMART_FILM);
-            mqtt.subscribe(EscapeTopic::ENABLE_OVEN_KNOB);
             mqtt.subscribe(EscapeTopic::UNLOCK_ELECTROMAG_LOCK);
             mqtt.subscribe(EscapeTopic::STATUS_REQUEST);
             mqtt.subscribe(EscapeTopic::RESET_PUZZLE);
             mqtt.subscribe(EscapeTopic::LEGACY_PDLC_ON);
-            mqtt.subscribe(EscapeTopic::LEGACY_OVEN_ENABLE);
             mqtt.subscribe(EscapeTopic::LEGACY_LOCK_TRIGGER);
             mqtt.subscribe(EscapeTopic::LEGACY_POST_QUERY);
             mqtt.subscribe(EscapeTopic::LEGACY_GAME_RESET);
@@ -279,7 +259,6 @@ void publishSensorTelemetry() {
     );
     String payload = "oven_raw=" + String(rawPot);
     payload += ",oven_value=" + String(ovenValue);
-    payload += ",enabled=" + String(ovenEnabled ? 1 : 0);
     payload += ",solved=" + String(ovenSolved ? 1 : 0);
     payload += ",needs_reset=" + String(ovenNeedsPhysicalReset ? 1 : 0);
     payload += ",smart_film=" + String(digitalRead(SMART_FILM_PIN));
@@ -289,9 +268,9 @@ void publishSensorTelemetry() {
 }
 
 void resetOvenAndOutputs() {
-    ovenEnabled = false;
     ovenSolved = false;
-    ovenNeedsPhysicalReset = false;
+    int ovenValue = readOvenPotValue();
+    ovenNeedsPhysicalReset = ovenValueIsAtTarget(ovenValue, OVEN_TARGET_VALUE, OVEN_TARGET_TOLERANCE);
     ovenLastPublishedValue = -1;
     ovenTargetStableStart = 0;
     setLock(false);
@@ -300,6 +279,7 @@ void resetOvenAndOutputs() {
     smartFilmBuzzerOffAt = 0;
     digitalWrite(LED_PIN, LOW);
     if (mqtt.connected()) {
+        publishAndDisplayOvenValue(ovenValue, true);
         publishPostState();
     }
 }

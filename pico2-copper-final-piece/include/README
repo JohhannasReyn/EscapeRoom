@@ -9,7 +9,6 @@ Hardware:
 
 Main topics:
 - Publishes escape/pico2/copper_puzzle_complete
-- Subscribes escape/cmd/pico2/enable_copper_puzzle
 - Subscribes escape/cmd/all/status_request
 - Subscribes escape/cmd/all/reset_puzzle
 

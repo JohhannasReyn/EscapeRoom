@@ -71,7 +71,6 @@ ColorButton buttons[] = {
 WiFiClient wifiClient;
 PubSubClient mqtt(wifiClient);
 
-bool sequenceEnabled = true;
 bool sequenceSolved = false;
 int totalPresses = 0;
 unsigned long lastPressAt = 0;
@@ -88,7 +87,6 @@ void clearAttempt() {
 }
 
 void resetSequence() {
-    sequenceEnabled = true;
     sequenceSolved = false;
     clearAttempt();
     lastPressAt = 0;
@@ -140,16 +138,7 @@ void handleMessage(char* topic, byte* payload, unsigned int length) {
 
     String topicText(topic);
 
-    if (topicText == EscapeTopic::ENABLE_COLOR_BUTTON_SEQUENCE) {
-        sequenceEnabled = message != "off";
-        sequenceSolved = false;
-        clearAttempt();
-        lastPressAt = millis();
-
-        for (ColorButton& button : buttons) {
-            button.pressRegistered = false;
-        }
-    } else if (topicText == EscapeTopic::STATUS_REQUEST || topicText == EscapeTopic::LEGACY_POST_QUERY) {
+    if (topicText == EscapeTopic::STATUS_REQUEST || topicText == EscapeTopic::LEGACY_POST_QUERY) {
         publishPostState();
     } else if (topicText == EscapeTopic::RESET_PUZZLE || topicText == EscapeTopic::LEGACY_GAME_RESET) {
         resetSequence();
@@ -187,7 +176,6 @@ bool tryConnectMQTT(const char* broker) {
 
     for (int attempt = 0; attempt < MQTT_ATTEMPTS_PER_HOST && !mqtt.connected(); ++attempt) {
         if (mqtt.connect(MQTT_CLIENT_ID)) {
-            mqtt.subscribe(EscapeTopic::ENABLE_COLOR_BUTTON_SEQUENCE);
             mqtt.subscribe(EscapeTopic::STATUS_REQUEST);
             mqtt.subscribe(EscapeTopic::RESET_PUZZLE);
             mqtt.subscribe(EscapeTopic::LEGACY_POST_QUERY);
@@ -221,8 +209,7 @@ void publishSensorTelemetry() {
     }
 
     lastSensorTelemetry = millis();
-    String payload = "enabled=" + String(sequenceEnabled ? 1 : 0);
-    payload += ",solved=" + String(sequenceSolved ? 1 : 0);
+    String payload = "solved=" + String(sequenceSolved ? 1 : 0);
     payload += ",total_presses=" + String(totalPresses);
     payload += ",required_total=" + String(REQUIRED_TOTAL_PRESSES);
 
@@ -243,7 +230,7 @@ void publishSensorTelemetry() {
 }
 
 void registerButtonPress(ColorButton& pressedButton) {
-    if (!sequenceEnabled || sequenceSolved) {
+    if (sequenceSolved) {
         return;
     }
 
@@ -257,7 +244,6 @@ void registerButtonPress(ColorButton& pressedButton) {
 
     if (currentAttemptIsCorrect()) {
         sequenceSolved = true;
-        sequenceEnabled = false;
         digitalWrite(LED_PIN, HIGH);
         publishEvent(EscapeTopic::COLOR_SEQUENCE_COMPLETE, "color button counts complete");
         publishPostState();
@@ -278,7 +264,6 @@ void setup() {
         button.lastState = digitalRead(button.pin);
         button.stableStart = millis();
     }
-    sequenceEnabled = true;
 
     connectWiFi();
     connectMQTT();
@@ -303,7 +288,6 @@ void loop() {
     unsigned long now = millis();
 
     if (
-        sequenceEnabled &&
         !sequenceSolved &&
         totalPresses > 0 &&
         now - lastPressAt >= ATTEMPT_TIMEOUT_MS
