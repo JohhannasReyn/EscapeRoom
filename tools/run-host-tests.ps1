@@ -75,6 +75,11 @@ $tests = @(
         Name = "pico2_copper_single_input_test"
         Sources = @("tests\pico2_copper_single_input_test.cpp")
         Includes = @()
+    },
+    @{
+        Name = "pico3_painting_always_active_test"
+        Sources = @("tests\pico3_painting_always_active_test.cpp")
+        Includes = @()
     }
 )
 

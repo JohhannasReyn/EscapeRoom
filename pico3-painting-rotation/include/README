@@ -9,13 +9,12 @@ Hardware:
 
 Main topics:
 - Publishes escape/pico3/painting_rotation_complete when the active sensor is freshly triggered
-- Subscribes escape/cmd/pico3/enable_painting_rotation
 - Subscribes escape/cmd/all/status_request
 - Subscribes escape/cmd/all/reset_puzzle
 
-The sensor is enabled from startup/reset. The Raspberry Pi plays
-assets/audio/crashing_plates.m4a once for the room-run sensor event; the fire
-panel sound button can still play that sound repeatedly.
+The sensor is always active from startup/reset. The Raspberry Pi plays
+assets/audio/crashing_plates.m4a every time this Pico publishes the painting
+rotation event.
 
 The event publishes once when the sensor input goes HIGH, then re-arms after the
 input returns LOW.

@@ -95,7 +95,6 @@ int main() {
 
     controller.queueGameReadyCommands();
     bool sawReadyCopper = false;
-    bool sawReadyPainting = false;
     bool sawReadyButtons = false;
     bool sawReadyFilm = false;
     bool sawReadySound = false;
@@ -104,7 +103,6 @@ int main() {
     while (controller.pendingCommandCount() > 0) {
         MqttCommand command = controller.takeNextPendingCommand();
         sawReadyCopper = sawReadyCopper || (command.topic == EscapeTopic::ENABLE_COPPER_PUZZLE && command.payload == "on");
-        sawReadyPainting = sawReadyPainting || (command.topic == EscapeTopic::ENABLE_PAINTING_ROTATION && command.payload == "on");
         sawReadyButtons = sawReadyButtons || (command.topic == EscapeTopic::ENABLE_COLOR_BUTTON_SEQUENCE && command.payload == "on");
         sawReadyFilm = sawReadyFilm || (command.topic == EscapeTopic::FIRE_PANEL_LED_COMMAND && command.payload == "film=ready");
         sawReadySound = sawReadySound || (command.topic == EscapeTopic::FIRE_PANEL_LED_COMMAND && command.payload == "sound=ready");
@@ -112,7 +110,6 @@ int main() {
         sawReadyPot = sawReadyPot || (command.topic == EscapeTopic::FIRE_PANEL_LED_COMMAND && command.payload == "pot=ready");
     }
     assert(sawReadyCopper == true);
-    assert(sawReadyPainting == true);
     assert(sawReadyButtons == true);
     assert(sawReadyFilm == true);
     assert(sawReadySound == true);
@@ -183,7 +180,11 @@ int main() {
     }
     assert(sawColorEnableFromPainting == true);
     assert(controller.handleMessage(EscapeTopic::PAINTING_ROTATION_COMPLETE, "picture again") == true);
-    assert(paintingAudio.triggerCount == 1);
+    assert(paintingAudio.triggerCount == 2);
+    assert(paintingAudio.lastPayload == "picture again");
+    while (controller.pendingCommandCount() > 0) {
+        controller.takeNextPendingCommand();
+    }
 
     assert(controller.handleMessage("escape/telemetry/pico4/oven", "oven_raw=2867,oven_value=350,enabled=0,solved=0,smart_film=0,smart_film_buzzer=0,lock=0") == true);
     MqttCommand physicalResetLed = controller.takeNextPendingCommand();
@@ -284,11 +285,11 @@ int main() {
     MqttCommand fireCrashLed = controller.takeNextPendingCommand();
     assert(fireCrashLed.topic == EscapeTopic::FIRE_PANEL_LED_COMMAND);
     assert(fireCrashLed.payload == "sound=playing");
-    assert(paintingAudio.triggerCount == 2);
+    assert(paintingAudio.triggerCount == 3);
     assert(paintingAudio.lastPayload == "button");
     assert(controller.handleMessage(EscapeTopic::FIRE_SOUND_CRASH, "button again") == true);
     controller.takeNextPendingCommand();
-    assert(paintingAudio.triggerCount == 3);
+    assert(paintingAudio.triggerCount == 4);
     assert(paintingAudio.lastPayload == "button again");
 
     assert(controller.handleMessage(EscapeTopic::FIRE_SOUND_FAIL, "button") == true);
