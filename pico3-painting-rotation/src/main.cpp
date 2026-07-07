@@ -40,7 +40,6 @@ constexpr int MQTT_ATTEMPTS_PER_HOST = 3;
 WiFiClient wifiClient;
 PubSubClient mqtt(wifiClient);
 
-bool paintingEnabled = true;
 bool paintingTriggered = false;
 int paintingLastState = LOW;
 unsigned long paintingStableStart = 0;
@@ -50,7 +49,6 @@ unsigned long paintingTriggerCount = 0;
 void publishPostState();
 
 void resetPainting() {
-    paintingEnabled = true;
     paintingTriggered = false;
     paintingTriggerCount = 0;
     paintingLastState = digitalRead(PAINTING_SENSOR_PIN);
@@ -70,12 +68,7 @@ void handleMessage(char* topic, byte* payload, unsigned int length) {
 
     String topicText(topic);
 
-    if (topicText == EscapeTopic::ENABLE_PAINTING_ROTATION) {
-        paintingEnabled = message != "off";
-        paintingTriggered = false;
-        paintingLastState = digitalRead(PAINTING_SENSOR_PIN);
-        paintingStableStart = millis();
-    } else if (topicText == EscapeTopic::STATUS_REQUEST || topicText == EscapeTopic::LEGACY_POST_QUERY) {
+    if (topicText == EscapeTopic::STATUS_REQUEST || topicText == EscapeTopic::LEGACY_POST_QUERY) {
         publishPostState();
     } else if (topicText == EscapeTopic::RESET_PUZZLE || topicText == EscapeTopic::LEGACY_GAME_RESET) {
         resetPainting();
@@ -113,7 +106,6 @@ bool tryConnectMQTT(const char* broker) {
 
     for (int attempt = 0; attempt < MQTT_ATTEMPTS_PER_HOST && !mqtt.connected(); ++attempt) {
         if (mqtt.connect(MQTT_CLIENT_ID)) {
-            mqtt.subscribe(EscapeTopic::ENABLE_PAINTING_ROTATION);
             mqtt.subscribe(EscapeTopic::STATUS_REQUEST);
             mqtt.subscribe(EscapeTopic::RESET_PUZZLE);
             mqtt.subscribe(EscapeTopic::LEGACY_POST_QUERY);
@@ -156,7 +148,6 @@ void publishSensorTelemetry() {
 
     lastSensorTelemetry = millis();
     String payload = "painting_sensor=" + String(digitalRead(PAINTING_SENSOR_PIN));
-    payload += ",enabled=" + String(paintingEnabled ? 1 : 0);
     payload += ",triggered=" + String(paintingTriggered ? 1 : 0);
     payload += ",trigger_count=" + String(paintingTriggerCount);
     mqtt.publish("escape/telemetry/pico3/painting_sensor", payload.c_str());
@@ -171,7 +162,6 @@ void setup() {
     pinMode(PAINTING_SENSOR_PIN, INPUT);
     paintingLastState = digitalRead(PAINTING_SENSOR_PIN);
     paintingStableStart = millis();
-    paintingEnabled = true;
 
     connectWiFi();
     connectMQTT();
@@ -201,11 +191,11 @@ void loop() {
         paintingStableStart = now;
     }
 
-    if (paintingEnabled && state == LOW && paintingTriggered && now - paintingStableStart >= DEBOUNCE_MS) {
+    if (state == LOW && paintingTriggered && now - paintingStableStart >= DEBOUNCE_MS) {
         paintingTriggered = false;
     }
 
-    if (paintingEnabled && state == HIGH && !paintingTriggered && now - paintingStableStart >= DEBOUNCE_MS) {
+    if (state == HIGH && !paintingTriggered && now - paintingStableStart >= DEBOUNCE_MS) {
         paintingTriggered = true;
         ++paintingTriggerCount;
         publishEvent(EscapeTopic::PAINTING_ROTATION_COMPLETE, "painting rotation complete");

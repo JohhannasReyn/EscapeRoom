@@ -21,7 +21,6 @@ inline constexpr const char* COLOR_SEQUENCE_ERROR = "escape/pico5/color_sequence
 
 inline constexpr const char* ENABLE_CUBBY_LIGHT = "escape/cmd/pico1/enable_cubby_light";
 inline constexpr const char* ENABLE_COPPER_PUZZLE = "escape/cmd/pico2/enable_copper_puzzle";
-inline constexpr const char* ENABLE_PAINTING_ROTATION = "escape/cmd/pico3/enable_painting_rotation";
 inline constexpr const char* REVEAL_SMART_FILM = "escape/cmd/pico4/reveal_smart_film";
 inline constexpr const char* ENABLE_COLOR_BUTTON_SEQUENCE = "escape/cmd/pico5/enable_color_button_sequence";
 inline constexpr const char* ENABLE_OVEN_KNOB = "escape/cmd/pico4/enable_oven_knob";
