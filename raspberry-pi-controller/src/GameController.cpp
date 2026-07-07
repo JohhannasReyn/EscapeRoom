@@ -343,16 +343,6 @@ bool GameController::handleFlowEvent(const std::string& topic, const std::string
         paintingRotationHandled = true;
 
         transitionTo(RoomState::CRASHING_PLATES_PLAYED, "crashing plates effect requested");
-        transitionTo(RoomState::FINAL_PIECE_ACTIVE, "painting clue points to final piece");
-        return true;
-    }
-
-    if (topic == EscapeTopic::FINAL_PIECE_PLACED) {
-        transitionTo(RoomState::FINAL_PIECE_PLACED, topic);
-        pendingCommands.push_back({EscapeTopic::REVEAL_SMART_FILM, "on"});
-        pendingCommands.push_back({EscapeTopic::LEGACY_PDLC_ON, "on"});
-        queueFirePanelLedCommand("film", "active");
-        transitionTo(RoomState::SMART_FILM_REVEALED, "smart film reveal command queued");
         pendingCommands.push_back({EscapeTopic::ENABLE_COLOR_BUTTON_SEQUENCE, "on"});
         queueFirePanelLedCommand("buttons", "active");
         transitionTo(RoomState::COLOR_BUTTON_SEQUENCE_ACTIVE, "color button sequence enabled");
@@ -462,7 +452,6 @@ void GameController::queueCommandsForTopic(const std::string& topic) {
     static const Route routes[] = {
         {EscapeTopic::COPPER_PUZZLE_COMPLETE, "escape/cubby/2/light_on"},
         {EscapeTopic::PAINTING_ROTATION_COMPLETE, "escape/cubby/3/light_on"},
-        {EscapeTopic::FINAL_PIECE_PLACED, "escape/cubby/4/light_on"},
         {EscapeTopic::COLOR_SEQUENCE_COMPLETE, "escape/cubby/5/light_on"},
     };
 

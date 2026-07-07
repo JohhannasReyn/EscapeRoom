@@ -51,7 +51,6 @@ public:
 
 void addActivePuzzles(GameController& controller) {
     controller.addPuzzle(std::make_unique<CopperPuzzle>());
-    controller.addPuzzle(std::make_unique<FinalPiecePuzzle>());
     controller.addPuzzle(std::make_unique<PaintingRotationPuzzle>());
     controller.addPuzzle(std::make_unique<ColorButtonSequencePuzzle>());
     controller.addPuzzle(std::make_unique<ColorButtonSequenceErrorPuzzle>());
@@ -91,7 +90,7 @@ int main() {
     );
     addActivePuzzles(controller);
 
-    assert(controller.puzzleCount() == 7);
+    assert(controller.puzzleCount() == 6);
     assert(controller.currentState() == RoomState::COPPER_PUZZLE_ACTIVE);
 
     controller.queueGameReadyCommands();
@@ -168,21 +167,6 @@ int main() {
     assert(sawLegacyFilmFromCopper == true);
     assert(sawColorEnableFromCopper == true);
 
-    assert(controller.handleMessage(EscapeTopic::FINAL_PIECE_PLACED, "piece") == true);
-    assert(controller.currentState() == RoomState::COLOR_BUTTON_SEQUENCE_ACTIVE);
-    bool sawSmartFilm = false;
-    bool sawLegacyFilm = false;
-    bool sawColorEnable = false;
-    while (controller.pendingCommandCount() > 0) {
-        MqttCommand command = controller.takeNextPendingCommand();
-        sawSmartFilm = sawSmartFilm || command.topic == EscapeTopic::REVEAL_SMART_FILM;
-        sawLegacyFilm = sawLegacyFilm || command.topic == EscapeTopic::LEGACY_PDLC_ON;
-        sawColorEnable = sawColorEnable || command.topic == EscapeTopic::ENABLE_COLOR_BUTTON_SEQUENCE;
-    }
-    assert(sawSmartFilm == true);
-    assert(sawLegacyFilm == true);
-    assert(sawColorEnable == true);
-
     assert(controller.handleMessage(EscapeTopic::COLOR_SEQUENCE_ERROR, "wrong code") == true);
     assert(wrongCodeAudio.triggerCount == 1);
     assert(wrongCodeAudio.lastPayload == "wrong code");
@@ -191,11 +175,15 @@ int main() {
     assert(controller.handleMessage(EscapeTopic::PAINTING_ROTATION_COMPLETE, "picture") == true);
     assert(paintingAudio.triggerCount == 1);
     assert(paintingAudio.lastPayload == "picture");
+    assert(controller.currentState() == RoomState::COLOR_BUTTON_SEQUENCE_ACTIVE);
+    bool sawColorEnableFromPainting = false;
+    while (controller.pendingCommandCount() > 0) {
+        MqttCommand command = controller.takeNextPendingCommand();
+        sawColorEnableFromPainting = sawColorEnableFromPainting || command.topic == EscapeTopic::ENABLE_COLOR_BUTTON_SEQUENCE;
+    }
+    assert(sawColorEnableFromPainting == true);
     assert(controller.handleMessage(EscapeTopic::PAINTING_ROTATION_COMPLETE, "picture again") == true);
     assert(paintingAudio.triggerCount == 1);
-    while (controller.pendingCommandCount() > 0) {
-        controller.takeNextPendingCommand();
-    }
 
     assert(controller.handleMessage("escape/telemetry/pico4/oven", "oven_raw=2867,oven_value=350,enabled=0,solved=0,smart_film=0,smart_film_buzzer=0,lock=0") == true);
     MqttCommand physicalResetLed = controller.takeNextPendingCommand();
