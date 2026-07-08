@@ -9,6 +9,10 @@ usage() {
 Usage: tools/flash-pico.sh <pico2|pico3|pico4|pico5|pico7|all>
 
 Flashes active Pico W firmware from macOS, Linux, or Raspberry Pi using PlatformIO.
+Examples:
+  tools/flash-pico.sh pico2
+  tools/flash-pico.sh all
+
 Before each upload, unplug the target Pico, hold BOOTSEL, plug it into USB, then
 press Enter when this script prompts you.
 EOF
@@ -21,12 +25,24 @@ fi
 
 if [[ ! -f "${repo_root}/pico-wifi.env" ]]; then
     echo "Missing ${repo_root}/pico-wifi.env." >&2
-    echo "Copy pico-wifi.env.example to pico-wifi.env and set the venue WiFi and broker before flashing." >&2
+    echo "Run tools/rebase.sh on the Pi or copy pico-wifi.env.example to pico-wifi.env before flashing." >&2
     exit 1
 fi
 
-if ! command -v pio >/dev/null 2>&1; then
+pio_cmd="${PIO:-}"
+if [[ -z "${pio_cmd}" ]]; then
+    if command -v pio >/dev/null 2>&1; then
+        pio_cmd="$(command -v pio)"
+    elif [[ -x "${PLATFORMIO_VENV:-${HOME}/.venv}/bin/pio" ]]; then
+        pio_cmd="${PLATFORMIO_VENV:-${HOME}/.venv}/bin/pio"
+    elif [[ -x "${repo_root}/.venv/bin/pio" ]]; then
+        pio_cmd="${repo_root}/.venv/bin/pio"
+    fi
+fi
+
+if [[ -z "${pio_cmd}" ]]; then
     echo "Missing PlatformIO command: pio" >&2
+    echo "On the Raspberry Pi, run tools/rebase.sh first." >&2
     echo "Install it with: python3 -m pip install -U platformio" >&2
     exit 1
 fi
@@ -61,7 +77,7 @@ flash_target() {
 
     (
         cd "${repo_root}/${folder}"
-        pio run --target upload
+        "${pio_cmd}" run --target upload
     )
 }
 

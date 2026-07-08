@@ -321,6 +321,14 @@ void on_connect(struct mosquitto* mosq, void* userdata, int rc) {
             std::cout << "Subscribe failed for oven dial degrees. Error code: " << oven_degrees_rc << std::endl;
         }
 
+        int pico_status_rc = mosquitto_subscribe(mosq, nullptr, EscapeTopic::PICO_STATUS_REPORT, 0);
+
+        if (pico_status_rc == MOSQ_ERR_SUCCESS) {
+            std::cout << "Subscribed to topic: " << EscapeTopic::PICO_STATUS_REPORT << std::endl;
+        } else {
+            std::cout << "Subscribe failed for Pico wiring/status reports. Error code: " << pico_status_rc << std::endl;
+        }
+
         int telemetry_rc = mosquitto_subscribe(mosq, nullptr, EscapeTopic::SENSOR_TELEMETRY_WILDCARD, 0);
 
         if (telemetry_rc == MOSQ_ERR_SUCCESS) {
@@ -366,6 +374,7 @@ void on_message(struct mosquitto* mosq, void* userdata, const struct mosquitto_m
     }
 
     bool isTelemetry = topic.rfind("escape/telemetry/", 0) == 0;
+    bool isPicoStatus = topic == EscapeTopic::PICO_STATUS_REPORT;
     static std::map<std::string, std::string> lastTelemetryPayloadByTopic;
 
     if (isTelemetry) {
@@ -378,9 +387,13 @@ void on_message(struct mosquitto* mosq, void* userdata, const struct mosquitto_m
     }
 
     std::cout << std::endl;
-    std::cout << (isTelemetry ? "Sensor telemetry changed." : "MQTT message received.") << std::endl;
+    std::cout << (isPicoStatus ? "Pico wiring/status report." : (isTelemetry ? "Sensor telemetry changed." : "MQTT message received.")) << std::endl;
     std::cout << "Topic: " << topic << std::endl;
     std::cout << "Payload: " << payload << std::endl;
+
+    if (isPicoStatus) {
+        return;
+    }
 
     auto* controller = static_cast<GameController*>(userdata);
 

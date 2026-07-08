@@ -4,6 +4,7 @@
 #include <cstring>
 
 #include "../../shared/EscapeRoomProtocol.h"
+#include "../../shared/PicoStatusReport.h"
 
 #ifndef WIFI_SSID
 #define WIFI_SSID "VenueWifi"
@@ -95,6 +96,7 @@ unsigned long resetHoldStart = 0;
 unsigned long resetFlashAllUntil = 0;
 
 void publishEvent(const char* topic, const char* payload);
+void publishStartupReport();
 
 bool topicMatches(const char* left, const char* right) {
     return strcmp(left, right) == 0;
@@ -244,6 +246,7 @@ void handleMessage(char* topic, byte* payload, unsigned int length) {
         handleLedCommand(message);
     } else if (topicText == EscapeTopic::STATUS_REQUEST) {
         publishEvent("escape/telemetry/fire-panel/status", "ready");
+        publishStartupReport();
     }
 }
 
@@ -282,6 +285,7 @@ bool tryConnectMQTT(const char* broker) {
             mqtt.subscribe(EscapeTopic::STATUS_REQUEST);
             blinkBuiltIn(3);
             publishEvent("escape/telemetry/fire-panel/status", "ready");
+            publishStartupReport();
             return true;
         }
 
@@ -297,6 +301,10 @@ void connectMQTT() {
             return;
         }
     }
+}
+
+void publishStartupReport() {
+    publishEvent(EscapeTopic::PICO_STATUS_REPORT, EscapePicoStatus::PICO7_REPORT);
 }
 
 void publishTelemetry() {
