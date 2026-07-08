@@ -390,15 +390,23 @@ reports a mismatch or no event.
 Prepare or send the newest fire-panel button-order log:
 
 ```bash
+tools/setup-drive-upload.sh
 tools/send_to_john.sh
 ```
 
-For fully automatic sending, copy `john-contact.env.example` to
-`john-contact.env` on the Pi and set `JOHN_UPLOAD_URL`, `JOHN_SCP_TARGET`, or
-`JOHN_EMAIL`. If no destination is saved yet, the script prompts for John's
-email and saves it to `john-contact.env` for future runs. Without a configured
-mailer/upload target, the script creates a
-`fire-panel-button-order-...-for-john.tar.gz` bundle to send manually.
+The preferred automatic route is the shared Google Drive folder:
+`https://drive.google.com/drive/folders/1QYtv2RmXZq8g6iEgjdxn2W2cG39L_TYW?usp=sharing`.
+Run `tools/setup-drive-upload.sh` once on the Pi to save `john-contact.env`
+with `JOHN_RCLONE_TARGET="escape-room-drive:"` and
+`JOHN_RCLONE_ROOT_FOLDER_ID="1QYtv2RmXZq8g6iEgjdxn2W2cG39L_TYW"`. The setup
+script also prints the `rclone config` steps if the Pi has not been connected
+to Google Drive yet.
+
+After Drive is configured, `tools/send_to_john.sh` uploads the newest
+`fire-panel-button-order-...txt` log to that folder. If Drive is unavailable,
+the same script can still fall back to `JOHN_UPLOAD_URL`, `JOHN_SCP_TARGET`,
+`JOHN_EMAIL`, or a `fire-panel-button-order-...-for-john.tar.gz` bundle to send
+manually.
 
 Raw MQTT/debug:
 

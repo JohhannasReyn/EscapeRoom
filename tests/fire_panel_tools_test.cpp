@@ -19,6 +19,7 @@ int main() {
     const std::string installHelp = readText("tools/install-help-command.sh");
     const std::string capture = readText("tools/capture-fire-panel-buttons.sh");
     const std::string send = readText("tools/send_to_john.sh");
+    const std::string setupDrive = readText("tools/setup-drive-upload.sh");
     const std::string contactExample = readText("john-contact.env.example");
     const std::string pico7 = readText("pico7-fire-panel/src/main.cpp");
     const std::string controller = readText("raspberry-pi-controller/src/GameController.cpp");
@@ -27,6 +28,7 @@ int main() {
     assert(rebase.find("chmod +x fire/*") != std::string::npos);
     assert(rebase.find("tools/install-help-command.sh") != std::string::npos);
     assert(rebase.find(".escape-room-help.sh") != std::string::npos);
+    assert(rebase.find("john-contact.env.example") != std::string::npos);
 
     assert(installHelp.find("help()") != std::string::npos);
     assert(installHelp.find(".bashrc") != std::string::npos);
@@ -35,6 +37,7 @@ int main() {
     assert(help.find("cd escape-room") != std::string::npos);
     assert(help.find("tools/capture-fire-panel-buttons.sh") != std::string::npos);
     assert(help.find("tools/send_to_john.sh") != std::string::npos);
+    assert(help.find("tools/setup-drive-upload.sh") != std::string::npos);
 
     assert(capture.find("fire-panel-button-order") != std::string::npos);
     assert(capture.find("Press the button labeled STATUS") != std::string::npos);
@@ -42,6 +45,9 @@ int main() {
     assert(capture.find("send this file") != std::string::npos);
 
     assert(send.find("fire-panel-button-order-*.txt") != std::string::npos);
+    assert(send.find("JOHN_RCLONE_TARGET") != std::string::npos);
+    assert(send.find("JOHN_RCLONE_ROOT_FOLDER_ID") != std::string::npos);
+    assert(send.find("rclone copy") != std::string::npos);
     assert(send.find("JOHN_UPLOAD_URL") != std::string::npos);
     assert(send.find("JOHN_SCP_TARGET") != std::string::npos);
     assert(send.find("JOHN_EMAIL") != std::string::npos);
@@ -53,8 +59,15 @@ int main() {
     assert(send.find("Saved email for future runs") != std::string::npos);
 
     assert(contactExample.find("JOHN_UPLOAD_URL") != std::string::npos);
+    assert(contactExample.find("JOHN_RCLONE_TARGET") != std::string::npos);
+    assert(contactExample.find("JOHN_RCLONE_ROOT_FOLDER_ID") != std::string::npos);
+    assert(contactExample.find("1QYtv2RmXZq8g6iEgjdxn2W2cG39L_TYW") != std::string::npos);
     assert(contactExample.find("JOHN_SCP_TARGET") != std::string::npos);
     assert(contactExample.find("JOHN_EMAIL") != std::string::npos);
+
+    assert(setupDrive.find("JOHN_RCLONE_TARGET") != std::string::npos);
+    assert(setupDrive.find("DEFAULT_REMOTE=\"escape-room-drive\"") != std::string::npos);
+    assert(setupDrive.find("1QYtv2RmXZq8g6iEgjdxn2W2cG39L_TYW") != std::string::npos);
 
     const std::vector<std::string> fireCommands = {
         "status",

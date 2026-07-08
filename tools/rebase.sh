@@ -58,6 +58,7 @@ cp -R "${tmp_dir}/EscapeRoom/pico5-color-buttons" .
 cp -R "${tmp_dir}/EscapeRoom/pico7-fire-panel" .
 cp "${tmp_dir}/EscapeRoom/pico-wifi.env" .
 cp "${tmp_dir}/EscapeRoom/pico-wifi.env.example" .
+cp "${tmp_dir}/EscapeRoom/john-contact.env.example" .
 cp "${tmp_dir}/EscapeRoom/README.md" .
 chmod +x tools/*.sh 2>/dev/null || true
 chmod +x fire/* 2>/dev/null || true
