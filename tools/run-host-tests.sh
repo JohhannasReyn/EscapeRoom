@@ -114,4 +114,10 @@ run_test "pico_wifi_config_test" \
 run_test "sensor_always_active_test" \
     --source "tests/sensor_always_active_test.cpp"
 
+run_test "pico_startup_status_test" \
+    --source "tests/pico_startup_status_test.cpp"
+
+run_test "room_wifi_defaults_test" \
+    --source "tests/room_wifi_defaults_test.cpp"
+
 echo "All host-side tests passed."

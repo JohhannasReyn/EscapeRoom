@@ -49,20 +49,18 @@ pico-wifi.env
 Example:
 
 ```bash
-WIFI_SSID="VenueWifi"
-WIFI_PASS="VenuePassword"
+WIFI_SSID="EscapeRoom"
+WIFI_PASS="BakeAt350"
 MQTT_BROKER="ceenypie.local"
-MQTT_BROKER_FALLBACK="192.168.1.50"
+MQTT_BROKER_FALLBACK=""
 MQTT_BROKER_PORT="1883"
 ```
 
-`pico-wifi.env` is git-ignored, so it does not ship in the repo. Create it once by copying the template, then edit it:
-
-```bash
-cp pico-wifi.env.example pico-wifi.env
-```
-
-Edit `pico-wifi.env` before flashing Picos. Each active Pico project reads this file during PlatformIO builds (`tools/platformio_pico_wifi.py`), and the build fails with "Missing shared Pico WiFi config" if the file is absent.
+`pico-wifi.env` is committed with the portable escape-room router defaults:
+SSID `EscapeRoom`, password `BakeAt350`, and broker `ceenypie.local`. Edit it
+only if the router or Pi hostname changes. Each active Pico project reads this
+file during PlatformIO builds (`tools/platformio_pico_wifi.py`), so these values
+are compiled into the Pico firmware when flashed.
 
 Optional Pi-side WiFi notes can be copied from:
 
@@ -108,6 +106,15 @@ tools/start.sh
 
 The controller prints puzzle events and telemetry changes only. Repeated identical telemetry is suppressed to keep the terminal readable.
 
+When a Pico connects to MQTT or receives a status request, it publishes a
+human-readable wiring report on `escape/status/pico`. The controller prints it
+as a `Pico wiring/status report`, for example:
+
+```text
+Pico2 - Copper Puzzle Piece Detection
+Connected. Wiring: GPIO 15 to puzzle contact 1 and GND to contact 2
+```
+
 If the fire-panel remote/manual MQTT events work but the physical Pico sensors
 do not trigger anything, first check whether the Picos are online:
 
@@ -130,7 +137,8 @@ reflash the affected Picos.
 
 ## Flashing Picos
 
-Before flashing, edit root `pico-wifi.env` with the venue WiFi SSID/password and the Pi broker host.
+The committed `pico-wifi.env` already contains the room router defaults:
+SSID `EscapeRoom`, password `BakeAt350`, broker `ceenypie.local`.
 
 Create and activate a virtual environment on the Mac or Raspberry Pi:
 
@@ -408,6 +416,10 @@ Update Pi-side folders from the public repo and rebuild:
 tools/rebase.sh
 ```
 
+`tools/rebase.sh` also refreshes the active Pico firmware folders, `tests/`,
+`README.md`, `shared/`, and `pico-wifi.env`, so the Pi can flash Picos after one
+update command.
+
 ---
 
 ## MQTT Topics
@@ -456,6 +468,12 @@ escape/telemetry/pico3/painting_sensor
 escape/telemetry/pico4/oven
 escape/telemetry/pico5/buttons
 escape/telemetry/fire-panel/status
+```
+
+Pico wiring/status reports:
+
+```text
+escape/status/pico
 ```
 
 The controller subscribes to telemetry but only prints it when the payload changes.

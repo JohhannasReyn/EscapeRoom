@@ -17,6 +17,7 @@ int main() {
     assert(std::string(EscapeTopic::UNLOCK_ELECTROMAG_LOCK) == "escape/cmd/pico4/unlock_electromag_lock");
     assert(std::string(EscapeTopic::RESET_PUZZLE) == "escape/cmd/all/reset_puzzle");
     assert(std::string(EscapeTopic::STATUS_REQUEST) == "escape/cmd/all/status_request");
+    assert(std::string(EscapeTopic::PICO_STATUS_REPORT) == "escape/status/pico");
     assert(std::string(EscapeTopic::SENSOR_TELEMETRY_WILDCARD) == "escape/telemetry/#");
     assert(std::string(EscapeTopic::FIRE_COMMAND_WILDCARD) == "escape/fire/#");
     assert(std::string(EscapeTopic::FIRE_STATUS) == "escape/fire/status");

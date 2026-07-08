@@ -4,6 +4,7 @@
 
 #include "../../shared/OvenDial.h"
 #include "../../shared/EscapeRoomProtocol.h"
+#include "../../shared/PicoStatusReport.h"
 #include "../../shared/PostState.h"
 
 #ifndef WIFI_SSID
@@ -63,6 +64,7 @@ unsigned long lastSensorTelemetry = 0;
 
 void resetOvenAndOutputs();
 void publishPostState();
+void publishStartupReport();
 
 void publishEvent(const char* topic, const char* payload) {
     Serial.print("Publishing event: ");
@@ -176,6 +178,7 @@ void handleMessage(char* topic, byte* payload, unsigned int length) {
         setLock(message != "off");
     } else if (topicText == EscapeTopic::STATUS_REQUEST || topicText == EscapeTopic::LEGACY_POST_QUERY) {
         publishPostState();
+        publishStartupReport();
     } else if (topicText == EscapeTopic::RESET_PUZZLE || topicText == EscapeTopic::LEGACY_GAME_RESET) {
         resetOvenAndOutputs();
     }
@@ -222,6 +225,7 @@ bool tryConnectMQTT(const char* broker) {
             mqtt.subscribe(EscapeTopic::LEGACY_GAME_RESET);
             blink(3);
             publishPostState();
+            publishStartupReport();
             return true;
         }
 
@@ -241,6 +245,10 @@ void connectMQTT() {
 
 void publishPostState() {
     publishEvent(postStateTopic(4).c_str(), postStatePayload(ovenSolved));
+}
+
+void publishStartupReport() {
+    publishEvent(EscapeTopic::PICO_STATUS_REPORT, EscapePicoStatus::PICO4_REPORT);
 }
 
 void publishSensorTelemetry() {

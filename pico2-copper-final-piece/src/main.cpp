@@ -3,6 +3,7 @@
 #include <PubSubClient.h>
 
 #include "../../shared/EscapeRoomProtocol.h"
+#include "../../shared/PicoStatusReport.h"
 #include "../../shared/PostState.h"
 
 #ifndef WIFI_SSID
@@ -64,6 +65,7 @@ PubSubClient mqtt(wifiClient);
 unsigned long lastSensorTelemetry = 0;
 
 void publishPostState();
+void publishStartupReport();
 
 void resetPuzzles() {
     copperPuzzle.solved = false;
@@ -87,6 +89,7 @@ void handleMessage(char* topic, byte* payload, unsigned int length) {
 
     if (topicText == EscapeTopic::STATUS_REQUEST || topicText == EscapeTopic::LEGACY_POST_QUERY) {
         publishPostState();
+        publishStartupReport();
     } else if (topicText == EscapeTopic::RESET_PUZZLE || topicText == EscapeTopic::LEGACY_GAME_RESET) {
         resetPuzzles();
     }
@@ -129,6 +132,7 @@ bool tryConnectMQTT(const char* broker) {
             mqtt.subscribe(EscapeTopic::LEGACY_GAME_RESET);
             blink(3);
             publishPostState();
+            publishStartupReport();
             return true;
         }
 
@@ -160,6 +164,10 @@ void publishEvent(const char* topic, const char* payload) {
 void publishPostState() {
     bool completed = digitalRead(COPPER_COMPLETE_PIN) == PUZZLE_ACTIVE_STATE;
     publishEvent(postStateTopic(2).c_str(), postStatePayload(completed));
+}
+
+void publishStartupReport() {
+    publishEvent(EscapeTopic::PICO_STATUS_REPORT, EscapePicoStatus::PICO2_REPORT);
 }
 
 void publishSensorTelemetry() {

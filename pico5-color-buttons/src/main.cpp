@@ -3,6 +3,7 @@
 #include <PubSubClient.h>
 
 #include "../../shared/EscapeRoomProtocol.h"
+#include "../../shared/PicoStatusReport.h"
 #include "../../shared/PostState.h"
 
 #ifndef WIFI_SSID
@@ -77,6 +78,7 @@ unsigned long lastPressAt = 0;
 unsigned long lastSensorTelemetry = 0;
 
 void publishPostState();
+void publishStartupReport();
 
 void clearAttempt() {
     totalPresses = 0;
@@ -140,6 +142,7 @@ void handleMessage(char* topic, byte* payload, unsigned int length) {
 
     if (topicText == EscapeTopic::STATUS_REQUEST || topicText == EscapeTopic::LEGACY_POST_QUERY) {
         publishPostState();
+        publishStartupReport();
     } else if (topicText == EscapeTopic::RESET_PUZZLE || topicText == EscapeTopic::LEGACY_GAME_RESET) {
         resetSequence();
     }
@@ -182,6 +185,7 @@ bool tryConnectMQTT(const char* broker) {
             mqtt.subscribe(EscapeTopic::LEGACY_GAME_RESET);
             blink(3);
             publishPostState();
+            publishStartupReport();
             return true;
         }
 
@@ -201,6 +205,10 @@ void connectMQTT() {
 
 void publishPostState() {
     publishEvent(postStateTopic(5).c_str(), postStatePayload(sequenceSolved));
+}
+
+void publishStartupReport() {
+    publishEvent(EscapeTopic::PICO_STATUS_REPORT, EscapePicoStatus::PICO5_REPORT);
 }
 
 void publishSensorTelemetry() {

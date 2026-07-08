@@ -90,6 +90,16 @@ $tests = @(
         Name = "sensor_always_active_test"
         Sources = @("tests\sensor_always_active_test.cpp")
         Includes = @()
+    },
+    @{
+        Name = "pico_startup_status_test"
+        Sources = @("tests\pico_startup_status_test.cpp")
+        Includes = @()
+    },
+    @{
+        Name = "room_wifi_defaults_test"
+        Sources = @("tests\room_wifi_defaults_test.cpp")
+        Includes = @()
     }
 )
 

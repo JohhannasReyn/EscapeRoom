@@ -42,13 +42,23 @@ if [ "${REBASE_SELF_UPDATED:-0}" != "1" ] && [ -f "${new_self}" ] && ! cmp -s "$
 fi
 
 cd "${PROJECT_ROOT}"
-echo "Updating raspberry-pi-controller, tools, fire, assets, and shared..."
-rm -rf raspberry-pi-controller tools fire assets shared
+echo "Updating controller, tools, active Pico firmware, tests, assets, shared code, and room WiFi defaults..."
+rm -rf raspberry-pi-controller tools fire assets shared tests
+rm -rf pico2-copper-final-piece pico3-painting-rotation pico4-smart-film-oven pico5-color-buttons pico7-fire-panel
 cp -R "${tmp_dir}/EscapeRoom/raspberry-pi-controller" .
 cp -R "${tmp_dir}/EscapeRoom/tools" .
 cp -R "${tmp_dir}/EscapeRoom/fire" .
 cp -R "${tmp_dir}/EscapeRoom/assets" .
 cp -R "${tmp_dir}/EscapeRoom/shared" .
+cp -R "${tmp_dir}/EscapeRoom/tests" .
+cp -R "${tmp_dir}/EscapeRoom/pico2-copper-final-piece" .
+cp -R "${tmp_dir}/EscapeRoom/pico3-painting-rotation" .
+cp -R "${tmp_dir}/EscapeRoom/pico4-smart-film-oven" .
+cp -R "${tmp_dir}/EscapeRoom/pico5-color-buttons" .
+cp -R "${tmp_dir}/EscapeRoom/pico7-fire-panel" .
+cp "${tmp_dir}/EscapeRoom/pico-wifi.env" .
+cp "${tmp_dir}/EscapeRoom/pico-wifi.env.example" .
+cp "${tmp_dir}/EscapeRoom/README.md" .
 chmod +x tools/*.sh 2>/dev/null || true
 chmod +x fire/* 2>/dev/null || true
 
@@ -69,3 +79,5 @@ pio run -e raspberry_pi_controller
 
 echo "Rebase complete. Start the room with:"
 echo "  cd ${PROJECT_ROOT} && tools/start.sh"
+echo "For student-friendly commands, run:"
+echo "  cd ${PROJECT_ROOT} && tools/help.sh"

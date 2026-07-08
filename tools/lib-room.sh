@@ -52,7 +52,12 @@ wait_for_topics_once() {
     tmp_file="$(mktemp)"
 
     request_status || true
-    timeout "${timeout_sec}" mosquitto_sub -h "${MQTT_HOST}" -v -t "${MQTT_TOPIC_ROOT}/telemetry/#" -t "${MQTT_TOPIC_ROOT}/post/cubby/+/state" >"${tmp_file}" 2>/dev/null || true
+    timeout "${timeout_sec}" mosquitto_sub \
+        -h "${MQTT_HOST}" \
+        -v \
+        -t "${MQTT_TOPIC_ROOT}/telemetry/#" \
+        -t "${MQTT_TOPIC_ROOT}/post/cubby/+/state" \
+        -t "${MQTT_TOPIC_ROOT}/status/pico" >"${tmp_file}" 2>/dev/null || true
 
     for entry in "${PICO_TOPICS[@]}"; do
         IFS=: read -r pico topic label wiring <<<"${entry}"
@@ -61,6 +66,7 @@ wait_for_topics_once() {
         else
             echo "${label}: not found"
         fi
+        echo "  Wiring: ${wiring}"
     done
 
     rm -f "${tmp_file}"

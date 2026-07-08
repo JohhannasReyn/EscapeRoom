@@ -24,6 +24,7 @@ inline constexpr const char* REVEAL_SMART_FILM = "escape/cmd/pico4/reveal_smart_
 inline constexpr const char* UNLOCK_ELECTROMAG_LOCK = "escape/cmd/pico4/unlock_electromag_lock";
 inline constexpr const char* RESET_PUZZLE = "escape/cmd/all/reset_puzzle";
 inline constexpr const char* STATUS_REQUEST = "escape/cmd/all/status_request";
+inline constexpr const char* PICO_STATUS_REPORT = "escape/status/pico";
 inline constexpr const char* SENSOR_TELEMETRY_WILDCARD = "escape/telemetry/#";
 inline constexpr const char* FIRE_COMMAND_WILDCARD = "escape/fire/#";
 inline constexpr const char* FIRE_STATUS = "escape/fire/status";

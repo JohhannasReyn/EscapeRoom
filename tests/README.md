@@ -28,5 +28,7 @@ The tests cover:
 - Oven thermometer LED band/progression math
 - Shared protocol topic names
 - Room state names
+- Pico startup wiring/status report topic, payload text, and Pi logging path
+- Committed portable-router WiFi defaults and Pi rebase/flash-script coverage
 
 These tests do not replace hardware testing. They are meant to catch code mistakes before upload day so the hardware test is mostly about wiring, power, and sensor placement.
