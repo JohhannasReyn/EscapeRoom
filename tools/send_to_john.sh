@@ -15,6 +15,8 @@ if [ -f "${CONFIG_FILE}" ]; then
 fi
 
 JOHN_UPLOAD_URL="${JOHN_UPLOAD_URL:-}"
+JOHN_RCLONE_TARGET="${JOHN_RCLONE_TARGET:-}"
+JOHN_RCLONE_ROOT_FOLDER_ID="${JOHN_RCLONE_ROOT_FOLDER_ID:-}"
 JOHN_SCP_TARGET="${JOHN_SCP_TARGET:-}"
 JOHN_EMAIL="${JOHN_EMAIL:-}"
 JOHN_EMAIL_SUBJECT="${JOHN_EMAIL_SUBJECT:-Escape room fire-panel button order log}"
@@ -27,6 +29,8 @@ save_email_config() {
     cat >"${CONFIG_FILE}" <<EOF
 # Local send settings for tools/send_to_john.sh.
 # This file is intentionally git-ignored.
+JOHN_RCLONE_TARGET="${JOHN_RCLONE_TARGET}"
+JOHN_RCLONE_ROOT_FOLDER_ID="${JOHN_RCLONE_ROOT_FOLDER_ID}"
 JOHN_UPLOAD_URL="${JOHN_UPLOAD_URL}"
 JOHN_SCP_TARGET="${JOHN_SCP_TARGET}"
 JOHN_EMAIL="${email}"
@@ -38,7 +42,7 @@ EOF
 }
 
 prompt_for_email_if_needed() {
-    if [ -n "${JOHN_UPLOAD_URL}" ] || [ -n "${JOHN_SCP_TARGET}" ] || [ -n "${JOHN_EMAIL}" ]; then
+    if [ -n "${JOHN_RCLONE_TARGET}" ] || [ -n "${JOHN_UPLOAD_URL}" ] || [ -n "${JOHN_SCP_TARGET}" ] || [ -n "${JOHN_EMAIL}" ]; then
         return
     fi
 
@@ -95,18 +99,43 @@ prompt_for_email_if_needed
 echo "Preparing to send:"
 echo "  ${LOG_FILE}"
 
+send_by_rclone() {
+    need_cmd rclone || return 1
+    echo "Uploading log with JOHN_RCLONE_TARGET..."
+
+    if [ -n "${JOHN_RCLONE_ROOT_FOLDER_ID}" ]; then
+        if ! RCLONE_DRIVE_ROOT_FOLDER_ID="${JOHN_RCLONE_ROOT_FOLDER_ID}" rclone copy "${LOG_FILE}" "${JOHN_RCLONE_TARGET}"; then
+            echo "Drive upload failed."
+            return 1
+        fi
+    else
+        if ! rclone copy "${LOG_FILE}" "${JOHN_RCLONE_TARGET}"; then
+            echo "Drive upload failed."
+            return 1
+        fi
+    fi
+
+    echo "Drive upload complete."
+}
+
 send_by_upload() {
-    need_cmd curl
+    need_cmd curl || return 1
     echo "Uploading log with JOHN_UPLOAD_URL..."
-    curl -fsS -F "file=@${LOG_FILE}" "${JOHN_UPLOAD_URL}"
+    if ! curl -fsS -F "file=@${LOG_FILE}" "${JOHN_UPLOAD_URL}"; then
+        echo "HTTP upload failed."
+        return 1
+    fi
     echo
     echo "Upload complete."
 }
 
 send_by_scp() {
-    need_cmd scp
+    need_cmd scp || return 1
     echo "Copying log with JOHN_SCP_TARGET..."
-    scp "${LOG_FILE}" "${JOHN_SCP_TARGET}"
+    if ! scp "${LOG_FILE}" "${JOHN_SCP_TARGET}"; then
+        echo "SCP copy failed."
+        return 1
+    fi
     echo "SCP copy complete."
 }
 
@@ -149,17 +178,20 @@ bundle_for_manual_send() {
     echo "  ${bundle}"
     echo
     echo "To automate next time, copy john-contact.env.example to john-contact.env"
-    echo "and set JOHN_UPLOAD_URL, JOHN_SCP_TARGET, or JOHN_EMAIL."
+    echo "and set JOHN_RCLONE_TARGET, JOHN_UPLOAD_URL, JOHN_SCP_TARGET, or JOHN_EMAIL."
+    echo "For the shared Google Drive folder, run tools/setup-drive-upload.sh first."
     if [ -n "${JOHN_EMAIL}" ]; then
         echo "Saved email: ${JOHN_EMAIL}"
         echo "Automatic email still needs mutt, mailx, or mail configured on the Pi."
     fi
 }
 
-if [ -n "${JOHN_UPLOAD_URL}" ]; then
-    send_by_upload
-elif [ -n "${JOHN_SCP_TARGET}" ]; then
-    send_by_scp
+if [ -n "${JOHN_RCLONE_TARGET}" ] && send_by_rclone; then
+    :
+elif [ -n "${JOHN_UPLOAD_URL}" ] && send_by_upload; then
+    :
+elif [ -n "${JOHN_SCP_TARGET}" ] && send_by_scp; then
+    :
 elif [ -n "${JOHN_EMAIL}" ] && send_by_email; then
     :
 else

@@ -80,11 +80,16 @@ Connection and walkthrough checks:
     Guides the student through each fire-panel button and saves the observed
     MQTT order to a file they can send back for review/remapping.
 
+  tools/setup-drive-upload.sh
+    Saves the shared Google Drive folder settings to john-contact.env and shows
+    the rclone setup steps for the Pi. Run this once before send_to_john if the
+    Pi has not been connected to the shared folder yet.
+
   tools/send_to_john.sh
-    Finds the newest fire-panel button-order log and sends it using
-    john-contact.env if configured. On first run, it can prompt for John's email
-    and save it for future use. If automatic sending is not configured on the
-    Pi, it creates a small -for-john.tar.gz bundle to send manually.
+    Finds the newest fire-panel button-order log and uploads it to the shared
+    Google Drive folder with rclone if configured. If Drive is not configured,
+    it can fall back to upload URL, SCP, email, or a small -for-john.tar.gz
+    bundle to send manually.
 
   tools/run-host-tests.sh
     Builds/runs host-side logic tests on macOS, Linux, or Raspberry Pi.
@@ -140,8 +145,9 @@ Internal helpers:
     to ~/.bashrc.
 
   john-contact.env.example
-    Template for optional automatic upload, SCP, or email settings used by
-    tools/send_to_john.sh. Copy it to john-contact.env for local settings.
+    Template for the shared Google Drive folder, optional upload URL, SCP, or
+    email settings used by tools/send_to_john.sh. Copy it to john-contact.env
+    for local settings, or run tools/setup-drive-upload.sh.
 
   tools/run-host-tests.ps1
     Windows PowerShell version of the host-side tests.
