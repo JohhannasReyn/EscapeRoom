@@ -18,6 +18,8 @@ int main() {
     const std::string help = readText("tools/help.sh");
     const std::string installHelp = readText("tools/install-help-command.sh");
     const std::string capture = readText("tools/capture-fire-panel-buttons.sh");
+    const std::string send = readText("tools/send_to_john.sh");
+    const std::string contactExample = readText("john-contact.env.example");
     const std::string pico7 = readText("pico7-fire-panel/src/main.cpp");
     const std::string controller = readText("raspberry-pi-controller/src/GameController.cpp");
 
@@ -32,11 +34,27 @@ int main() {
 
     assert(help.find("cd escape-room") != std::string::npos);
     assert(help.find("tools/capture-fire-panel-buttons.sh") != std::string::npos);
+    assert(help.find("tools/send_to_john.sh") != std::string::npos);
 
     assert(capture.find("fire-panel-button-order") != std::string::npos);
     assert(capture.find("Press the button labeled STATUS") != std::string::npos);
     assert(capture.find("Press the button labeled RESET-ALL") != std::string::npos);
     assert(capture.find("send this file") != std::string::npos);
+
+    assert(send.find("fire-panel-button-order-*.txt") != std::string::npos);
+    assert(send.find("JOHN_UPLOAD_URL") != std::string::npos);
+    assert(send.find("JOHN_SCP_TARGET") != std::string::npos);
+    assert(send.find("JOHN_EMAIL") != std::string::npos);
+    assert(send.find("for-john.tar.gz") != std::string::npos);
+    assert(send.find("john-contact.env.example") != std::string::npos);
+    assert(send.find("prompt_for_email_if_needed") != std::string::npos);
+    assert(send.find("Email address, or press Enter to skip") != std::string::npos);
+    assert(send.find("save_email_config") != std::string::npos);
+    assert(send.find("Saved email for future runs") != std::string::npos);
+
+    assert(contactExample.find("JOHN_UPLOAD_URL") != std::string::npos);
+    assert(contactExample.find("JOHN_SCP_TARGET") != std::string::npos);
+    assert(contactExample.find("JOHN_EMAIL") != std::string::npos);
 
     const std::vector<std::string> fireCommands = {
         "status",
