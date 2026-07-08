@@ -28,6 +28,7 @@ Thumbs.db
 .env
 .env.*
 pi-wifi.env
+john-contact.env
 bluetooth-speaker.env
 secrets.h
 wifi_config.h

@@ -387,6 +387,19 @@ The script asks the student to press each labeled fire-panel button in order and
 saves a `fire-panel-button-order-...txt` file. Send that file back if any button
 reports a mismatch or no event.
 
+Prepare or send the newest fire-panel button-order log:
+
+```bash
+tools/send_to_john.sh
+```
+
+For fully automatic sending, copy `john-contact.env.example` to
+`john-contact.env` on the Pi and set `JOHN_UPLOAD_URL`, `JOHN_SCP_TARGET`, or
+`JOHN_EMAIL`. If no destination is saved yet, the script prompts for John's
+email and saves it to `john-contact.env` for future runs. Without a configured
+mailer/upload target, the script creates a
+`fire-panel-button-order-...-for-john.tar.gz` bundle to send manually.
+
 Raw MQTT/debug:
 
 ```bash
