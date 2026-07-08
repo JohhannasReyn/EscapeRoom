@@ -100,6 +100,11 @@ $tests = @(
         Name = "room_wifi_defaults_test"
         Sources = @("tests\room_wifi_defaults_test.cpp")
         Includes = @()
+    },
+    @{
+        Name = "fire_panel_tools_test"
+        Sources = @("tests\fire_panel_tools_test.cpp")
+        Includes = @()
     }
 )
 

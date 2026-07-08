@@ -1,6 +1,22 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+CURRENT_DIR="$(pwd -P)"
+
+if [ "${CURRENT_DIR}" != "${PROJECT_ROOT}" ]; then
+    cat <<EOF
+You are not in the escape-room project folder.
+Most commands below should be run from there first:
+  cd escape-room
+
+If that does not work, use:
+  cd ${PROJECT_ROOT}
+
+EOF
+fi
+
 cat <<'EOF'
 Escape room tools
 
@@ -12,6 +28,9 @@ Start here on the Raspberry Pi:
 
   tools/help.sh
     Shows this guide again.
+
+  help
+    After tools/rebase.sh installs it, shows this guide from any SSH directory.
 
   tools/start.sh
     Starts the room controller in the terminal. Leave this running during the
@@ -56,6 +75,10 @@ Connection and walkthrough checks:
 
   tools/test-pico5.sh
     Simulates color button sequence completion.
+
+  tools/capture-fire-panel-buttons.sh
+    Guides the student through each fire-panel button and saves the observed
+    MQTT order to a file they can send back for review/remapping.
 
   tools/run-host-tests.sh
     Builds/runs host-side logic tests on macOS, Linux, or Raspberry Pi.
@@ -105,6 +128,10 @@ Internal helpers:
 
   tools/platformio_pico_wifi.py
     PlatformIO pre-build hook that compiles pico-wifi.env into Pico firmware.
+
+  tools/install-help-command.sh
+    Installs the SSH-wide help command by adding an escape-room help function
+    to ~/.bashrc.
 
   tools/run-host-tests.ps1
     Windows PowerShell version of the host-side tests.

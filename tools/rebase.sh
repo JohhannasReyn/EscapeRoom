@@ -62,6 +62,17 @@ cp "${tmp_dir}/EscapeRoom/README.md" .
 chmod +x tools/*.sh 2>/dev/null || true
 chmod +x fire/* 2>/dev/null || true
 
+if [ -x "${PROJECT_ROOT}/tools/install-help-command.sh" ]; then
+    "${PROJECT_ROOT}/tools/install-help-command.sh"
+    # If this script was sourced, make the help function available immediately.
+    # If this script was executed normally, this only affects the child shell;
+    # future SSH sessions still get the function from ~/.bashrc.
+    if [ -f "${HOME}/.escape-room-help.sh" ]; then
+        # shellcheck source=/dev/null
+        source "${HOME}/.escape-room-help.sh"
+    fi
+fi
+
 if [ ! -d "${VENV_PATH}" ]; then
     echo "Creating PlatformIO venv at ${VENV_PATH}..."
     python3 -m venv "${VENV_PATH}"
@@ -80,4 +91,6 @@ pio run -e raspberry_pi_controller
 echo "Rebase complete. Start the room with:"
 echo "  cd ${PROJECT_ROOT} && tools/start.sh"
 echo "For student-friendly commands, run:"
-echo "  cd ${PROJECT_ROOT} && tools/help.sh"
+echo "  help"
+echo "If this shell does not know help yet, run:"
+echo "  source ${HOME}/.escape-room-help.sh"

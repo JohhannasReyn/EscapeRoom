@@ -344,6 +344,13 @@ Show available tools:
 tools/help.sh
 ```
 
+After `tools/rebase.sh` installs the SSH-wide helper, this also works from any
+directory:
+
+```bash
+help
+```
+
 Start the room:
 
 ```bash
@@ -369,6 +376,16 @@ tools/test-pico3.sh
 tools/test-pico4.sh
 tools/test-pico5.sh
 ```
+
+Capture the physical fire-panel button order:
+
+```bash
+tools/capture-fire-panel-buttons.sh
+```
+
+The script asks the student to press each labeled fire-panel button in order and
+saves a `fire-panel-button-order-...txt` file. Send that file back if any button
+reports a mismatch or no event.
 
 Raw MQTT/debug:
 
