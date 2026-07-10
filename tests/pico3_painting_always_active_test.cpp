@@ -16,4 +16,17 @@ int main() {
     assert(text.find("enabled=") == std::string::npos);
     assert(text.find("PAINTING_ROTATION_COMPLETE") != std::string::npos);
     assert(text.find("paintingTriggerCount") != std::string::npos);
+    assert(text.find("constexpr unsigned long DEBOUNCE_MS = 750") == std::string::npos);
+    assert(text.find("PAINTING_REARM_MS") != std::string::npos);
+
+    std::size_t highTrigger = text.find("if (state == HIGH && !paintingTriggered)");
+    assert(highTrigger != std::string::npos);
+
+    std::size_t publish = text.find("publishEvent(EscapeTopic::PAINTING_ROTATION_COMPLETE", highTrigger);
+    assert(publish != std::string::npos);
+
+    std::string highPath = text.substr(highTrigger, publish - highTrigger);
+    assert(highPath.find("paintingStableStart") == std::string::npos);
+    assert(highPath.find("DEBOUNCE_MS") == std::string::npos);
+    assert(highPath.find("now -") == std::string::npos);
 }

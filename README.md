@@ -286,10 +286,11 @@ GPIO 15 -> RC35/reed/hall sensor output (drives the pin HIGH when the painting i
 ```
 
 This Pico is always active and listens for the painting rotation magnet sensor.
-Rotating the painting into position publishes
+As soon as the sensor reads HIGH, it publishes
 `escape/pico3/painting_rotation_complete`, and the Raspberry Pi plays the
-crashing-plates cue every time the event is published while keeping the Pico 5
-color buttons active.
+crashing-plates cue while keeping the Pico 5 color buttons active. The Pico
+only waits for a short LOW-side rearm guard so switch chatter does not repeat
+the cue while the magnet is still on the sensor.
 
 ### Pico 4: Smart Film and Oven Knob
 
