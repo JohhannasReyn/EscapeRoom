@@ -86,6 +86,9 @@ run_test "oven_dial_test" \
     --include "shared" \
     --source "tests/oven_dial_test.cpp"
 
+run_test "pico4_oven_range_test" \
+    --source "tests/pico4_oven_range_test.cpp"
+
 run_test "oven_thermometer_test" \
     --include "shared" \
     --source "tests/oven_thermometer_test.cpp"
@@ -108,6 +111,9 @@ run_test "pico2_copper_single_input_test" \
 run_test "pico3_painting_always_active_test" \
     --source "tests/pico3_painting_always_active_test.cpp"
 
+run_test "pico5_color_buttons_immediate_test" \
+    --source "tests/pico5_color_buttons_immediate_test.cpp"
+
 run_test "pico_wifi_config_test" \
     --source "tests/pico_wifi_config_test.cpp"
 
@@ -122,5 +128,8 @@ run_test "room_wifi_defaults_test" \
 
 run_test "fire_panel_tools_test" \
     --source "tests/fire_panel_tools_test.cpp"
+
+run_test "audio_effect_low_latency_test" \
+    --source "tests/audio_effect_low_latency_test.cpp"
 
 echo "All host-side tests passed."

@@ -52,6 +52,11 @@ $tests = @(
         Includes = @("shared")
     },
     @{
+        Name = "pico4_oven_range_test"
+        Sources = @("tests\pico4_oven_range_test.cpp")
+        Includes = @()
+    },
+    @{
         Name = "oven_thermometer_test"
         Sources = @("tests\oven_thermometer_test.cpp")
         Includes = @("shared")
@@ -82,6 +87,11 @@ $tests = @(
         Includes = @()
     },
     @{
+        Name = "pico5_color_buttons_immediate_test"
+        Sources = @("tests\pico5_color_buttons_immediate_test.cpp")
+        Includes = @()
+    },
+    @{
         Name = "pico_wifi_config_test"
         Sources = @("tests\pico_wifi_config_test.cpp")
         Includes = @()
@@ -104,6 +114,11 @@ $tests = @(
     @{
         Name = "fire_panel_tools_test"
         Sources = @("tests\fire_panel_tools_test.cpp")
+        Includes = @()
+    },
+    @{
+        Name = "audio_effect_low_latency_test"
+        Sources = @("tests\audio_effect_low_latency_test.cpp")
         Includes = @()
     }
 )

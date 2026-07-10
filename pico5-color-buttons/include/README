@@ -18,7 +18,8 @@ Main topics:
 
 The color-button sequence listens from startup/reset. The attempt timeout starts
 only after the first button press so the puzzle can sit ready without playing
-the buzzer.
+the buzzer. Each press is counted immediately when the button input goes LOW,
+then that button re-arms when the input returns HIGH.
 
 Required counts:
 - Red: 3 presses

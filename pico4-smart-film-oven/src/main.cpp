@@ -38,13 +38,14 @@ constexpr int SMART_FILM_BUZZER_PIN = 16;
 constexpr int LOCK_PIN = 18;
 constexpr int OVEN_POT_PIN = 26;
 
-constexpr int OVEN_MIN_VALUE = 0;
+constexpr int OVEN_MIN_VALUE = 300;
 constexpr int OVEN_TARGET_VALUE = 350;
-constexpr int OVEN_MAX_VALUE = 500;
+constexpr int OVEN_MAX_VALUE = 400;
 constexpr int OVEN_TARGET_TOLERANCE = 10;
+constexpr int OVEN_STEP_VALUE = 5;
 constexpr int OVEN_POT_MIN_READING = 0;
 constexpr int OVEN_POT_MAX_READING = 4095;
-constexpr int OVEN_POSITION_PUBLISH_DELTA = 2;
+constexpr int OVEN_POSITION_PUBLISH_DELTA = 5;
 
 constexpr unsigned long MQTT_RETRY_MS = 3000;
 constexpr unsigned long SMART_FILM_BUZZER_MS = 350;
@@ -105,7 +106,8 @@ int readOvenPotValue() {
         OVEN_POT_MIN_READING,
         OVEN_POT_MAX_READING,
         OVEN_MIN_VALUE,
-        OVEN_MAX_VALUE
+        OVEN_MAX_VALUE,
+        OVEN_STEP_VALUE
     );
 }
 
@@ -263,7 +265,8 @@ void publishSensorTelemetry() {
         OVEN_POT_MIN_READING,
         OVEN_POT_MAX_READING,
         OVEN_MIN_VALUE,
-        OVEN_MAX_VALUE
+        OVEN_MAX_VALUE,
+        OVEN_STEP_VALUE
     );
     String payload = "oven_raw=" + String(rawPot);
     payload += ",oven_value=" + String(ovenValue);
