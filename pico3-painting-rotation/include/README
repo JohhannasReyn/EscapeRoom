@@ -17,4 +17,4 @@ the Pico publishes the painting rotation event and the Raspberry Pi plays
 assets/audio/crashing_plates.m4a.
 
 The event publishes once when the sensor input goes HIGH, then re-arms after the
-input returns LOW for a short chatter guard.
+input returns LOW.

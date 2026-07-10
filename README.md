@@ -289,8 +289,7 @@ This Pico is always active and listens for the painting rotation magnet sensor.
 As soon as the sensor reads HIGH, it publishes
 `escape/pico3/painting_rotation_complete`, and the Raspberry Pi plays the
 crashing-plates cue while keeping the Pico 5 color buttons active. The Pico
-only waits for a short LOW-side rearm guard so switch chatter does not repeat
-the cue while the magnet is still on the sensor.
+re-arms as soon as the sensor reads LOW again.
 
 ### Pico 4: Smart Film and Oven Knob
 
