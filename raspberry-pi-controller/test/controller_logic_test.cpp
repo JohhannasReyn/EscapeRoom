@@ -96,6 +96,7 @@ int main() {
     RecordingEffect copperAudio;
     RecordingEffect colorSuccessFirstAudio;
     RecordingEffect colorSuccessSecondAudio;
+    RecordingEffect roomCueAudio;
     RecordingDisplay display;
     GameController controller(
         &paintingAudio,
@@ -104,7 +105,8 @@ int main() {
         &bakeBuzzer,
         &copperAudio,
         &colorSuccessFirstAudio,
-        &colorSuccessSecondAudio
+        &colorSuccessSecondAudio,
+        &roomCueAudio
     );
     addActivePuzzles(controller);
 
@@ -347,6 +349,8 @@ int main() {
     assert(fireLegacyUnlock.payload == "on");
 
     assert(controller.handleMessage(EscapeTopic::FIRE_RESET_ALL, "button") == true);
+    assert(roomCueAudio.triggerCount == 1);
+    assert(roomCueAudio.lastPayload == "room reset");
     MqttCommand fireResetLed = controller.takeNextPendingCommand();
     assert(fireResetLed.topic == EscapeTopic::FIRE_PANEL_LED_COMMAND);
     assert(fireResetLed.payload == "all=checking");
