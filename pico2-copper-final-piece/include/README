@@ -14,3 +14,7 @@ Main topics:
 
 The contact uses INPUT_PULLUP and publishes once when GPIO 15 goes LOW, then
 re-arms after the input returns HIGH.
+
+If reset happens while the puzzle piece is still completing the contact, the
+Pico reports ready but waits for the contact to open before it can publish
+another completion event.

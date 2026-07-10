@@ -43,6 +43,7 @@ WiFiClient wifiClient;
 PubSubClient mqtt(wifiClient);
 
 bool paintingTriggered = false;
+bool paintingNeedsPhysicalReset = false;
 unsigned long lastSensorTelemetry = 0;
 unsigned long paintingTriggerCount = 0;
 
@@ -50,7 +51,9 @@ void publishPostState();
 void publishStartupReport();
 
 void resetPainting() {
+    int state = digitalRead(PAINTING_SENSOR_PIN);
     paintingTriggered = false;
+    paintingNeedsPhysicalReset = state == PAINTING_SENSOR_ACTIVE_STATE;
     paintingTriggerCount = 0;
     digitalWrite(LED_PIN, LOW);
     if (mqtt.connected()) {
@@ -139,7 +142,7 @@ void publishEvent(const char* topic, const char* payload) {
 }
 
 void publishPostState() {
-    publishEvent(postStateTopic(3).c_str(), postStatePayload(digitalRead(PAINTING_SENSOR_PIN) == PAINTING_SENSOR_ACTIVE_STATE));
+    publishEvent(postStateTopic(3).c_str(), postStatePayload(paintingTriggered));
 }
 
 void publishStartupReport() {
@@ -156,6 +159,7 @@ void publishSensorTelemetry() {
     String payload = "painting_sensor=" + String(state);
     payload += ",magnet_present=" + String(state == PAINTING_SENSOR_ACTIVE_STATE ? 1 : 0);
     payload += ",triggered=" + String(paintingTriggered ? 1 : 0);
+    payload += ",needs_reset=" + String(paintingNeedsPhysicalReset ? 1 : 0);
     payload += ",trigger_count=" + String(paintingTriggerCount);
     mqtt.publish("escape/telemetry/pico3/painting_sensor", payload.c_str());
 }
@@ -191,7 +195,17 @@ void loop() {
     int state = digitalRead(PAINTING_SENSOR_PIN);
 
     if (state == PAINTING_SENSOR_IDLE_STATE) {
+        if (paintingNeedsPhysicalReset) {
+            paintingNeedsPhysicalReset = false;
+            publishPostState();
+        }
         paintingTriggered = false;
+    }
+
+    if (paintingNeedsPhysicalReset) {
+        publishSensorTelemetry();
+        delay(50);
+        return;
     }
 
     if (state == PAINTING_SENSOR_ACTIVE_STATE && !paintingTriggered) {

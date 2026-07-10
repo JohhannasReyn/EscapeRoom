@@ -34,6 +34,8 @@ int main() {
     assert(main.find("RandomEffect roomCueAudio") != std::string::npos);
     assert(main.find("triggerRoomCue(\"room activated\")") != std::string::npos);
     assert(main.find("triggerRoomCue(\"room reset\")") != std::string::npos);
+    assert(main.find("publish_reset_topic(mosq, EscapeTopic::RESET_PUZZLE") != std::string::npos);
+    assert(main.find("publish_reset_topic(mosq, RESET_TOPIC") != std::string::npos);
     assert(controllerHeader.find("triggerRoomCue") != std::string::npos);
     assert(controller.find("roomCueEffect->trigger(payload)") != std::string::npos);
     assert(controller.find("triggerRoomCue(\"room reset\")") != std::string::npos);
