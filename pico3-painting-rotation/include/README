@@ -12,9 +12,9 @@ Main topics:
 - Subscribes escape/cmd/all/status_request
 - Subscribes escape/cmd/all/reset_puzzle
 
-The sensor is always active from startup/reset. The Raspberry Pi plays
-assets/audio/crashing_plates.m4a every time this Pico publishes the painting
-rotation event.
+The sensor is always active from startup/reset. As soon as the input reads HIGH,
+the Pico publishes the painting rotation event and the Raspberry Pi plays
+assets/audio/crashing_plates.m4a.
 
 The event publishes once when the sensor input goes HIGH, then re-arms after the
-input returns LOW.
+input returns LOW for a short chatter guard.

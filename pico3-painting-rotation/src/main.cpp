@@ -33,7 +33,7 @@
 constexpr int LED_PIN = LED_BUILTIN;
 constexpr int RST_PIN = 14;
 constexpr int PAINTING_SENSOR_PIN = 15;
-constexpr unsigned long DEBOUNCE_MS = 750;
+constexpr unsigned long PAINTING_REARM_MS = 100;
 constexpr unsigned long MQTT_RETRY_MS = 3000;
 constexpr unsigned long SENSOR_TELEMETRY_MS = 1000;
 constexpr int MQTT_ATTEMPTS_PER_HOST = 3;
@@ -43,7 +43,7 @@ PubSubClient mqtt(wifiClient);
 
 bool paintingTriggered = false;
 int paintingLastState = LOW;
-unsigned long paintingStableStart = 0;
+unsigned long paintingLowStart = 0;
 unsigned long lastSensorTelemetry = 0;
 unsigned long paintingTriggerCount = 0;
 
@@ -54,7 +54,7 @@ void resetPainting() {
     paintingTriggered = false;
     paintingTriggerCount = 0;
     paintingLastState = digitalRead(PAINTING_SENSOR_PIN);
-    paintingStableStart = millis();
+    paintingLowStart = millis();
     digitalWrite(LED_PIN, LOW);
     if (mqtt.connected()) {
         publishPostState();
@@ -169,7 +169,7 @@ void setup() {
     pinMode(RST_PIN, INPUT_PULLUP);
     pinMode(PAINTING_SENSOR_PIN, INPUT);
     paintingLastState = digitalRead(PAINTING_SENSOR_PIN);
-    paintingStableStart = millis();
+    paintingLowStart = millis();
 
     connectWiFi();
     connectMQTT();
@@ -196,14 +196,16 @@ void loop() {
 
     if (state != paintingLastState) {
         paintingLastState = state;
-        paintingStableStart = now;
+        if (state == LOW) {
+            paintingLowStart = now;
+        }
     }
 
-    if (state == LOW && paintingTriggered && now - paintingStableStart >= DEBOUNCE_MS) {
+    if (state == LOW && paintingTriggered && now - paintingLowStart >= PAINTING_REARM_MS) {
         paintingTriggered = false;
     }
 
-    if (state == HIGH && !paintingTriggered && now - paintingStableStart >= DEBOUNCE_MS) {
+    if (state == HIGH && !paintingTriggered) {
         paintingTriggered = true;
         ++paintingTriggerCount;
         publishEvent(EscapeTopic::PAINTING_ROTATION_COMPLETE, "painting rotation complete");
