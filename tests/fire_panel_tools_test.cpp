@@ -21,6 +21,7 @@ int main() {
     const std::string send = readText("tools/send_to_john.sh");
     const std::string setupDrive = readText("tools/setup-drive-upload.sh");
     const std::string testPico4 = readText("tools/test-pico4.sh");
+    const std::string testPico5 = readText("tools/test-pico5.sh");
     const std::string contactExample = readText("john-contact.env.example");
     const std::string pico7 = readText("pico7-fire-panel/src/main.cpp");
     const std::string controller = readText("raspberry-pi-controller/src/GameController.cpp");
@@ -44,6 +45,13 @@ int main() {
     assert(testPico4.find("escape/pico4/smart_film_ready") != std::string::npos);
     assert(testPico4.find("transparent") != std::string::npos);
     assert(testPico4.find("Pico 4 acknowledged smart film") != std::string::npos);
+    assert(testPico4.find("escape/telemetry/pico4/oven") != std::string::npos);
+    assert(testPico4.find("Turn the oven knob") != std::string::npos);
+    assert(testPico4.find("oven_raw range") != std::string::npos);
+
+    assert(testPico5.find("escape/pico5/color_sequence_error") != std::string::npos);
+    assert(testPico5.find("wrong-code buzzer") != std::string::npos);
+    assert(testPico5.find("escape/telemetry/pico5/buttons") != std::string::npos);
 
     assert(capture.find("fire-panel-button-order") != std::string::npos);
     assert(capture.find("Press the button labeled STATUS") != std::string::npos);

@@ -405,6 +405,11 @@ tools/test-pico4.sh
 tools/test-pico5.sh
 ```
 
+`tools/test-pico4.sh` now also watches real oven potentiometer telemetry while
+the knob is turned and reports the raw ADC range. `tools/test-pico5.sh` now
+simulates the wrong-code buzzer event before the success event, so it can tell
+whether the Pi audio path is working.
+
 Capture the physical fire-panel button order:
 
 ```bash
