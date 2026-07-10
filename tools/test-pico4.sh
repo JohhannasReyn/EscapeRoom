@@ -35,4 +35,28 @@ else
     echo "Check Pico 4 power/WiFi/MQTT first, then GPIO 15 -> smart-film relay IN and relay power."
 fi
 
+>"${tmp_file}"
+echo "Turn the oven knob slowly across its range for the next 8 seconds."
+timeout 8 mosquitto_sub \
+    -h "${MQTT_HOST}" \
+    -v \
+    -t "escape/telemetry/pico4/oven" >"${tmp_file}" 2>/dev/null || true
+
+raw_values="$(sed -n 's/.*oven_raw=\([0-9][0-9]*\).*/\1/p' "${tmp_file}")"
+if [ -z "${raw_values}" ]; then
+    echo "issue: no Pico 4 oven telemetry observed."
+    echo "Check Pico 4 power/WiFi/MQTT before rewiring the potentiometer."
+else
+    min_raw="$(printf '%s\n' "${raw_values}" | sort -n | head -n 1)"
+    max_raw="$(printf '%s\n' "${raw_values}" | sort -n | tail -n 1)"
+    raw_span=$((max_raw - min_raw))
+    echo "oven_raw range: ${min_raw}-${max_raw} (span ${raw_span})"
+
+    if [ "${raw_span}" -lt 50 ]; then
+        echo "issue: oven_raw barely changed. Check 3V3/GND on the outer pot legs and GPIO 26 on the wiper."
+    else
+        echo "ok: Pico 4 sees the potentiometer changing."
+    fi
+fi
+
 publish "escape/pico4/oven_target_reached" "manual oven test"

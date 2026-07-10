@@ -75,10 +75,12 @@ Connection and walkthrough checks:
     Simulates the painting rotation completion event.
 
   tools/test-pico4.sh
-    Reveals smart film and simulates oven completion/unlock.
+    Reveals smart film, watches oven potentiometer telemetry while the knob is
+    turned, and simulates oven completion/unlock.
 
   tools/test-pico5.sh
-    Simulates color button sequence completion.
+    Simulates the wrong-code buzzer event, checks Pico 5 telemetry, and
+    simulates color button sequence completion.
 
   tools/capture-fire-panel-buttons.sh
     Guides the student through each fire-panel button and saves the observed

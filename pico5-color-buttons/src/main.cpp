@@ -243,6 +243,11 @@ void registerButtonPress(ColorButton& pressedButton) {
     ++totalPresses;
     lastPressAt = millis();
 
+    if (pressedButton.pressCount > pressedButton.requiredPresses) {
+        publishAttemptError("too many color button presses");
+        return;
+    }
+
     if (totalPresses < REQUIRED_TOTAL_PRESSES) {
         return;
     }
