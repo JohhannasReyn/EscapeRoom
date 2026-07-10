@@ -17,7 +17,10 @@ int main() {
     assert(text.find("PAINTING_ROTATION_COMPLETE") != std::string::npos);
     assert(text.find("paintingTriggerCount") != std::string::npos);
     assert(text.find("constexpr unsigned long DEBOUNCE_MS = 750") == std::string::npos);
-    assert(text.find("PAINTING_REARM_MS") != std::string::npos);
+    assert(text.find("PAINTING_REARM_MS") == std::string::npos);
+    assert(text.find("paintingLowStart") == std::string::npos);
+    assert(text.find("if (state == LOW)") != std::string::npos);
+    assert(text.find("paintingTriggered = false;") != std::string::npos);
 
     std::size_t highTrigger = text.find("if (state == HIGH && !paintingTriggered)");
     assert(highTrigger != std::string::npos);
@@ -28,5 +31,6 @@ int main() {
     std::string highPath = text.substr(highTrigger, publish - highTrigger);
     assert(highPath.find("paintingStableStart") == std::string::npos);
     assert(highPath.find("DEBOUNCE_MS") == std::string::npos);
+    assert(highPath.find("PAINTING_REARM_MS") == std::string::npos);
     assert(highPath.find("now -") == std::string::npos);
 }
