@@ -120,6 +120,11 @@ $tests = @(
         Includes = @()
     },
     @{
+        Name = "rebase_flash_recommendation_test"
+        Sources = @("tests\rebase_flash_recommendation_test.cpp")
+        Includes = @()
+    },
+    @{
         Name = "fire_panel_tools_test"
         Sources = @("tests\fire_panel_tools_test.cpp")
         Includes = @()

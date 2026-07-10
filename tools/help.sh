@@ -24,7 +24,9 @@ Start here on the Raspberry Pi:
   tools/rebase.sh
     Downloads the latest controller, active Pico firmware, tests, tools,
     README, shared code, and pico-wifi.env. It also installs/updates
-    PlatformIO in ~/.venv and builds the Raspberry Pi controller.
+    PlatformIO in ~/.venv and builds the Raspberry Pi controller. After a
+    successful update, it prints which Picos need to be flashed because their
+    source changed since the last rebase.
 
   tools/help.sh
     Shows this guide again.
@@ -51,6 +53,8 @@ Flashing Picos from the Pi or a Mac:
   tools/flash-pico.sh all
     Builds and uploads Pico firmware using the committed pico-wifi.env:
     SSID EscapeRoom, password BakeAt350, broker ceenypie.local.
+    If you are not sure which Pico changed, run tools/rebase.sh first; it will
+    say which Picos need to be flashed.
     For each Pico: unplug it, hold BOOTSEL, plug it into USB, release BOOTSEL,
     then press Enter when the script asks.
 

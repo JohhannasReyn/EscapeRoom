@@ -29,7 +29,7 @@ The tests cover:
 - Shared protocol topic names
 - Room state names
 - Pico startup wiring/status report topic, payload text, and Pi logging path
-- Committed portable-router WiFi defaults and Pi rebase/flash-script coverage
+- Committed portable-router WiFi defaults, Pi rebase flash recommendations, and flash-script coverage
 - SSH-wide help installer, executable rebase permissions, fire-panel command wrappers, button-order capture tool, optional send-to-John packaging/sending script, low-latency compressed-audio playback flags, and activation/reset cue file coverage
 
 These tests do not replace hardware testing. They are meant to catch code mistakes before upload day so the hardware test is mostly about wiring, power, and sensor placement.

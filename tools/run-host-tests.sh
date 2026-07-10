@@ -131,6 +131,9 @@ run_test "pico_startup_status_test" \
 run_test "room_wifi_defaults_test" \
     --source "tests/room_wifi_defaults_test.cpp"
 
+run_test "rebase_flash_recommendation_test" \
+    --source "tests/rebase_flash_recommendation_test.cpp"
+
 run_test "fire_panel_tools_test" \
     --source "tests/fire_panel_tools_test.cpp"
 

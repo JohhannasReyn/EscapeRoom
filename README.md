@@ -181,6 +181,10 @@ or flash all active Picos one after another:
 tools/flash-pico.sh all
 ```
 
+If you are not sure which Pico changed, run `tools/rebase.sh` first. After a
+successful update it prints which Picos need to be flashed because their source
+changed since the last rebase.
+
 For each Pico, unplug it, hold `BOOTSEL`, plug it into the Mac or Raspberry Pi,
 release `BOOTSEL`, then press Enter when the script prompts you. If upload
 detection fails, repeat that BOOTSEL plug-in step and run the same command again.
@@ -481,7 +485,10 @@ tools/rebase.sh
 
 `tools/rebase.sh` also refreshes the active Pico firmware folders, `tests/`,
 `README.md`, `shared/`, and `pico-wifi.env`, so the Pi can flash Picos after one
-update command.
+update command. It stores a local `.escape-room-rebase-state` file and compares
+the active Pico firmware sources on each run, then prints which Picos need to be
+flashed. On the first run without a previous state file, it recommends flashing
+all active Picos.
 
 ---
 
