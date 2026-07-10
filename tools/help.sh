@@ -112,7 +112,9 @@ Audio:
 
 Room service helpers:
   tools/setup-room.sh
-    Makes scripts executable and installs the Pi autostart service.
+    Makes scripts executable, installs the Pi autostart service, and restarts
+    the room controller. Run this as a normal command from inside escape-room;
+    do not run it with source.
 
   tools/install-pi-autostart.sh
     Installs/updates the systemd service that starts the room controller.

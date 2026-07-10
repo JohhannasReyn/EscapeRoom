@@ -72,13 +72,19 @@ pi-wifi.env.example
 
 ## Initial Pi Setup
 
-On the Raspberry Pi:
+For the student-friendly update path on the Raspberry Pi:
 
 ```bash
 cd /home/admin/escape-room
-git pull
-chmod +x tools/*.sh
+tools/rebase.sh
+tools/flash-pico.sh all
+tools/setup-room.sh
+tools/room-status.sh
 ```
+
+Run `tools/setup-room.sh` as a normal command from inside `escape-room`; do not
+run it with `source`. It installs/restarts the room service and intentionally
+does not need to change the current SSH shell.
 
 Install the controller dependencies if needed:
 

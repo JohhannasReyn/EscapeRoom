@@ -40,6 +40,13 @@ int main() {
     assert(help.find("tools/capture-fire-panel-buttons.sh") != std::string::npos);
     assert(help.find("tools/send_to_john.sh") != std::string::npos);
     assert(help.find("tools/setup-drive-upload.sh") != std::string::npos);
+    assert(help.find("do not run it with source") != std::string::npos);
+
+    const std::string readme = readText("README.md");
+    assert(readme.find("tools/rebase.sh") != std::string::npos);
+    assert(readme.find("tools/flash-pico.sh all") != std::string::npos);
+    assert(readme.find("tools/setup-room.sh") != std::string::npos);
+    assert(readme.find("do not\nrun it with `source`") != std::string::npos);
 
     assert(testPico4.find("escape/cmd/pico4/reveal_smart_film") != std::string::npos);
     assert(testPico4.find("escape/pico4/smart_film_ready") != std::string::npos);
