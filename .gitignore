@@ -27,6 +27,7 @@ Thumbs.db
 # Secrets / local config
 .env
 .env.*
+.escape-room-rebase-state
 pi-wifi.env
 john-contact.env
 bluetooth-speaker.env
