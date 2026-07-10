@@ -269,8 +269,12 @@ bool GameController::handlePostStateReport(const std::string& topic, const std::
 }
 
 bool GameController::handleSensorTelemetry(const std::string& topic, const std::string& payload) {
-    if (topic != "escape/telemetry/pico4/oven") {
+    if (topic.rfind("escape/telemetry/", 0) != 0) {
         return false;
+    }
+
+    if (topic != "escape/telemetry/pico4/oven") {
+        return true;
     }
 
     const std::string key = "oven_value=";

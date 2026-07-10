@@ -8,7 +8,7 @@ inline constexpr const char* PICO2_REPORT =
 
 inline constexpr const char* PICO3_REPORT =
     "Pico3 - Painting Rotation Sensor\n"
-    "Connected. Wiring: GPIO 15 to sensor signal/output, 3V3 to sensor VCC/red, and GND to sensor GND/black";
+    "Connected. Wiring: GPIO 15 to sensor white/signal, 3V3 to sensor red/VCC, and GND to sensor black/GND. Magnet present pulls GPIO 15 LOW.";
 
 inline constexpr const char* PICO4_REPORT =
     "Pico4 - Smart Film, Oven Potentiometer, and Lock\n"

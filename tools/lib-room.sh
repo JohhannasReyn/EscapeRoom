@@ -7,7 +7,7 @@ PICO_STATUS_TIMEOUT="${PICO_STATUS_TIMEOUT:-6}"
 
 PICO_TOPICS=(
     "pico2:escape/telemetry/pico2/contacts:Pico 2 one-piece copper puzzle:GPIO 15 copper input to puzzle contact to GND; internal pull-up enabled"
-    "pico3:escape/telemetry/pico3/painting_sensor:Pico 3 painting rotation:GPIO 15 magnetic/reed/hall sensor output, GPIO 14 reset"
+    "pico3:escape/telemetry/pico3/painting_sensor:Pico 3 painting rotation:GPIO 15 sensor white/signal, 3V3 red/VCC, GND black/GND; active-low with internal pull-up"
     "pico4:escape/telemetry/pico4/oven:Pico 4 smart film / oven:GPIO 15 smart film relay, GPIO 18 lock relay, GPIO 26 oven pot wiper"
     "pico5:escape/telemetry/pico5/buttons:Pico 5 color buttons:GPIO 15 red, GPIO 16 green, GPIO 17 yellow, GPIO 18 blue, buttons to GND"
     "pico7:escape/telemetry/fire-panel/status:Pico 7 fire panel:GP2-GP11 buttons to GND; GP12-GP21 red/green status LEDs"

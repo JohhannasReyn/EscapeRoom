@@ -20,6 +20,7 @@ int main() {
     const std::string capture = readText("tools/capture-fire-panel-buttons.sh");
     const std::string send = readText("tools/send_to_john.sh");
     const std::string setupDrive = readText("tools/setup-drive-upload.sh");
+    const std::string testPico4 = readText("tools/test-pico4.sh");
     const std::string contactExample = readText("john-contact.env.example");
     const std::string pico7 = readText("pico7-fire-panel/src/main.cpp");
     const std::string controller = readText("raspberry-pi-controller/src/GameController.cpp");
@@ -38,6 +39,11 @@ int main() {
     assert(help.find("tools/capture-fire-panel-buttons.sh") != std::string::npos);
     assert(help.find("tools/send_to_john.sh") != std::string::npos);
     assert(help.find("tools/setup-drive-upload.sh") != std::string::npos);
+
+    assert(testPico4.find("escape/cmd/pico4/reveal_smart_film") != std::string::npos);
+    assert(testPico4.find("escape/pico4/smart_film_ready") != std::string::npos);
+    assert(testPico4.find("transparent") != std::string::npos);
+    assert(testPico4.find("Pico 4 acknowledged smart film") != std::string::npos);
 
     assert(capture.find("fire-panel-button-order") != std::string::npos);
     assert(capture.find("Press the button labeled STATUS") != std::string::npos);
