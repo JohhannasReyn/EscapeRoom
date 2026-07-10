@@ -70,13 +70,13 @@ std::string get_project_asset_file(const std::string& fileName) {
     return get_home_dir() + "/escape-room/assets/audio/" + fileName;
 }
 
-void publish_reset(struct mosquitto* mosq) {
+void publish_reset_topic(struct mosquitto* mosq, const char* topic) {
     const char* payload = "reset";
 
     int rc = mosquitto_publish(
         mosq,
         nullptr,
-        RESET_TOPIC,
+        topic,
         static_cast<int>(std::strlen(payload)),
         payload,
         0,
@@ -84,10 +84,15 @@ void publish_reset(struct mosquitto* mosq) {
     );
 
     if (rc == MOSQ_ERR_SUCCESS) {
-        std::cout << "Published reset command: " << RESET_TOPIC << std::endl;
+        std::cout << "Published reset command: " << topic << std::endl;
     } else {
-        std::cout << "Reset publish failed: " << mosquitto_strerror(rc) << std::endl;
+        std::cout << "Reset publish failed for " << topic << ": " << mosquitto_strerror(rc) << std::endl;
     }
+}
+
+void publish_reset(struct mosquitto* mosq) {
+    publish_reset_topic(mosq, EscapeTopic::RESET_PUZZLE);
+    publish_reset_topic(mosq, RESET_TOPIC);
 }
 
 void publish_pending_commands(struct mosquitto* mosq, GameController& controller, int delayAfterEachMs = 0) {

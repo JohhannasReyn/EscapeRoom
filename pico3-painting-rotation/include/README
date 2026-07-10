@@ -20,3 +20,7 @@ assets/audio/crashing_plates.m4a.
 
 The event publishes once when the magnet pulls the sensor input LOW, then
 re-arms after the input returns HIGH.
+
+If reset happens while the magnet is still over the sensor, the Pico reports
+ready but waits for the sensor to return HIGH before it can publish another
+painting rotation event.

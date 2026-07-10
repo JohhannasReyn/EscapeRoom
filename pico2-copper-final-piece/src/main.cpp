@@ -46,6 +46,7 @@ struct DigitalPuzzle {
     const char* payload;
     int pin;
     bool solved;
+    bool needsPhysicalReset;
     int lastState;
     unsigned long stableStart;
 };
@@ -55,6 +56,7 @@ DigitalPuzzle copperPuzzle = {
     EscapeTopic::COPPER_PUZZLE_COMPLETE,
     "Complete",
     COPPER_COMPLETE_PIN,
+    false,
     false,
     PUZZLE_INACTIVE_STATE,
     0,
@@ -68,8 +70,10 @@ void publishPostState();
 void publishStartupReport();
 
 void resetPuzzles() {
+    int state = digitalRead(copperPuzzle.pin);
     copperPuzzle.solved = false;
-    copperPuzzle.lastState = digitalRead(copperPuzzle.pin);
+    copperPuzzle.needsPhysicalReset = state == PUZZLE_ACTIVE_STATE;
+    copperPuzzle.lastState = state;
     copperPuzzle.stableStart = millis();
 
     digitalWrite(LED_PIN, LOW);
@@ -162,8 +166,7 @@ void publishEvent(const char* topic, const char* payload) {
 }
 
 void publishPostState() {
-    bool completed = digitalRead(COPPER_COMPLETE_PIN) == PUZZLE_ACTIVE_STATE;
-    publishEvent(postStateTopic(2).c_str(), postStatePayload(completed));
+    publishEvent(postStateTopic(2).c_str(), postStatePayload(copperPuzzle.solved));
 }
 
 void publishStartupReport() {
@@ -178,6 +181,7 @@ void publishSensorTelemetry() {
     lastSensorTelemetry = millis();
     String payload = "copper=" + String(digitalRead(COPPER_COMPLETE_PIN));
     payload += ",copper_solved=" + String(copperPuzzle.solved ? 1 : 0);
+    payload += ",needs_reset=" + String(copperPuzzle.needsPhysicalReset ? 1 : 0);
     mqtt.publish("escape/telemetry/pico2/contacts", payload.c_str());
 }
 
@@ -225,6 +229,16 @@ void loop() {
         copperPuzzle.solved = false;
         digitalWrite(LED_PIN, LOW);
         publishPostState();
+    }
+
+    if (copperPuzzle.needsPhysicalReset) {
+        if (state == PUZZLE_INACTIVE_STATE && now - copperPuzzle.stableStart >= DEBOUNCE_MS) {
+            copperPuzzle.needsPhysicalReset = false;
+            publishPostState();
+        }
+        publishSensorTelemetry();
+        delay(50);
+        return;
     }
 
     if (state == PUZZLE_ACTIVE_STATE && !copperPuzzle.solved && now - copperPuzzle.stableStart >= DEBOUNCE_MS) {

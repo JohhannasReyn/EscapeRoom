@@ -19,6 +19,10 @@ int main() {
     assert(text.find("constexpr unsigned long DEBOUNCE_MS = 750") == std::string::npos);
     assert(text.find("PAINTING_REARM_MS") == std::string::npos);
     assert(text.find("paintingLowStart") == std::string::npos);
+    assert(text.find("paintingNeedsPhysicalReset") != std::string::npos);
+    assert(text.find("paintingNeedsPhysicalReset = state == PAINTING_SENSOR_ACTIVE_STATE") != std::string::npos);
+    assert(text.find("if (paintingNeedsPhysicalReset)") != std::string::npos);
+    assert(text.find("postStatePayload(paintingTriggered)") != std::string::npos);
     assert(text.find("constexpr int PAINTING_SENSOR_ACTIVE_STATE = LOW") != std::string::npos);
     assert(text.find("constexpr int PAINTING_SENSOR_IDLE_STATE = HIGH") != std::string::npos);
     assert(text.find("pinMode(PAINTING_SENSOR_PIN, INPUT_PULLUP)") != std::string::npos);

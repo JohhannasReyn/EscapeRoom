@@ -238,6 +238,9 @@ room is reset, so the door remains open for the group. A fire-panel `reset-all`
 or the Pi reset button re-locks the door, clears Pico 2/3/5 solved latches,
 clears Pico 4's oven target latch, and clears transient controller state so the
 next group gets a clean run. Reset also plays one random activation/reset cue.
+If reset is performed while the copper piece is still placed or the picture
+magnet is still over the sensor, that Pico waits for the contact/magnet to leave
+before it can fire again; this prevents an immediate re-solve after reset.
 
 There is no separate final-piece MQTT event in the active flow; Pico 2's single
 GPIO 15 copper contact is the only piece-placement input.
@@ -289,6 +292,9 @@ GPIO 15 LOW -> escape/pico2/copper_puzzle_complete
 
 No external 10k resistor is needed for the Pico 2 puzzle input.
 
+If reset happens while the piece is still touching the contact, Pico 2 waits for
+the contact to open before it can publish another completion event.
+
 ### Pico 3: Painting Rotation
 
 ```text
@@ -304,6 +310,8 @@ active-low: as soon as the magnet pulls GPIO 15 LOW, it publishes
 `escape/pico3/painting_rotation_complete`, and the Raspberry Pi plays the
 crashing-plates cue while keeping the Pico 5 color buttons active. The Pico
 re-arms as soon as the sensor returns HIGH again.
+If reset happens while the magnet is still over the sensor, Pico 3 waits for
+the sensor to return HIGH before it can publish another rotation event.
 
 ### Pico 4: Smart Film and Oven Knob
 
