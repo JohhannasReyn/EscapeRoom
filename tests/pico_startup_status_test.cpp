@@ -40,7 +40,7 @@ int main() {
             "pico3-painting-rotation/src/main.cpp",
             "Pico3 - Painting Rotation Sensor",
             "EscapePicoStatus::PICO3_REPORT",
-            "Connected. Wiring: GPIO 15 to sensor signal/output, 3V3 to sensor VCC/red, and GND to sensor GND/black"
+            "Connected. Wiring: GPIO 15 to sensor white/signal, 3V3 to sensor red/VCC, and GND to sensor black/GND. Magnet present pulls GPIO 15 LOW."
         },
         {
             "pico4-smart-film-oven/src/main.cpp",

@@ -293,14 +293,17 @@ No external 10k resistor is needed for the Pico 2 puzzle input.
 
 ```text
 GPIO 14 -> local reset button -> GND
-GPIO 15 -> RC35/reed/hall sensor output (drives the pin HIGH when the painting is rotated into position)
+GPIO 15 -> RC35/reed/hall sensor white/signal output
+3V3 -> sensor red/VCC
+GND -> sensor black/GND
 ```
 
 This Pico is always active and listens for the painting rotation magnet sensor.
-As soon as the sensor reads HIGH, it publishes
+The Pico uses its internal pull-up, so the installed sensor is treated as
+active-low: as soon as the magnet pulls GPIO 15 LOW, it publishes
 `escape/pico3/painting_rotation_complete`, and the Raspberry Pi plays the
 crashing-plates cue while keeping the Pico 5 color buttons active. The Pico
-re-arms as soon as the sensor reads LOW again.
+re-arms as soon as the sensor returns HIGH again.
 
 ### Pico 4: Smart Film and Oven Knob
 

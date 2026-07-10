@@ -5,16 +5,18 @@ This folder is the active Pico 3 project. The old TV wall trigger code is archiv
 ../../pico6-unused-future-puzzles/unused-future-puzzles/
 
 Hardware:
-- GPIO 15: RC35 magnetic sensor, reed switch, or equivalent hall-style sensor
+- GPIO 15: sensor white/signal output, using the Pico internal pull-up
+- 3V3: sensor red/VCC
+- GND: sensor black/GND
 
 Main topics:
 - Publishes escape/pico3/painting_rotation_complete when the active sensor is freshly triggered
 - Subscribes escape/cmd/all/status_request
 - Subscribes escape/cmd/all/reset_puzzle
 
-The sensor is always active from startup/reset. As soon as the input reads HIGH,
+The sensor is always active from startup/reset. As soon as the input reads LOW,
 the Pico publishes the painting rotation event and the Raspberry Pi plays
 assets/audio/crashing_plates.m4a.
 
-The event publishes once when the sensor input goes HIGH, then re-arms after the
-input returns LOW.
+The event publishes once when the magnet pulls the sensor input LOW, then
+re-arms after the input returns HIGH.

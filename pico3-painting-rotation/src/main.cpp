@@ -33,6 +33,8 @@
 constexpr int LED_PIN = LED_BUILTIN;
 constexpr int RST_PIN = 14;
 constexpr int PAINTING_SENSOR_PIN = 15;
+constexpr int PAINTING_SENSOR_ACTIVE_STATE = LOW;
+constexpr int PAINTING_SENSOR_IDLE_STATE = HIGH;
 constexpr unsigned long MQTT_RETRY_MS = 3000;
 constexpr unsigned long SENSOR_TELEMETRY_MS = 1000;
 constexpr int MQTT_ATTEMPTS_PER_HOST = 3;
@@ -137,7 +139,7 @@ void publishEvent(const char* topic, const char* payload) {
 }
 
 void publishPostState() {
-    publishEvent(postStateTopic(3).c_str(), postStatePayload(digitalRead(PAINTING_SENSOR_PIN) == HIGH));
+    publishEvent(postStateTopic(3).c_str(), postStatePayload(digitalRead(PAINTING_SENSOR_PIN) == PAINTING_SENSOR_ACTIVE_STATE));
 }
 
 void publishStartupReport() {
@@ -150,7 +152,9 @@ void publishSensorTelemetry() {
     }
 
     lastSensorTelemetry = millis();
-    String payload = "painting_sensor=" + String(digitalRead(PAINTING_SENSOR_PIN));
+    int state = digitalRead(PAINTING_SENSOR_PIN);
+    String payload = "painting_sensor=" + String(state);
+    payload += ",magnet_present=" + String(state == PAINTING_SENSOR_ACTIVE_STATE ? 1 : 0);
     payload += ",triggered=" + String(paintingTriggered ? 1 : 0);
     payload += ",trigger_count=" + String(paintingTriggerCount);
     mqtt.publish("escape/telemetry/pico3/painting_sensor", payload.c_str());
@@ -162,7 +166,7 @@ void setup() {
 
     pinMode(LED_PIN, OUTPUT);
     pinMode(RST_PIN, INPUT_PULLUP);
-    pinMode(PAINTING_SENSOR_PIN, INPUT);
+    pinMode(PAINTING_SENSOR_PIN, INPUT_PULLUP);
 
     connectWiFi();
     connectMQTT();
@@ -186,11 +190,11 @@ void loop() {
 
     int state = digitalRead(PAINTING_SENSOR_PIN);
 
-    if (state == LOW) {
+    if (state == PAINTING_SENSOR_IDLE_STATE) {
         paintingTriggered = false;
     }
 
-    if (state == HIGH && !paintingTriggered) {
+    if (state == PAINTING_SENSOR_ACTIVE_STATE && !paintingTriggered) {
         paintingTriggered = true;
         ++paintingTriggerCount;
         publishEvent(EscapeTopic::PAINTING_ROTATION_COMPLETE, "painting rotation complete");

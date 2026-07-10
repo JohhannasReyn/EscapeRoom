@@ -206,6 +206,9 @@ int main() {
     MqttCommand physicalResetLed = controller.takeNextPendingCommand();
     assert(physicalResetLed.topic == EscapeTopic::FIRE_PANEL_LED_COMMAND);
     assert(physicalResetLed.payload == "pot=physical-reset");
+    assert(controller.handleMessage("escape/telemetry/pico3/painting_sensor", "painting_sensor=1,triggered=0,trigger_count=0") == true);
+    assert(controller.handleMessage("escape/telemetry/pico5/buttons", "red=0,green=0,yellow=0,blue=0,solved=0") == true);
+    assert(controller.pendingCommandCount() == 0);
 
     std::vector<std::string> successEventOrder;
     display.eventLog = &successEventOrder;

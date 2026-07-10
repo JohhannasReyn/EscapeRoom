@@ -19,18 +19,25 @@ int main() {
     assert(text.find("constexpr unsigned long DEBOUNCE_MS = 750") == std::string::npos);
     assert(text.find("PAINTING_REARM_MS") == std::string::npos);
     assert(text.find("paintingLowStart") == std::string::npos);
-    assert(text.find("if (state == LOW)") != std::string::npos);
-    assert(text.find("paintingTriggered = false;") != std::string::npos);
+    assert(text.find("constexpr int PAINTING_SENSOR_ACTIVE_STATE = LOW") != std::string::npos);
+    assert(text.find("constexpr int PAINTING_SENSOR_IDLE_STATE = HIGH") != std::string::npos);
+    assert(text.find("pinMode(PAINTING_SENSOR_PIN, INPUT_PULLUP)") != std::string::npos);
 
-    std::size_t highTrigger = text.find("if (state == HIGH && !paintingTriggered)");
-    assert(highTrigger != std::string::npos);
+    std::size_t highRearm = text.find("if (state == PAINTING_SENSOR_IDLE_STATE)");
+    assert(highRearm != std::string::npos);
 
-    std::size_t publish = text.find("publishEvent(EscapeTopic::PAINTING_ROTATION_COMPLETE", highTrigger);
+    std::size_t rearm = text.find("paintingTriggered = false;", highRearm);
+    assert(rearm != std::string::npos);
+
+    std::size_t lowTrigger = text.find("if (state == PAINTING_SENSOR_ACTIVE_STATE && !paintingTriggered)");
+    assert(lowTrigger != std::string::npos);
+
+    std::size_t publish = text.find("publishEvent(EscapeTopic::PAINTING_ROTATION_COMPLETE", lowTrigger);
     assert(publish != std::string::npos);
 
-    std::string highPath = text.substr(highTrigger, publish - highTrigger);
-    assert(highPath.find("paintingStableStart") == std::string::npos);
-    assert(highPath.find("DEBOUNCE_MS") == std::string::npos);
-    assert(highPath.find("PAINTING_REARM_MS") == std::string::npos);
-    assert(highPath.find("now -") == std::string::npos);
+    std::string lowPath = text.substr(lowTrigger, publish - lowTrigger);
+    assert(lowPath.find("paintingStableStart") == std::string::npos);
+    assert(lowPath.find("DEBOUNCE_MS") == std::string::npos);
+    assert(lowPath.find("PAINTING_REARM_MS") == std::string::npos);
+    assert(lowPath.find("now -") == std::string::npos);
 }
