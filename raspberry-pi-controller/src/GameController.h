@@ -28,7 +28,8 @@ public:
         Effect* bakeAttentionEffect = nullptr,
         Effect* copperCompleteEffect = nullptr,
         Effect* colorSequenceSuccessFirstEffect = nullptr,
-        Effect* colorSequenceSuccessSecondEffect = nullptr
+        Effect* colorSequenceSuccessSecondEffect = nullptr,
+        Effect* roomCueEffect = nullptr
     );
 
     void addPuzzle(std::unique_ptr<PuzzleModule> puzzle);
@@ -44,6 +45,7 @@ public:
     void queueReadyCommand();
     void resetPostState();
     void resetGameProgress();
+    void triggerRoomCue(const std::string& payload);
 
 private:
     bool handleFireCommand(const std::string& topic, const std::string& payload);
@@ -70,6 +72,7 @@ private:
     Effect* copperCompleteEffect = nullptr;
     Effect* colorSequenceSuccessFirstEffect = nullptr;
     Effect* colorSequenceSuccessSecondEffect = nullptr;
+    Effect* roomCueEffect = nullptr;
 };
 
 #endif

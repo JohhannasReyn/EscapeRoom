@@ -106,6 +106,10 @@ tools/start.sh
 
 The controller prints puzzle events and telemetry changes only. Repeated identical telemetry is suppressed to keep the terminal readable.
 
+When the controller connects to MQTT, and whenever a room reset is performed,
+the Raspberry Pi randomly plays one activation/reset cue from
+`assets/audio/`.
+
 When a Pico connects to MQTT or receives a status request, it publishes a
 human-readable wiring report on `escape/status/pico`. The controller prints it
 as a `Pico wiring/status report`, for example:
@@ -210,6 +214,9 @@ When powered and connected to MQTT, all active sensor Picos listen immediately:
 
 Active room progression:
 
+When the Raspberry Pi controller connects to MQTT, it plays one random
+activation/reset cue.
+
 1. Pico 2 publishes `escape/pico2/copper_puzzle_complete` when the puzzle piece is placed.
 2. Raspberry Pi plays `check-the-oven.wav`.
 3. Raspberry Pi tells Pico 4 to reveal the smart film.
@@ -226,7 +233,7 @@ The electromagnetic lock stays released (Pico 4 holds `GPIO 18` HIGH) until the
 room is reset, so the door remains open for the group. A fire-panel `reset-all`
 or the Pi reset button re-locks the door, clears Pico 2/3/5 solved latches,
 clears Pico 4's oven target latch, and clears transient controller state so the
-next group gets a clean run.
+next group gets a clean run. Reset also plays one random activation/reset cue.
 
 There is no separate final-piece MQTT event in the active flow; Pico 2's single
 GPIO 15 copper contact is the only piece-placement input.
@@ -447,6 +454,18 @@ starting the controller:
 
 ```bash
 ESCAPE_AUDIO_DEVICE="default:CARD=Headphones" tools/start.sh
+```
+
+Room activation/reset cues are selected at random from:
+
+```text
+assets/audio/beep-boop-reset-complete.wav
+assets/audio/beep-beep-boop-boop-reset-complete.wav
+assets/audio/resetedededed.wav
+assets/audio/lets-get-to-bakin&escapin.wav
+assets/audio/let-us-bake&escape-if-you-can.wav
+assets/audio/escape-room-activated-lets-go.wav
+assets/audio/its-time-for-some-baking-and-escaping-lets-go.wav
 ```
 
 The physical fire-panel reset button must be held for 5 seconds. During the hold,

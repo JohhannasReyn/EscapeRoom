@@ -16,7 +16,8 @@ GameController::GameController(
     Effect* bakeAttentionEffect,
     Effect* copperCompleteEffect,
     Effect* colorSequenceSuccessFirstEffect,
-    Effect* colorSequenceSuccessSecondEffect
+    Effect* colorSequenceSuccessSecondEffect,
+    Effect* roomCueEffect
 )
     : paintingCrashEffect(paintingCrashEffect),
       displayOutput(displayOutput),
@@ -24,7 +25,8 @@ GameController::GameController(
       bakeAttentionEffect(bakeAttentionEffect),
       copperCompleteEffect(copperCompleteEffect),
       colorSequenceSuccessFirstEffect(colorSequenceSuccessFirstEffect),
-      colorSequenceSuccessSecondEffect(colorSequenceSuccessSecondEffect) {
+      colorSequenceSuccessSecondEffect(colorSequenceSuccessSecondEffect),
+      roomCueEffect(roomCueEffect) {
 }
 
 void GameController::addPuzzle(std::unique_ptr<PuzzleModule> puzzle) {
@@ -135,6 +137,7 @@ bool GameController::handleFireCommand(const std::string& topic, const std::stri
     }
 
     if (topic == EscapeTopic::FIRE_RESET_ALL) {
+        triggerRoomCue("room reset");
         resetGameProgress();
         queueFirePanelLedCommand("all", "checking");
         pendingCommands.push_back({EscapeTopic::RESET_PUZZLE, "reset"});
@@ -210,6 +213,12 @@ void GameController::resetGameProgress() {
     state = RoomState::COPPER_PUZZLE_ACTIVE;
     ovenPhysicalResetSignaled = false;
     solvedTopics.clear();
+}
+
+void GameController::triggerRoomCue(const std::string& payload) {
+    if (roomCueEffect != nullptr) {
+        roomCueEffect->trigger(payload);
+    }
 }
 
 bool GameController::handlePostStateReport(const std::string& topic, const std::string& payload) {

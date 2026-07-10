@@ -58,6 +58,11 @@ run_test "controller_logic_test" \
     --source "raspberry-pi-controller/src/puzzles/CopperPuzzle.cpp" \
     --source "raspberry-pi-controller/src/effects/DisplayOutput.cpp"
 
+run_test "random_effect_test" \
+    --include "raspberry-pi-controller/src" \
+    --source "tests/random_effect_test.cpp" \
+    --source "raspberry-pi-controller/src/effects/RandomEffect.cpp"
+
 run_test "cubby_led_layout_test" \
     --include "pico1-cubby-approach-leds/src" \
     --source "pico1-cubby-approach-leds/test/test_cubby_led_layout.cpp"
@@ -131,5 +136,8 @@ run_test "fire_panel_tools_test" \
 
 run_test "audio_effect_low_latency_test" \
     --source "tests/audio_effect_low_latency_test.cpp"
+
+run_test "room_cue_audio_test" \
+    --source "tests/room_cue_audio_test.cpp"
 
 echo "All host-side tests passed."

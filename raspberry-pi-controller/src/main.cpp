@@ -6,6 +6,7 @@
 #include "effects/AudioEffect.h"
 #include "effects/DisplayOutput.h"
 #include "effects/GpioBuzzerEffect.h"
+#include "effects/RandomEffect.h"
 #include "puzzles/CopperPuzzle.h"
 #include "puzzles/PlannedPuzzles.h"
 
@@ -19,6 +20,7 @@
 #include <memory>
 #include <string>
 #include <thread>
+#include <vector>
 
 static const char* MQTT_HOST = "localhost";
 static const int MQTT_PORT = 1883;
@@ -132,6 +134,7 @@ void handle_reset_button_value(
 
         if (!resetPublishedForPress && resetPressReady(heldMs, pressed)) {
             publish_reset(mosq);
+            controller.triggerRoomCue("room reset");
             std::this_thread::sleep_for(std::chrono::milliseconds(500));
             controller.resetGameProgress();
             controller.queuePostQueryCommand();
@@ -345,6 +348,7 @@ void on_connect(struct mosquitto* mosq, void* userdata, int rc) {
             std::cout << "Subscribe failed for fire panel commands. Error code: " << fire_rc << std::endl;
         }
 
+        controller->triggerRoomCue("room activated");
         controller->queuePostQueryCommand();
         controller->queueGameReadyCommands();
         publish_pending_commands(mosq, *controller);
@@ -408,6 +412,24 @@ void on_message(struct mosquitto* mosq, void* userdata, const struct mosquitto_m
 }
 
 int main() {
+    const std::vector<std::string> roomCueAudioFiles = {
+        "beep-boop-reset-complete.wav",
+        "beep-beep-boop-boop-reset-complete.wav",
+        "resetedededed.wav",
+        "lets-get-to-bakin&escapin.wav",
+        "let-us-bake&escape-if-you-can.wav",
+        "escape-room-activated-lets-go.wav",
+        "its-time-for-some-baking-and-escaping-lets-go.wav",
+    };
+
+    std::vector<std::unique_ptr<AudioEffect>> roomCueAudioPlayers;
+    std::vector<Effect*> roomCueEffects;
+    for (const std::string& audioFile : roomCueAudioFiles) {
+        roomCueAudioPlayers.push_back(std::make_unique<AudioEffect>(get_project_asset_file(audioFile)));
+        roomCueEffects.push_back(roomCueAudioPlayers.back().get());
+    }
+
+    RandomEffect roomCueAudio(roomCueEffects);
     AudioEffect crashingPlatesAudio(get_project_asset_file("crashing_plates.m4a"));
     AudioEffect wrongCodeAudio(get_project_asset_file("buzzer.mp3"));
     AudioEffect checkOvenAudio(get_project_asset_file("check-the-oven.wav"));
@@ -423,7 +445,8 @@ int main() {
         &bakeAttentionBuzzer,
         &checkOvenAudio,
         &yeahYouDidItAudio,
-        &bakeAt350Audio
+        &bakeAt350Audio,
+        &roomCueAudio
     );
     controller.addPuzzle(std::make_unique<CopperPuzzle>());
     controller.addPuzzle(std::make_unique<PaintingRotationPuzzle>());
@@ -440,6 +463,10 @@ int main() {
     std::cout << "Copper-complete audio: " << checkOvenAudio.file() << std::endl;
     std::cout << "Color success audio 1: " << yeahYouDidItAudio.file() << std::endl;
     std::cout << "Color success audio 2: " << bakeAt350Audio.file() << std::endl;
+    std::cout << "Room activation/reset random audio choices:" << std::endl;
+    for (const std::unique_ptr<AudioEffect>& roomCueAudioPlayer : roomCueAudioPlayers) {
+        std::cout << "  " << roomCueAudioPlayer->file() << std::endl;
+    }
     std::cout << "Bake attention buzzer: GPIO " << PI_BAKE_BUZZER_GPIO
               << " for " << PI_BAKE_BUZZER_MS << " ms" << std::endl;
     std::cout << "Registered puzzle topics:" << std::endl;
