@@ -1,6 +1,7 @@
 #include <cassert>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "../src/GameController.h"
 #include "../src/ResetControl.h"
@@ -17,10 +18,15 @@ public:
     void trigger(const std::string& payload) override {
         lastPayload = payload;
         ++triggerCount;
+        if (eventLog != nullptr) {
+            eventLog->push_back(eventName);
+        }
     }
 
     int triggerCount = 0;
     std::string lastPayload;
+    std::vector<std::string>* eventLog = nullptr;
+    std::string eventName;
 };
 
 class RecordingDisplay : public DisplayOutput {
@@ -28,6 +34,7 @@ public:
     void show_message(const std::string& text) override {
         lastMessage = text;
         ++showCount;
+        recordEvent();
     }
 
     void flash_message(const std::string& text, int durationSec, double intervalSec) override {
@@ -35,10 +42,12 @@ public:
         lastDuration = durationSec;
         lastInterval = intervalSec;
         ++flashCount;
+        recordEvent();
     }
 
     void clear() override {
         ++clearCount;
+        recordEvent();
     }
 
     int showCount = 0;
@@ -47,6 +56,15 @@ public:
     int lastDuration = 0;
     double lastInterval = 0;
     std::string lastMessage;
+    std::vector<std::string>* eventLog = nullptr;
+    std::string eventName;
+
+private:
+    void recordEvent() {
+        if (eventLog != nullptr) {
+            eventLog->push_back(eventName);
+        }
+    }
 };
 
 void addActivePuzzles(GameController& controller) {
@@ -187,7 +205,20 @@ int main() {
     assert(physicalResetLed.topic == EscapeTopic::FIRE_PANEL_LED_COMMAND);
     assert(physicalResetLed.payload == "pot=physical-reset");
 
+    std::vector<std::string> successEventOrder;
+    display.eventLog = &successEventOrder;
+    display.eventName = "display";
+    bakeBuzzer.eventLog = &successEventOrder;
+    bakeBuzzer.eventName = "bake-buzzer";
+    colorSuccessFirstAudio.eventLog = &successEventOrder;
+    colorSuccessFirstAudio.eventName = "success-audio-1";
+    colorSuccessSecondAudio.eventLog = &successEventOrder;
+    colorSuccessSecondAudio.eventName = "success-audio-2";
+
     assert(controller.handleMessage(EscapeTopic::COLOR_SEQUENCE_COMPLETE, "buttons") == true);
+    assert(successEventOrder.size() >= 4);
+    assert(successEventOrder[0] == "success-audio-1");
+    assert(successEventOrder[1] == "success-audio-2");
     assert(display.flashCount == 1);
     assert(display.lastMessage == "Bake at 350 Degrees");
     assert(bakeBuzzer.triggerCount == 1);

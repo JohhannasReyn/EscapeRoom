@@ -36,7 +36,6 @@ constexpr int BUTTON_RED_PIN = 15;
 constexpr int BUTTON_GREEN_PIN = 16;
 constexpr int BUTTON_YELLOW_PIN = 17;
 constexpr int BUTTON_BLUE_PIN = 18;
-constexpr unsigned long DEBOUNCE_MS = 150;
 constexpr unsigned long MQTT_RETRY_MS = 3000;
 constexpr unsigned long SENSOR_TELEMETRY_MS = 1000;
 constexpr unsigned long ATTEMPT_TIMEOUT_MS = 10000;
@@ -58,15 +57,14 @@ struct ColorButton {
     int requiredPresses;
     int pressCount;
     int lastState;
-    unsigned long stableStart;
     bool pressRegistered;
 };
 
 ColorButton buttons[] = {
-    {'R', "red", BUTTON_RED_PIN, REQUIRED_RED_PRESSES, 0, HIGH, 0, false},
-    {'G', "green", BUTTON_GREEN_PIN, REQUIRED_GREEN_PRESSES, 0, HIGH, 0, false},
-    {'Y', "yellow", BUTTON_YELLOW_PIN, REQUIRED_YELLOW_PRESSES, 0, HIGH, 0, false},
-    {'B', "blue", BUTTON_BLUE_PIN, REQUIRED_BLUE_PRESSES, 0, HIGH, 0, false},
+    {'R', "red", BUTTON_RED_PIN, REQUIRED_RED_PRESSES, 0, HIGH, false},
+    {'G', "green", BUTTON_GREEN_PIN, REQUIRED_GREEN_PRESSES, 0, HIGH, false},
+    {'Y', "yellow", BUTTON_YELLOW_PIN, REQUIRED_YELLOW_PRESSES, 0, HIGH, false},
+    {'B', "blue", BUTTON_BLUE_PIN, REQUIRED_BLUE_PRESSES, 0, HIGH, false},
 };
 
 WiFiClient wifiClient;
@@ -95,7 +93,6 @@ void resetSequence() {
 
     for (ColorButton& button : buttons) {
         button.lastState = digitalRead(button.pin);
-        button.stableStart = millis();
         button.pressRegistered = false;
     }
 
@@ -270,7 +267,6 @@ void setup() {
     for (ColorButton& button : buttons) {
         pinMode(button.pin, INPUT_PULLUP);
         button.lastState = digitalRead(button.pin);
-        button.stableStart = millis();
     }
 
     connectWiFi();
@@ -306,19 +302,16 @@ void loop() {
     for (ColorButton& button : buttons) {
         int state = digitalRead(button.pin);
 
-        if (state != button.lastState) {
-            button.lastState = state;
-            button.stableStart = now;
-        }
-
-        if (state == LOW && !button.pressRegistered && now - button.stableStart >= DEBOUNCE_MS) {
+        if (state == LOW && button.lastState == HIGH && !button.pressRegistered) {
             button.pressRegistered = true;
             registerButtonPress(button);
         }
 
-        if (state == HIGH && button.pressRegistered && now - button.stableStart >= DEBOUNCE_MS) {
+        if (state == HIGH && button.lastState == LOW && button.pressRegistered) {
             button.pressRegistered = false;
         }
+
+        button.lastState = state;
     }
 
     publishSensorTelemetry();

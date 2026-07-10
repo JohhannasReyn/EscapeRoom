@@ -52,7 +52,7 @@ void AudioEffect::trigger(const std::string& payload) {
         (audioFile.size() >= 4 && audioFile.substr(audioFile.size() - 4) == ".mp3");
 
     if (useFfplay) {
-        cmd = "ffplay -nodisp -autoexit -loglevel quiet " + shellQuote(audioFile);
+        cmd = "ffplay -nodisp -autoexit -loglevel quiet -fflags nobuffer -flags low_delay -probesize 32 -analyzeduration 0 " + shellQuote(audioFile);
     } else {
         cmd = "aplay -D " + shellQuote(audioDevice()) + " " + shellQuote(audioFile);
     }

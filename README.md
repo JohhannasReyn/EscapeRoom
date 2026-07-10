@@ -214,8 +214,8 @@ Active room progression:
 2. Raspberry Pi plays `check-the-oven.wav`.
 3. Raspberry Pi tells Pico 4 to reveal the smart film.
 4. Whenever Pico 3 publishes `escape/pico3/painting_rotation_complete`, Raspberry Pi plays `crashing_plates.m4a` and keeps the color buttons active.
-5. If Pico 5 publishes `escape/pico5/color_sequence_error`, Raspberry Pi plays `buzzer.mp3`.
-6. Pico 5 publishes `escape/pico5/color_sequence_complete` after the correct combo.
+5. If Pico 5 publishes `escape/pico5/color_sequence_error`, Raspberry Pi plays `buzzer.mp3` immediately.
+6. Pico 5 publishes `escape/pico5/color_sequence_complete` immediately on the final correct press.
 7. Raspberry Pi plays `yeah-you-did-it.mp3`, then `bake_at_350.wav`; Pico 4's oven knob is already listening.
 8. If the oven is already at 350 when the room starts or resets, the fire panel's potentiometer status flashes green until the knob is moved away from 350.
 9. Player turns the oven knob to 350 and holds it there.
@@ -303,6 +303,9 @@ GND -> oven potentiometer outer leg
 GPIO 26 / ADC0 / physical pin 31 -> oven potentiometer wiper
 ```
 
+The oven dial reports a 300-400 degree range in 5-degree steps, centered on
+350, to make the target easier to land on.
+
 ### Pico 5: Color Buttons
 
 ```text
@@ -318,6 +321,9 @@ Each button uses the Pico's internal pull-up resistor:
 ```text
 Pico GPIO input -> button -> Pico GND
 ```
+
+The Pico counts each button on the press edge and re-arms that button after it
+is released, so right/wrong MQTT events fire as soon as the final press is made.
 
 Required counts:
 

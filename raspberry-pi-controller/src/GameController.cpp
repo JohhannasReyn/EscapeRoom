@@ -339,18 +339,6 @@ bool GameController::handleFlowEvent(const std::string& topic, const std::string
         transitionTo(RoomState::COLOR_BUTTON_SEQUENCE_COMPLETE, topic);
         queueFirePanelLedCommand("buttons", "ready");
 
-        if (displayOutput != nullptr) {
-            displayOutput->flash_message("Bake at 350 Degrees", 6, 0.5);
-        } else {
-            std::cout << "Display output not configured. Message: Bake at 350 Degrees" << std::endl;
-        }
-
-        if (bakeAttentionEffect != nullptr) {
-            bakeAttentionEffect->trigger(payload);
-        } else {
-            std::cout << "Bake attention buzzer not configured." << std::endl;
-        }
-
         if (colorSequenceSuccessFirstEffect != nullptr) {
             colorSequenceSuccessFirstEffect->trigger(payload);
         } else {
@@ -361,6 +349,18 @@ bool GameController::handleFlowEvent(const std::string& topic, const std::string
             colorSequenceSuccessSecondEffect->trigger(payload);
         } else {
             std::cout << "Color success second audio effect not configured." << std::endl;
+        }
+
+        if (bakeAttentionEffect != nullptr) {
+            bakeAttentionEffect->trigger(payload);
+        } else {
+            std::cout << "Bake attention buzzer not configured." << std::endl;
+        }
+
+        if (displayOutput != nullptr) {
+            displayOutput->flash_message("Bake at 350 Degrees", 6, 0.5);
+        } else {
+            std::cout << "Display output not configured. Message: Bake at 350 Degrees" << std::endl;
         }
 
         transitionTo(RoomState::DISPLAY_BAKE_350, "display bake message requested");

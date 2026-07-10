@@ -20,6 +20,9 @@ Main topics:
 The lock only releases after:
 - potentiometer-derived value stays at 350 within tolerance for the configured hold time
 
+The potentiometer maps to a 300-400 degree oven range in 5-degree steps so the
+350 target is less twitchy.
+
 After the oven reaches 350, the Pico re-arms when the potentiometer leaves the
 target tolerance window.
 
