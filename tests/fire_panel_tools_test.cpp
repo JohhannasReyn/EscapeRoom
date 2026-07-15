@@ -41,6 +41,11 @@ int main() {
     assert(help.find("tools/send_to_john.sh") != std::string::npos);
     assert(help.find("tools/setup-drive-upload.sh") != std::string::npos);
     assert(help.find("do not run it with source") != std::string::npos);
+    assert(help.find("Fire panel button map") != std::string::npos);
+    assert(help.find("| STATUS | GP2 | escape/fire/status |") != std::string::npos);
+    assert(help.find("| RESET-ALL | GP11 | escape/fire/reset-all |") != std::string::npos);
+    assert(help.find("Light state key") != std::string::npos);
+    assert(help.find("Alternating red/green") != std::string::npos);
 
     const std::string readme = readText("README.md");
     assert(readme.find("tools/rebase.sh") != std::string::npos);
@@ -57,7 +62,8 @@ int main() {
     assert(testPico4.find("oven_raw range") != std::string::npos);
 
     assert(testPico5.find("escape/pico5/color_sequence_error") != std::string::npos);
-    assert(testPico5.find("wrong-code buzzer") != std::string::npos);
+    assert(testPico5.find("try-again.wav") != std::string::npos);
+    assert(testPico5.find("buzzer.mp3") != std::string::npos);
     assert(testPico5.find("escape/telemetry/pico5/buttons") != std::string::npos);
 
     assert(capture.find("fire-panel-button-order") != std::string::npos);
@@ -89,6 +95,8 @@ int main() {
     assert(setupDrive.find("JOHN_RCLONE_TARGET") != std::string::npos);
     assert(setupDrive.find("DEFAULT_REMOTE=\"escape-room-drive\"") != std::string::npos);
     assert(setupDrive.find("1QYtv2RmXZq8g6iEgjdxn2W2cG39L_TYW") != std::string::npos);
+    assert(pico7.find("AlternatingRedGreen") != std::string::npos);
+    assert(pico7.find("alternating-red-green") != std::string::npos);
 
     const std::vector<std::string> fireCommands = {
         "status",

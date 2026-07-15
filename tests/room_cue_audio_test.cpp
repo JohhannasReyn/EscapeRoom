@@ -32,7 +32,8 @@ int main() {
     }
 
     assert(main.find("RandomEffect roomCueAudio") != std::string::npos);
-    assert(main.find("triggerRoomCue(\"room activated\")") != std::string::npos);
+    assert(main.find("Room reset random audio choices") != std::string::npos);
+    assert(main.find("triggerRoomCue(\"room activated\")") == std::string::npos);
     assert(main.find("triggerRoomCue(\"room reset\")") != std::string::npos);
     assert(main.find("publish_reset_topic(mosq, EscapeTopic::RESET_PUZZLE") != std::string::npos);
     assert(main.find("publish_reset_topic(mosq, RESET_TOPIC") != std::string::npos);

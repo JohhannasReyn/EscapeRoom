@@ -1,6 +1,7 @@
 #include "GameController.h"
 
 #include "OvenDial.h"
+#include "ColorButtonSequence.h"
 #include "EscapeRoomProtocol.h"
 #include "PostState.h"
 
@@ -13,6 +14,7 @@ GameController::GameController(
     Effect* paintingCrashEffect,
     DisplayOutput* displayOutput,
     Effect* colorSequenceErrorEffect,
+    Effect* colorSequenceTryAgainEffect,
     Effect* bakeAttentionEffect,
     Effect* copperCompleteEffect,
     Effect* colorSequenceSuccessFirstEffect,
@@ -22,6 +24,7 @@ GameController::GameController(
     : paintingCrashEffect(paintingCrashEffect),
       displayOutput(displayOutput),
       colorSequenceErrorEffect(colorSequenceErrorEffect),
+      colorSequenceTryAgainEffect(colorSequenceTryAgainEffect),
       bakeAttentionEffect(bakeAttentionEffect),
       copperCompleteEffect(copperCompleteEffect),
       colorSequenceSuccessFirstEffect(colorSequenceSuccessFirstEffect),
@@ -212,6 +215,7 @@ void GameController::resetGameProgress() {
     // full flow for the next group.
     state = RoomState::COPPER_PUZZLE_ACTIVE;
     ovenPhysicalResetSignaled = false;
+    colorSequenceErrorCount = 0;
     solvedTopics.clear();
 }
 
@@ -384,8 +388,15 @@ bool GameController::handleFlowEvent(const std::string& topic, const std::string
 
     if (topic == EscapeTopic::COLOR_SEQUENCE_ERROR) {
         queueFirePanelLedCommand("buttons", "wrong");
-        if (colorSequenceErrorEffect != nullptr) {
-            colorSequenceErrorEffect->trigger(payload);
+        ++colorSequenceErrorCount;
+
+        Effect* selectedErrorEffect = colorSequenceErrorEffect;
+        if (colorFailureUsesTryAgainCue(colorSequenceErrorCount) && colorSequenceTryAgainEffect != nullptr) {
+            selectedErrorEffect = colorSequenceTryAgainEffect;
+        }
+
+        if (selectedErrorEffect != nullptr) {
+            selectedErrorEffect->trigger(payload);
         } else {
             std::cout << "Color sequence error audio effect not configured." << std::endl;
         }

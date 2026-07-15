@@ -2,6 +2,7 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
 
+#include "../../shared/ColorButtonSequence.h"
 #include "../../shared/EscapeRoomProtocol.h"
 #include "../../shared/PicoStatusReport.h"
 #include "../../shared/PostState.h"
@@ -72,6 +73,7 @@ PubSubClient mqtt(wifiClient);
 
 bool sequenceSolved = false;
 int totalPresses = 0;
+int sequenceIndex = 0;
 unsigned long lastPressAt = 0;
 unsigned long lastSensorTelemetry = 0;
 
@@ -80,6 +82,7 @@ void publishStartupReport();
 
 void clearAttempt() {
     totalPresses = 0;
+    sequenceIndex = 0;
 
     for (ColorButton& button : buttons) {
         button.pressCount = 0;
@@ -115,14 +118,8 @@ void publishAttemptError(const char* reason) {
 }
 
 bool currentAttemptIsCorrect() {
-    if (totalPresses != REQUIRED_TOTAL_PRESSES) {
+    if (totalPresses != COLOR_BUTTON_SEQUENCE_LENGTH) {
         return false;
-    }
-
-    for (ColorButton& button : buttons) {
-        if (button.pressCount != button.requiredPresses) {
-            return false;
-        }
     }
 
     return true;
@@ -239,26 +236,28 @@ void registerButtonPress(ColorButton& pressedButton) {
         return;
     }
 
-    ++pressedButton.pressCount;
-    ++totalPresses;
     lastPressAt = millis();
 
-    if (pressedButton.pressCount > pressedButton.requiredPresses) {
-        publishAttemptError("too many color button presses");
+    if (!colorButtonCodeMatchesStep(sequenceIndex, pressedButton.code)) {
+        publishAttemptError("incorrect color button entry");
         return;
     }
 
-    if (totalPresses < REQUIRED_TOTAL_PRESSES) {
+    ++pressedButton.pressCount;
+    ++totalPresses;
+    sequenceIndex = totalPresses;
+
+    if (totalPresses < COLOR_BUTTON_SEQUENCE_LENGTH) {
         return;
     }
 
     if (currentAttemptIsCorrect()) {
         sequenceSolved = true;
         digitalWrite(LED_PIN, HIGH);
-        publishEvent(EscapeTopic::COLOR_SEQUENCE_COMPLETE, "color button counts complete");
+        publishEvent(EscapeTopic::COLOR_SEQUENCE_COMPLETE, "color button sequence complete");
         publishPostState();
     } else {
-        publishAttemptError("incorrect color button counts");
+        publishAttemptError("incorrect color button entry");
     }
 }
 

@@ -46,6 +46,7 @@ enum class LedMode {
     SolidRed,
     FlashGreen,
     FlashRed,
+    AlternatingRedGreen,
 };
 
 struct FireButton {
@@ -119,6 +120,10 @@ LedMode ledModeFromText(const String& text) {
         return LedMode::FlashRed;
     }
 
+    if (text == "alternating" || text == "alternating-red-green") {
+        return LedMode::AlternatingRedGreen;
+    }
+
     return LedMode::Off;
 }
 
@@ -140,6 +145,9 @@ void applyLedMode(StatusZone& zone) {
             break;
         case LedMode::FlashRed:
             setZonePins(zone, false, blinkOn);
+            break;
+        case LedMode::AlternatingRedGreen:
+            setZonePins(zone, blinkOn, !blinkOn);
             break;
         case LedMode::Off:
             setZonePins(zone, false, false);

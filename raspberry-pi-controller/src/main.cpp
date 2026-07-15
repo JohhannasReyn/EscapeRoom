@@ -353,7 +353,6 @@ void on_connect(struct mosquitto* mosq, void* userdata, int rc) {
             std::cout << "Subscribe failed for fire panel commands. Error code: " << fire_rc << std::endl;
         }
 
-        controller->triggerRoomCue("room activated");
         controller->queuePostQueryCommand();
         controller->queueGameReadyCommands();
         publish_pending_commands(mosq, *controller);
@@ -437,6 +436,7 @@ int main() {
     RandomEffect roomCueAudio(roomCueEffects);
     AudioEffect crashingPlatesAudio(get_project_asset_file("crashing_plates.m4a"));
     AudioEffect wrongCodeAudio(get_project_asset_file("buzzer.mp3"));
+    AudioEffect tryAgainAudio(get_project_asset_file("try-again.wav"));
     AudioEffect checkOvenAudio(get_project_asset_file("check-the-oven.wav"));
     AudioEffect yeahYouDidItAudio(get_project_asset_file("yeah-you-did-it.mp3"), false);
     AudioEffect bakeAt350Audio(get_project_asset_file("bake_at_350.wav"), false);
@@ -447,6 +447,7 @@ int main() {
         &crashingPlatesAudio,
         &display,
         &wrongCodeAudio,
+        &tryAgainAudio,
         &bakeAttentionBuzzer,
         &checkOvenAudio,
         &yeahYouDidItAudio,
@@ -465,10 +466,11 @@ int main() {
     std::cout << "Broker: " << MQTT_HOST << ":" << MQTT_PORT << std::endl;
     std::cout << "Painting audio: " << crashingPlatesAudio.file() << std::endl;
     std::cout << "Wrong-code audio: " << wrongCodeAudio.file() << std::endl;
+    std::cout << "Try-again audio: " << tryAgainAudio.file() << std::endl;
     std::cout << "Copper-complete audio: " << checkOvenAudio.file() << std::endl;
     std::cout << "Color success audio 1: " << yeahYouDidItAudio.file() << std::endl;
     std::cout << "Color success audio 2: " << bakeAt350Audio.file() << std::endl;
-    std::cout << "Room activation/reset random audio choices:" << std::endl;
+    std::cout << "Room reset random audio choices:" << std::endl;
     for (const std::unique_ptr<AudioEffect>& roomCueAudioPlayer : roomCueAudioPlayers) {
         std::cout << "  " << roomCueAudioPlayer->file() << std::endl;
     }

@@ -119,6 +119,10 @@ run_test "pico3_painting_always_active_test" \
 run_test "pico5_color_buttons_immediate_test" \
     --source "tests/pico5_color_buttons_immediate_test.cpp"
 
+run_test "color_button_sequence_test" \
+    --include "shared" \
+    --source "tests/color_button_sequence_test.cpp"
+
 run_test "pico_wifi_config_test" \
     --source "tests/pico_wifi_config_test.cpp"
 
