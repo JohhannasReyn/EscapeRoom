@@ -17,9 +17,13 @@ int main() {
     assert(text.find("state == LOW && button.lastState == HIGH") != std::string::npos);
     assert(text.find("state == HIGH && button.lastState == LOW") != std::string::npos);
     assert(text.find("registerButtonPress(button)") != std::string::npos);
-    assert(text.find("pressedButton.pressCount > pressedButton.requiredPresses") != std::string::npos);
-    assert(text.find("too many color button presses") != std::string::npos);
-    assert(text.find("publishAttemptError") < text.find("if (totalPresses < REQUIRED_TOTAL_PRESSES)"));
+    assert(text.find("ColorButtonSequence.h") != std::string::npos);
+    assert(text.find("sequenceIndex") != std::string::npos);
+    assert(text.find("colorButtonCodeMatchesStep(sequenceIndex, pressedButton.code)") != std::string::npos);
+    assert(text.find("incorrect color button entry") != std::string::npos);
+    assert(text.find("publishAttemptError(\"incorrect color button entry\")") < text.find("++pressedButton.pressCount"));
+    assert(text.find("color button counts complete") == std::string::npos);
+    assert(text.find("color button sequence complete") != std::string::npos);
 
     return 0;
 }

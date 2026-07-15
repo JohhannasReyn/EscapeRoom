@@ -100,6 +100,11 @@ $tests = @(
         Includes = @()
     },
     @{
+        Name = "color_button_sequence_test"
+        Sources = @("tests\color_button_sequence_test.cpp")
+        Includes = @("shared")
+    },
+    @{
         Name = "pico_wifi_config_test"
         Sources = @("tests\pico_wifi_config_test.cpp")
         Includes = @()

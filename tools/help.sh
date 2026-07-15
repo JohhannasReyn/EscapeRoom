@@ -190,4 +190,27 @@ Fire panel fallbacks:
 
   fire/reset-all
     Reset all puzzles. The physical panel reset requires a 5-second hold.
+
+Fire panel button map:
+| Button | Pico GPIO | MQTT topic | Pi response | Main light feedback |
+| --- | --- | --- | --- | --- |
+| STATUS | GP2 | escape/fire/status | Request Pico status/wiring reports | All zones flashing red while checking, then ready states |
+| FILM-ON | GP3 | escape/fire/film-on | Reveal smart film | Film flashing green |
+| FILM-OFF | GP4 | escape/fire/film-off | Hide/reset smart film | Film solid green |
+| SOUND-LOOK | GP5 | escape/fire/sound-look | Play check-the-oven.wav | Sound flashing green |
+| SOUND-CRASH | GP6 | escape/fire/sound-crash | Play crashing_plates.m4a | Sound flashing green |
+| SOUND-FAIL | GP7 | escape/fire/sound-fail | Play buzzer.mp3 | Sound flashing red |
+| SOUND-PASS | GP8 | escape/fire/sound-pass | Play yeah-you-did-it.mp3 | Sound flashing green |
+| SOUND-BAKE | GP9 | escape/fire/sound-bake | Play bake_at_350.wav | Sound flashing green |
+| UNLOCK | GP10 | escape/fire/unlock | Release final lock | Pot/lock flashing green |
+| RESET-ALL | GP11 | escape/fire/reset-all | Hold 5 seconds to reset all puzzles | Countdown flashes red, then all zones check status |
+
+Light state key:
+| Light state | Meaning |
+| --- | --- |
+| Solid green | Ready, reset, or idle/OK |
+| Flashing green | Active, playing, triggered, unlocked, or physical reset needed |
+| Flashing red | Checking, wrong, error, or reset countdown |
+| Alternating red/green | Reserved diagnostic/manual LED command: alternating-red-green |
+| Solid red | Offline/fault/manual LED command: solid-red |
 EOF

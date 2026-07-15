@@ -25,6 +25,7 @@ public:
         Effect* paintingCrashEffect = nullptr,
         DisplayOutput* displayOutput = nullptr,
         Effect* colorSequenceErrorEffect = nullptr,
+        Effect* colorSequenceTryAgainEffect = nullptr,
         Effect* bakeAttentionEffect = nullptr,
         Effect* copperCompleteEffect = nullptr,
         Effect* colorSequenceSuccessFirstEffect = nullptr,
@@ -65,9 +66,11 @@ private:
     RoomState state = RoomState::COPPER_PUZZLE_ACTIVE;
     int ovenDegrees = 0;
     bool ovenPhysicalResetSignaled = false;
+    int colorSequenceErrorCount = 0;
     Effect* paintingCrashEffect = nullptr;
     DisplayOutput* displayOutput = nullptr;
     Effect* colorSequenceErrorEffect = nullptr;
+    Effect* colorSequenceTryAgainEffect = nullptr;
     Effect* bakeAttentionEffect = nullptr;
     Effect* copperCompleteEffect = nullptr;
     Effect* colorSequenceSuccessFirstEffect = nullptr;

@@ -92,6 +92,7 @@ int main() {
 
     RecordingEffect paintingAudio;
     RecordingEffect wrongCodeAudio;
+    RecordingEffect tryAgainAudio;
     RecordingEffect bakeBuzzer;
     RecordingEffect copperAudio;
     RecordingEffect colorSuccessFirstAudio;
@@ -102,6 +103,7 @@ int main() {
         &paintingAudio,
         &display,
         &wrongCodeAudio,
+        &tryAgainAudio,
         &bakeBuzzer,
         &copperAudio,
         &colorSuccessFirstAudio,
@@ -179,9 +181,19 @@ int main() {
     assert(sawLegacyFilmFromCopper == true);
     assert(sawColorButtonsActiveFromCopper == true);
 
-    assert(controller.handleMessage(EscapeTopic::COLOR_SEQUENCE_ERROR, "wrong code") == true);
+    assert(controller.handleMessage(EscapeTopic::COLOR_SEQUENCE_ERROR, "wrong code 1") == true);
+    assert(tryAgainAudio.triggerCount == 1);
+    assert(tryAgainAudio.lastPayload == "wrong code 1");
+    assert(wrongCodeAudio.triggerCount == 0);
+    assert(controller.handleMessage(EscapeTopic::COLOR_SEQUENCE_ERROR, "wrong code 2") == true);
     assert(wrongCodeAudio.triggerCount == 1);
-    assert(wrongCodeAudio.lastPayload == "wrong code");
+    assert(wrongCodeAudio.lastPayload == "wrong code 2");
+    assert(controller.handleMessage(EscapeTopic::COLOR_SEQUENCE_ERROR, "wrong code 3") == true);
+    assert(wrongCodeAudio.triggerCount == 2);
+    assert(wrongCodeAudio.lastPayload == "wrong code 3");
+    assert(controller.handleMessage(EscapeTopic::COLOR_SEQUENCE_ERROR, "wrong code 4") == true);
+    assert(tryAgainAudio.triggerCount == 2);
+    assert(tryAgainAudio.lastPayload == "wrong code 4");
     assert(controller.currentState() == RoomState::COLOR_BUTTON_SEQUENCE_ACTIVE);
 
     assert(controller.handleMessage(EscapeTopic::PAINTING_ROTATION_COMPLETE, "picture") == true);
@@ -323,7 +335,7 @@ int main() {
     MqttCommand fireFailLed = controller.takeNextPendingCommand();
     assert(fireFailLed.topic == EscapeTopic::FIRE_PANEL_LED_COMMAND);
     assert(fireFailLed.payload == "sound=wrong");
-    assert(wrongCodeAudio.triggerCount == 2);
+    assert(wrongCodeAudio.triggerCount == 3);
     assert(wrongCodeAudio.lastPayload == "button");
 
     assert(controller.handleMessage(EscapeTopic::FIRE_SOUND_PASS, "button") == true);

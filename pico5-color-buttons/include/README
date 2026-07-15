@@ -18,15 +18,16 @@ Main topics:
 
 The color-button sequence listens from startup/reset. The attempt timeout starts
 only after the first button press so the puzzle can sit ready without playing
-the buzzer. Each press is counted immediately when the button input goes LOW,
+an error cue. Each press is checked immediately when the button input goes LOW,
 then that button re-arms when the input returns HIGH.
 
-If any color is pressed more than its required count, the Pico immediately
-publishes escape/pico5/color_sequence_error instead of waiting for the full
-attempt length.
+If the next button does not match the ordered code, the Pico immediately
+publishes escape/pico5/color_sequence_error and clears the current attempt.
+The Raspberry Pi plays try-again.wav on the 1st, 4th, 7th, etc. wrong entry
+and buzzer.mp3 on the two wrong entries between those.
 
-Required counts:
-- Red: 3 presses
-- Green: 4 presses
-- Yellow: 2 presses
-- Blue: 3 presses
+Required ordered code:
+- R R R
+- G G G G
+- Y Y
+- B B B

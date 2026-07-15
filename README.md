@@ -224,20 +224,19 @@ When powered and connected to MQTT, all active sensor Picos listen immediately:
 
 Active room progression:
 
-When the Raspberry Pi controller connects to MQTT, it plays one random
-activation/reset cue.
-
 1. Pico 2 publishes `escape/pico2/copper_puzzle_complete` when the puzzle piece is placed.
 2. Raspberry Pi plays `check-the-oven.wav`.
 3. Raspberry Pi tells Pico 4 to reveal the smart film.
 4. Whenever Pico 3 publishes `escape/pico3/painting_rotation_complete`, Raspberry Pi plays `crashing_plates.m4a` and keeps the color buttons active.
-5. If Pico 5 publishes `escape/pico5/color_sequence_error`, Raspberry Pi plays `buzzer.mp3` immediately.
-6. Pico 5 publishes `escape/pico5/color_sequence_complete` immediately on the final correct press.
-7. Raspberry Pi plays `yeah-you-did-it.mp3`, then `bake_at_350.wav`; Pico 4's oven knob is already listening.
-8. If the oven is already at 350 when the room starts or resets, the fire panel's potentiometer status flashes green until the knob is moved away from 350.
-9. Player turns the oven knob to 350 and holds it there.
-10. Pico 4 publishes `escape/pico4/oven_target_reached`.
-11. Raspberry Pi tells Pico 4 to unlock the electromagnetic lock.
+5. Pico 5 expects the ordered button code `RRRGGGGYYBBB` (3 red, 4 green, 2 yellow, 3 blue).
+6. If the next button is wrong, Pico 5 immediately publishes `escape/pico5/color_sequence_error` and resets that attempt.
+7. The Raspberry Pi plays `try-again.wav` on the 1st, 4th, 7th, etc. wrong entry, and `buzzer.mp3` on the two wrong entries between those.
+8. Pico 5 publishes `escape/pico5/color_sequence_complete` immediately on the final correct press.
+9. Raspberry Pi plays `yeah-you-did-it.mp3`, then `bake_at_350.wav`; Pico 4's oven knob is already listening.
+10. If the oven is already at 350 when the room starts or resets, the fire panel's potentiometer status flashes green until the knob is moved away from 350.
+11. Player turns the oven knob to 350 and holds it there.
+12. Pico 4 publishes `escape/pico4/oven_target_reached`.
+13. Raspberry Pi tells Pico 4 to unlock the electromagnetic lock.
 
 The electromagnetic lock stays released (Pico 4 holds `GPIO 18` HIGH) until the
 room is reset, so the door remains open for the group. A fire-panel `reset-all`
@@ -350,16 +349,14 @@ Each button uses the Pico's internal pull-up resistor:
 Pico GPIO input -> button -> Pico GND
 ```
 
-The Pico counts each button on the press edge and re-arms that button after it
-is released, so right/wrong MQTT events fire as soon as the final press is made.
+The Pico checks each button on the press edge and re-arms that button after it
+is released. A wrong next button publishes `escape/pico5/color_sequence_error`
+immediately and resets the current attempt.
 
-Required counts:
+Required ordered code:
 
 ```text
-Red    = 3 presses
-Green  = 4 presses
-Yellow = 2 presses
-Blue   = 3 presses
+RRRGGGGYYBBB
 ```
 
 ---
@@ -413,8 +410,8 @@ tools/test-pico5.sh
 
 `tools/test-pico4.sh` now also watches real oven potentiometer telemetry while
 the knob is turned and reports the raw ADC range. `tools/test-pico5.sh` now
-simulates the wrong-code buzzer event before the success event, so it can tell
-whether the Pi audio path is working.
+simulates four wrong-code events so the expected sound pattern is
+`try-again.wav`, `buzzer.mp3`, `buzzer.mp3`, `try-again.wav`.
 
 Capture the physical fire-panel button order:
 
@@ -482,7 +479,9 @@ starting the controller:
 ESCAPE_AUDIO_DEVICE="default:CARD=Headphones" tools/start.sh
 ```
 
-Room activation/reset cues are selected at random from:
+Room reset cues are selected at random from this shared pool. Startup-themed
+files remain in the pool, but the controller no longer plays a cue just because
+it connected to MQTT:
 
 ```text
 assets/audio/beep-boop-reset-complete.wav
