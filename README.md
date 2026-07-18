@@ -334,8 +334,9 @@ GND -> oven potentiometer outer leg
 GPIO 26 / ADC0 / physical pin 31 -> oven potentiometer wiper
 ```
 
-The oven dial reports a 300-400 degree range in 5-degree steps, centered on
-350, to make the target easier to land on.
+The oven dial reports a 170-440 degree range in 15-degree steps anchored at
+170. That gives the full knob more room to move while keeping 350 as an exact
+reachable value.
 
 ### Pico 5: Color Buttons
 

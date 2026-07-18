@@ -30,7 +30,13 @@ int main() {
     assert(rebase.find("No Pico firmware changes detected since the last rebase") != std::string::npos);
     assert(rebase.find("Pico firmware changed since the last rebase") != std::string::npos);
     assert(rebase.find("tools/flash-pico.sh all") != std::string::npos);
-    assert(rebase.find("shared") != std::string::npos);
+    assert(rebase.find("pico_shared_inputs") != std::string::npos);
+    assert(rebase.find("shared/EscapeRoomProtocol.h") != std::string::npos);
+    assert(rebase.find("shared/PicoStatusReport.h") != std::string::npos);
+    assert(rebase.find("shared/PostState.h") != std::string::npos);
+    assert(rebase.find("shared/OvenDial.h") != std::string::npos);
+    assert(rebase.find("shared/ColorButtonSequence.h") != std::string::npos);
+    assert(rebase.find("echo \"shared\"") == std::string::npos);
     assert(rebase.find("tools/platformio_pico_wifi.py") != std::string::npos);
 
     const std::vector<std::pair<std::string, std::string>> picos = {

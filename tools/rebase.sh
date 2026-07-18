@@ -51,11 +51,41 @@ pico_flash_command() {
     esac
 }
 
+pico_shared_inputs() {
+    case "$1" in
+        pico2|pico3)
+            echo "shared/EscapeRoomProtocol.h"
+            echo "shared/PicoStatusReport.h"
+            echo "shared/PostState.h"
+            ;;
+        pico4)
+            echo "shared/OvenDial.h"
+            echo "shared/EscapeRoomProtocol.h"
+            echo "shared/PicoStatusReport.h"
+            echo "shared/PostState.h"
+            ;;
+        pico5)
+            echo "shared/ColorButtonSequence.h"
+            echo "shared/EscapeRoomProtocol.h"
+            echo "shared/PicoStatusReport.h"
+            echo "shared/PostState.h"
+            ;;
+        pico7)
+            echo "shared/EscapeRoomProtocol.h"
+            echo "shared/PicoStatusReport.h"
+            ;;
+        *)
+            echo "Unknown Pico target: $1" >&2
+            exit 1
+            ;;
+    esac
+}
+
 pico_hash_inputs() {
     local pico="$1"
 
     pico_project_dir "${pico}"
-    echo "shared"
+    pico_shared_inputs "${pico}"
     echo "pico-wifi.env"
     echo "tools/platformio_pico_wifi.py"
 }

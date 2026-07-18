@@ -34,6 +34,28 @@ inline int roundToNearestStep(int value, int stepValue) {
     return upper;
 }
 
+inline int roundToNearestStepFromBase(int value, int baseValue, int stepValue) {
+    if (stepValue <= 1) {
+        return value;
+    }
+
+    int offset = value - baseValue;
+    int remainder = offset % stepValue;
+
+    if (remainder < 0) {
+        remainder += stepValue;
+    }
+
+    int lower = value - remainder;
+    int upper = lower + stepValue;
+
+    if (value - lower < upper - value) {
+        return lower;
+    }
+
+    return upper;
+}
+
 inline int ovenValueFromPotReading(
     int rawReading,
     int rawMin,
@@ -52,7 +74,7 @@ inline int ovenValueFromPotReading(
     long scaled = (static_cast<long>(clampedReading) - rawMin) * ovenSpan;
 
     int mappedValue = ovenMinValue + static_cast<int>((scaled + (readingSpan / 2)) / readingSpan);
-    return clampInt(roundToNearestStep(mappedValue, stepValue), ovenMinValue, ovenMaxValue);
+    return clampInt(roundToNearestStepFromBase(mappedValue, ovenMinValue, stepValue), ovenMinValue, ovenMaxValue);
 }
 
 inline bool ovenValueIsAtTarget(int ovenValue, int targetValue, int tolerance) {
