@@ -116,6 +116,10 @@ When the controller connects to MQTT, and whenever a room reset is performed,
 the Raspberry Pi randomly plays one activation/reset cue from
 `assets/audio/`.
 
+Audio requests are queued by the Raspberry Pi controller and played one at a
+time. This keeps MQTT messages, reset commands, and sensor events responsive
+even if several cues are triggered close together.
+
 When a Pico connects to MQTT or receives a status request, it publishes a
 human-readable wiring report on `escape/status/pico`. The controller prints it
 as a `Pico wiring/status report`, for example:
@@ -232,7 +236,7 @@ Active room progression:
 6. If the next button is wrong, Pico 5 immediately publishes `escape/pico5/color_sequence_error` and resets that attempt.
 7. The Raspberry Pi plays `try-again.wav` on the 1st, 4th, 7th, etc. wrong entry, and `buzzer.mp3` on the two wrong entries between those.
 8. Pico 5 publishes `escape/pico5/color_sequence_complete` immediately on the final correct press.
-9. Raspberry Pi plays `yeah-you-did-it.mp3`, then `bake_at_350.wav`; Pico 4's oven knob is already listening.
+9. Raspberry Pi queues `yeah-you-did-it.mp3`, then `bake_at_350.wav`; Pico 4's oven knob is already listening.
 10. If the oven is already at 350 when the room starts or resets, the fire panel's potentiometer status flashes green until the knob is moved away from 350.
 11. Player turns the oven knob to 350 and holds it there.
 12. Pico 4 publishes `escape/pico4/oven_target_reached`.
@@ -352,6 +356,11 @@ Pico GPIO input -> button -> Pico GND
 The Pico checks each button on the press edge and re-arms that button after it
 is released. A wrong next button publishes `escape/pico5/color_sequence_error`
 immediately and resets the current attempt.
+
+Pico 5 also publishes immediate button telemetry after reset, after a wrong
+entry clears the current attempt, and after the sequence is solved. The payload
+includes `sequence_index` and `reset_count` so reset/rearm behavior can be
+checked from `tools/watch-mqtt.sh` or `tools/room-logs.sh`.
 
 Required ordered code:
 
@@ -492,6 +501,10 @@ assets/audio/let-us-bake&escape-if-you-can.wav
 assets/audio/escape-room-activated-lets-go.wav
 assets/audio/its-time-for-some-baking-and-escaping-lets-go.wav
 ```
+
+All audio cues are serialized through one controller playback worker. That
+means quick repeated triggers should not block MQTT/reset handling or cause two
+audio players to fight over the Pi speaker device.
 
 The physical fire-panel reset button must be held for 5 seconds. During the hold,
 the five red LEDs flash one at a time as a countdown; after reset fires, all five

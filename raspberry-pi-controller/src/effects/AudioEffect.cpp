@@ -1,11 +1,34 @@
 #include "AudioEffect.h"
 
+#include <condition_variable>
 #include <cstdlib>
+#include <deque>
 #include <fstream>
 #include <iostream>
+#include <mutex>
+#include <thread>
 #include <utility>
 
 namespace {
+struct AudioRequest {
+    std::string command;
+    std::string file;
+    std::string payload;
+};
+
+struct AudioPlaybackQueue {
+    std::mutex mutex;
+    std::condition_variable ready;
+    std::deque<AudioRequest> requests;
+};
+
+AudioPlaybackQueue& playbackQueue() {
+    // The detached worker runs until process exit, so keep its queue alive for
+    // the whole process lifetime instead of relying on static destructor order.
+    static AudioPlaybackQueue* queue = new AudioPlaybackQueue();
+    return *queue;
+}
+
 std::string shellQuote(const std::string& value) {
     std::string quoted = "'";
 
@@ -30,15 +53,70 @@ std::string audioDevice() {
 
     return "plughw:CARD=Headphones,DEV=0";
 }
+
+std::string audioCommandForFile(const std::string& audioFile) {
+    bool useFfplay =
+        (audioFile.size() >= 4 && audioFile.substr(audioFile.size() - 4) == ".m4a") ||
+        (audioFile.size() >= 4 && audioFile.substr(audioFile.size() - 4) == ".mp3");
+
+    if (useFfplay) {
+        return "ffplay -nodisp -autoexit -loglevel quiet -fflags nobuffer -flags low_delay -probesize 32 -analyzeduration 0 " + shellQuote(audioFile);
+    }
+
+    return "aplay -D " + shellQuote(audioDevice()) + " " + shellQuote(audioFile);
 }
 
-AudioEffect::AudioEffect(std::string audioFile, bool playInBackground)
-    : audioFile(std::move(audioFile)), playInBackground(playInBackground) {
+void audioWorkerLoop() {
+    AudioPlaybackQueue& queue = playbackQueue();
+
+    while (true) {
+        AudioRequest request;
+
+        {
+            std::unique_lock<std::mutex> lock(queue.mutex);
+            queue.ready.wait(lock, [&queue]() {
+                return !queue.requests.empty();
+            });
+            request = std::move(queue.requests.front());
+            queue.requests.pop_front();
+        }
+
+        std::cout << "Playing queued audio: " << request.file << std::endl;
+        int result = std::system(request.command.c_str());
+
+        if (result != 0) {
+            std::cout << "Audio command returned non-zero result: " << result << std::endl;
+            std::cout << "If no sound played, verify the 3.5mm speaker is powered, plugged in, and selected as the Pi audio output." << std::endl;
+        }
+    }
+}
+
+void ensureAudioWorkerStarted() {
+    static std::once_flag audioWorkerStarted;
+    std::call_once(audioWorkerStarted, []() {
+        std::thread(audioWorkerLoop).detach();
+    });
+}
+
+void enqueueAudio(AudioRequest request) {
+    ensureAudioWorkerStarted();
+
+    AudioPlaybackQueue& queue = playbackQueue();
+    {
+        std::lock_guard<std::mutex> lock(queue.mutex);
+        queue.requests.push_back(std::move(request));
+    }
+
+    queue.ready.notify_one();
+}
+}
+
+AudioEffect::AudioEffect(std::string audioFile, bool)
+    : audioFile(std::move(audioFile)) {
 }
 
 void AudioEffect::trigger(const std::string& payload) {
     std::cout << "Payload: " << payload << std::endl;
-    std::cout << "Playing audio: " << audioFile << std::endl;
 
     std::ifstream file(audioFile);
     if (!file.good()) {
@@ -46,27 +124,8 @@ void AudioEffect::trigger(const std::string& payload) {
         return;
     }
 
-    std::string cmd;
-    bool useFfplay =
-        (audioFile.size() >= 4 && audioFile.substr(audioFile.size() - 4) == ".m4a") ||
-        (audioFile.size() >= 4 && audioFile.substr(audioFile.size() - 4) == ".mp3");
-
-    if (useFfplay) {
-        cmd = "ffplay -nodisp -autoexit -loglevel quiet -fflags nobuffer -flags low_delay -probesize 32 -analyzeduration 0 " + shellQuote(audioFile);
-    } else {
-        cmd = "aplay -D " + shellQuote(audioDevice()) + " " + shellQuote(audioFile);
-    }
-
-    if (playInBackground) {
-        cmd += " &";
-    }
-
-    int result = std::system(cmd.c_str());
-
-    if (result != 0) {
-        std::cout << "Audio command returned non-zero result: " << result << std::endl;
-        std::cout << "If no sound played, verify the 3.5mm speaker is powered, plugged in, and selected as the Pi audio output." << std::endl;
-    }
+    enqueueAudio({audioCommandForFile(audioFile), audioFile, payload});
+    std::cout << "Queued audio: " << audioFile << std::endl;
 }
 
 std::string AudioEffect::file() const {

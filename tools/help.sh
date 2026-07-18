@@ -110,6 +110,9 @@ Audio:
   tools/volume-down.sh
     Decreases volume by 10%.
 
+  The room controller queues audio and plays one cue at a time so MQTT sensor
+  messages and reset commands stay responsive during sound playback.
+
 Room service helpers:
   tools/setup-room.sh
     Makes scripts executable, installs the Pi autostart service, and restarts
