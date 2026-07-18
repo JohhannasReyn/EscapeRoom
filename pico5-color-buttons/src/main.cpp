@@ -74,11 +74,13 @@ PubSubClient mqtt(wifiClient);
 bool sequenceSolved = false;
 int totalPresses = 0;
 int sequenceIndex = 0;
+unsigned long resetCount = 0;
 unsigned long lastPressAt = 0;
 unsigned long lastSensorTelemetry = 0;
 
 void publishPostState();
 void publishStartupReport();
+void publishSensorTelemetry(bool forcePublish = false);
 
 void clearAttempt() {
     totalPresses = 0;
@@ -90,6 +92,7 @@ void clearAttempt() {
 }
 
 void resetSequence() {
+    ++resetCount;
     sequenceSolved = false;
     clearAttempt();
     lastPressAt = 0;
@@ -102,6 +105,7 @@ void resetSequence() {
     digitalWrite(LED_PIN, LOW);
     if (mqtt.connected()) {
         publishPostState();
+        publishSensorTelemetry(true);
     }
 }
 
@@ -115,6 +119,7 @@ void publishAttemptError(const char* reason) {
     publishEvent(EscapeTopic::COLOR_SEQUENCE_ERROR, reason);
     clearAttempt();
     lastPressAt = millis();
+    publishSensorTelemetry(true);
 }
 
 bool currentAttemptIsCorrect() {
@@ -205,15 +210,21 @@ void publishStartupReport() {
     publishEvent(EscapeTopic::PICO_STATUS_REPORT, EscapePicoStatus::PICO5_REPORT);
 }
 
-void publishSensorTelemetry() {
-    if (!mqtt.connected() || millis() - lastSensorTelemetry < SENSOR_TELEMETRY_MS) {
+void publishSensorTelemetry(bool forcePublish) {
+    if (!mqtt.connected()) {
+        return;
+    }
+
+    if (!forcePublish && millis() - lastSensorTelemetry < SENSOR_TELEMETRY_MS) {
         return;
     }
 
     lastSensorTelemetry = millis();
     String payload = "solved=" + String(sequenceSolved ? 1 : 0);
     payload += ",total_presses=" + String(totalPresses);
+    payload += ",sequence_index=" + String(sequenceIndex);
     payload += ",required_total=" + String(REQUIRED_TOTAL_PRESSES);
+    payload += ",reset_count=" + String(resetCount);
 
     for (ColorButton& button : buttons) {
         payload += ",";
@@ -256,6 +267,7 @@ void registerButtonPress(ColorButton& pressedButton) {
         digitalWrite(LED_PIN, HIGH);
         publishEvent(EscapeTopic::COLOR_SEQUENCE_COMPLETE, "color button sequence complete");
         publishPostState();
+        publishSensorTelemetry(true);
     } else {
         publishAttemptError("incorrect color button entry");
     }

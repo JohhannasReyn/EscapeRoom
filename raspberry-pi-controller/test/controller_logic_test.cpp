@@ -382,5 +382,15 @@ int main() {
         controller.takeNextPendingCommand();
     }
 
+    assert(controller.handleMessage(EscapeTopic::COLOR_SEQUENCE_ERROR, "wrong code after reset") == true);
+    MqttCommand postResetWrongLed = controller.takeNextPendingCommand();
+    assert(postResetWrongLed.topic == EscapeTopic::FIRE_PANEL_LED_COMMAND);
+    assert(postResetWrongLed.payload == "buttons=wrong");
+    assert(tryAgainAudio.triggerCount == 3);
+    assert(tryAgainAudio.lastPayload == "wrong code after reset");
+    while (controller.pendingCommandCount() > 0) {
+        controller.takeNextPendingCommand();
+    }
+
     return 0;
 }
