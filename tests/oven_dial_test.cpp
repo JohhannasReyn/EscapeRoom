@@ -19,9 +19,13 @@ int main() {
     assert(roundToNearestStep(351, 5) == 350);
     assert(roundToNearestStep(353, 5) == 355);
     assert(roundToNearestStep(353, 0) == 353);
-    assert(ovenValueFromPotReading(0, 0, 4095, 300, 400, 5) == 300);
-    assert(ovenValueFromPotReading(2048, 0, 4095, 300, 400, 5) == 350);
-    assert(ovenValueFromPotReading(4095, 0, 4095, 300, 400, 5) == 400);
+    assert(roundToNearestStepFromBase(347, 170, 15) == 350);
+    assert(roundToNearestStepFromBase(342, 170, 15) == 335);
+    assert(roundToNearestStepFromBase(358, 170, 15) == 365);
+    assert(roundToNearestStepFromBase(353, 170, 0) == 353);
+    assert(ovenValueFromPotReading(0, 0, 4095, 170, 440, 15) == 170);
+    assert(ovenValueFromPotReading(2730, 0, 4095, 170, 440, 15) == 350);
+    assert(ovenValueFromPotReading(4095, 0, 4095, 170, 440, 15) == 440);
 
     assert(ovenValueIsAtTarget(350, 350, 10) == true);
     assert(ovenValueIsAtTarget(341, 350, 10) == true);

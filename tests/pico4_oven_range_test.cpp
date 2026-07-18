@@ -11,10 +11,10 @@ int main() {
     buffer << source.rdbuf();
     const std::string text = buffer.str();
 
-    assert(text.find("constexpr int OVEN_MIN_VALUE = 300") != std::string::npos);
-    assert(text.find("constexpr int OVEN_MAX_VALUE = 400") != std::string::npos);
-    assert(text.find("constexpr int OVEN_STEP_VALUE = 5") != std::string::npos);
-    assert(text.find("OVEN_POSITION_PUBLISH_DELTA = 5") != std::string::npos);
+    assert(text.find("constexpr int OVEN_MIN_VALUE = 170") != std::string::npos);
+    assert(text.find("constexpr int OVEN_MAX_VALUE = 440") != std::string::npos);
+    assert(text.find("constexpr int OVEN_STEP_VALUE = 15") != std::string::npos);
+    assert(text.find("OVEN_POSITION_PUBLISH_DELTA = OVEN_STEP_VALUE") != std::string::npos);
     assert(text.find("OVEN_STEP_VALUE") < text.find("OVEN_POSITION_PUBLISH_DELTA"));
     assert(text.find("OVEN_STEP_VALUE") < text.find("readOvenPotValue"));
 
