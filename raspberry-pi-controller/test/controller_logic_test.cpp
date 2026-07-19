@@ -109,6 +109,7 @@ int main() {
     RecordingEffect colorSuccessSecondAudio;
     RecordingEffect roomCueAudio;
     RecordingEffect playAllAudio;
+    RecordingEffect finalVictoryAudio;
     RecordingDisplay display;
     GameController controller(
         &paintingAudio,
@@ -120,7 +121,8 @@ int main() {
         &colorSuccessFirstAudio,
         &colorSuccessSecondAudio,
         &roomCueAudio,
-        &playAllAudio
+        &playAllAudio,
+        &finalVictoryAudio
     );
     addActivePuzzles(controller);
 
@@ -409,6 +411,8 @@ int main() {
 
     assert(controller.handleMessage(EscapeTopic::ELECTROMAG_LOCK_UNLOCKED, "open", 8500) == true);
     assert(controller.currentState() == RoomState::ROOM_KEY_AVAILABLE);
+    assert(finalVictoryAudio.triggerCount == 1);
+    assert(finalVictoryAudio.lastPayload == "open");
 
     RecordingEffect resetGateRoomCueAudio;
     GameController resetGateController(

@@ -502,6 +502,7 @@ int main() {
     AudioEffect checkOvenAudio(get_project_asset_file("check-the-oven.wav"));
     AudioEffect yeahYouDidItAudio(get_project_asset_file("yeah-you-did-it.mp3"));
     AudioEffect bakeAt350Audio(get_project_asset_file("bake_at_350.wav"));
+    AudioEffect finalVictoryAudio(get_project_asset_file("bake-room-cooked.wav"));
     DirectoryAudioEffect playAllAudio(get_project_audio_dir());
     GpioBuzzerEffect bakeAttentionBuzzer(PI_BAKE_BUZZER_GPIO, PI_BAKE_BUZZER_MS);
     DisplayOutput display;
@@ -516,7 +517,8 @@ int main() {
         &yeahYouDidItAudio,
         &bakeAt350Audio,
         &roomCueAudio,
-        &playAllAudio
+        &playAllAudio,
+        &finalVictoryAudio
     );
     controller.addPuzzle(std::make_unique<CopperPuzzle>());
     controller.addPuzzle(std::make_unique<PaintingRotationPuzzle>());
@@ -534,6 +536,7 @@ int main() {
     std::cout << "Copper-complete audio: " << checkOvenAudio.file() << std::endl;
     std::cout << "Color success audio 1: " << yeahYouDidItAudio.file() << std::endl;
     std::cout << "Color success audio 2: " << bakeAt350Audio.file() << std::endl;
+    std::cout << "Final victory audio: " << finalVictoryAudio.file() << std::endl;
     std::cout << "Play-all audio directory: " << get_project_audio_dir() << std::endl;
     std::cout << "Room reset random audio choices:" << std::endl;
     for (const std::unique_ptr<AudioEffect>& roomCueAudioPlayer : roomCueAudioPlayers) {

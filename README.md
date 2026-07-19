@@ -253,7 +253,7 @@ Active room progression:
 10. Player turns the oven knob to 350 and holds it there.
 11. Pico 4 publishes `escape/pico4/oven_target_reached`.
 12. Raspberry Pi tells Pico 4 to unlock the electromagnetic lock.
-13. Once Pico 4 reports the electromagnetic lock open, the room is complete.
+13. Once Pico 4 reports the electromagnetic lock open, the Raspberry Pi plays `bake-room-cooked.wav` and the room is complete.
 
 The electromagnetic lock stays released (Pico 4 holds `GPIO 18` HIGH) until the
 room is reset, so the door remains open for the group. After the room has been
@@ -534,6 +534,9 @@ assets/audio/let-us-bake&escape-if-you-can.wav
 assets/audio/escape-room-activated-lets-go.wav
 assets/audio/its-time-for-some-baking-and-escaping-lets-go.wav
 ```
+
+The final victory cue is `assets/audio/bake-room-cooked.wav`. It plays after
+Pico 4 confirms the electromagnetic lock is open.
 
 All audio cues are serialized through one controller playback worker. That
 means quick repeated triggers should not block MQTT/reset handling or cause two
