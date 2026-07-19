@@ -18,192 +18,61 @@ EOF
 fi
 
 cat <<'EOF'
-Escape room tools
+Escape room quick help
 
-Start here on the Raspberry Pi:
-  tools/rebase.sh
-    Downloads the latest controller, active Pico firmware, tests, tools,
-    README, shared code, and pico-wifi.env. It also installs/updates
-    PlatformIO in ~/.venv and builds the Raspberry Pi controller. After a
-    successful update, it prints which Picos need to be flashed because their
-    source changed since the last rebase.
+Core commands:
+| Task | Command | Notes |
+| --- | --- | --- |
+| Update from repo | tools/rebase.sh | Pulls the latest code, refreshes permissions, installs help, and prints which Picos need to be flashed |
+| Apply Pi setup | tools/setup-room.sh | Run from inside escape-room; do not run it with source |
+| Start controller | tools/start.sh | Runs the room controller in the terminal; Pico wiring reports print here |
+| Show this guide | help or tools/help.sh | help works from any SSH directory after rebase installs it |
 
-  tools/help.sh
-    Shows this guide again.
+Pico flashing:
+| Pico | Command |
+| --- | --- |
+| Copper puzzle | tools/flash-pico.sh pico2 |
+| Painting rotation | tools/flash-pico.sh pico3 |
+| Smart film / oven / lock | tools/flash-pico.sh pico4 |
+| Color buttons | tools/flash-pico.sh pico5 |
+| Fire panel | tools/flash-pico.sh pico7 |
+| All active Picos | tools/flash-pico.sh all |
 
-  help
-    After tools/rebase.sh installs it, shows this guide from any SSH directory.
+For each Pico: unplug it, hold BOOTSEL, plug it into USB, release BOOTSEL, then
+press Enter when the flash script asks.
 
-  tools/start.sh
-    Starts the room controller in the terminal. Leave this running during the
-    escape room. Pico wiring reports print here when Picos connect.
+Checks and logs:
+| Need | Command | Notes |
+| --- | --- | --- |
+| Pico connectivity | tools/test-connection.sh | Requests status and wiring reports |
+| Full walkthrough | tools/test-all.sh | Simulates the room sequence with MQTT |
+| Copper puzzle | tools/test-pico2.sh | Simulates puzzle-piece placement |
+| Painting rotation | tools/test-pico3.sh | Simulates picture rotation |
+| Smart film / oven / lock | tools/test-pico4.sh | Reveals film, watches oven telemetry, simulates unlock |
+| Color buttons | tools/test-pico5.sh | Tests wrong-code sounds and success flow |
+| Speaker path | tools/connect.sh | Direct wired speaker check |
+| Audio pipeline | tools/test-audio.sh | Direct audio plus controller/MQTT sound tests |
+| Volume | tools/set-volume.sh -v 50 | Also available: tools/volume-up.sh and tools/volume-down.sh |
+| Service status | tools/room-status.sh | Shows whether the room service is running |
+| Room logs | tools/room-logs.sh | Watches controller service logs |
+| Raw MQTT | tools/watch-mqtt.sh | Watches all escape-room MQTT traffic |
+| Button-order log | tools/capture-fire-panel-buttons.sh | Saves the observed physical fire-panel button order |
+| Send log | tools/setup-drive-upload.sh then tools/send_to_john.sh | Configures Drive once, then uploads the newest button-order log |
 
-  tools/connect.sh
-    Tests the wired speaker through the Raspberry Pi 3.5mm jack.
-
-  tools/test-audio.sh
-    Plays audio directly through the Pi speaker, then sends fire/sound-pass and
-    fire/sound-look through MQTT so you can tell whether the problem is the
-    speaker/audio backend or the controller service.
-
-  tools/pair.sh
-    Bluetooth is retired. This prints the wired-audio guidance.
-
-Flashing Picos from the Pi or a Mac:
-  tools/flash-pico.sh pico2
-  tools/flash-pico.sh pico3
-  tools/flash-pico.sh pico4
-  tools/flash-pico.sh pico5
-  tools/flash-pico.sh pico7
-  tools/flash-pico.sh all
-    Builds and uploads Pico firmware using the committed pico-wifi.env:
-    SSID EscapeRoom, password BakeAt350, broker ceenypie.local.
-    If you are not sure which Pico changed, run tools/rebase.sh first; it will
-    say which Picos need to be flashed.
-    For each Pico: unplug it, hold BOOTSEL, plug it into USB, release BOOTSEL,
-    then press Enter when the script asks.
-
-Connection and walkthrough checks:
-  tools/test-connection.sh
-    Requests Pico status and prints connected/not-found for each Pico.
-
-  tools/test-all.sh
-    Simulates the full room sequence with MQTT messages and delays.
-
-  tools/test-pico1.sh
-    Retired Pico 1 manual legacy test.
-
-  tools/test-pico2.sh
-    Simulates the copper puzzle completion event.
-
-  tools/test-pico3.sh
-    Simulates the painting rotation completion event.
-
-  tools/test-pico4.sh
-    Reveals smart film, watches oven potentiometer telemetry while the knob is
-    turned, and simulates oven completion/unlock.
-
-  tools/test-pico5.sh
-    Simulates the wrong-code buzzer event, checks Pico 5 telemetry, and
-    simulates color button sequence completion.
-
-  tools/capture-fire-panel-buttons.sh
-    Guides the student through each fire-panel button and saves the observed
-    MQTT order to a file they can send back for review/remapping.
-
-  tools/setup-drive-upload.sh
-    Saves the shared Google Drive folder settings to john-contact.env and shows
-    the rclone setup steps for the Pi. Run this once before send_to_john if the
-    Pi has not been connected to the shared folder yet.
-
-  tools/send_to_john.sh
-    Finds the newest fire-panel button-order log and uploads it to the shared
-    Google Drive folder with rclone if configured. If Drive is not configured,
-    it can fall back to upload URL, SCP, email, or a small -for-john.tar.gz
-    bundle to send manually.
-
-  tools/run-host-tests.sh
-    Builds/runs host-side logic tests on macOS, Linux, or Raspberry Pi.
-
-Audio:
-  tools/set-volume.sh -v 50
-    Sets speaker volume to 50%.
-
-  tools/volume-up.sh
-    Increases volume by 10%.
-
-  tools/volume-down.sh
-    Decreases volume by 10%.
-
-  The room controller queues audio and plays one cue at a time so MQTT sensor
-  messages and reset commands stay responsive during sound playback. Every cue
-  is decoded by ffmpeg and sent to the configured wired ALSA device with a
-  timeout so one failed cue cannot block the next one.
-
-Room service helpers:
-  tools/setup-room.sh
-    Makes scripts executable, installs the Pi autostart service, and restarts
-    the room controller. Run this as a normal command from inside escape-room;
-    do not run it with source.
-
-  tools/install-pi-autostart.sh
-    Installs/updates the systemd service that starts the room controller.
-
-  tools/start-room.sh
-    Starts the systemd room service.
-
-  tools/stop-room.sh
-    Stops the systemd room service.
-
-  tools/room-status.sh
-    Shows whether the room service is running.
-
-  tools/room-logs.sh
-    Watches systemd logs for the room service.
-
-Debug:
-  tools/watch-mqtt.sh
-    Watches raw MQTT messages.
-
-  tools/monitor-puzzles.sh
-    Watches puzzle-related MQTT messages.
-
-  tools/start-venv.sh
-    Opens the PlatformIO virtual environment shell.
-
-Internal helpers:
-  tools/lib-room.sh
-    Shared functions used by the test scripts.
-
-  tools/platformio_pico_wifi.py
-    PlatformIO pre-build hook that compiles pico-wifi.env into Pico firmware.
-
-  tools/install-help-command.sh
-    Installs the SSH-wide help command by adding an escape-room help function
-    to ~/.bashrc.
-
-  john-contact.env.example
-    Template for the shared Google Drive folder, optional upload URL, SCP, or
-    email settings used by tools/send_to_john.sh. Copy it to john-contact.env
-    for local settings, or run tools/setup-drive-upload.sh.
-
-  tools/run-host-tests.ps1
-    Windows PowerShell version of the host-side tests.
-
-Fire panel fallbacks:
-  fire/status
-    Ask all Picos to report state and wiring.
-
-  fire/film-on
-    Reveal smart film.
-
-  fire/film-off
-    Hide/reset smart film.
-
-  fire/sound-look
-    Play check-the-oven audio.
-
-  fire/sound-crash
-    Play crashing plates audio.
-
-  fire/sound-fail
-    Play buzzer audio.
-
-  fire/sound-pass
-    Play success audio.
-
-  fire/sound-bake
-    Play bake-at-350 audio.
-
-  fire/sound-play-all
-    Terminal-only audio diagnostic. Plays every supported file in assets/audio,
-    sorted by filename. This is not mapped to a physical fire-panel button.
-
-  fire/unlock
-    Release final lock.
-
-  fire/reset-all
-    Reset all puzzles. The physical panel reset requires a 5-second hold.
+Manual fire commands:
+| Command | What it does | Physical panel |
+| --- | --- | --- |
+| fire/status | Ask all Picos for status and wiring | STATUS |
+| fire/film-on | Reveal smart film | FILM-ON |
+| fire/film-off | Hide/reset smart film | FILM-OFF |
+| fire/sound-look | Play check-the-oven.wav | SOUND-LOOK |
+| fire/sound-crash | Play crashing_plates.m4a | SOUND-CRASH |
+| fire/sound-fail | Play buzzer.mp3 | SOUND-FAIL |
+| fire/sound-pass | Play yeah-you-did-it.mp3 | SOUND-PASS |
+| fire/sound-bake | Play bake_at_350.wav | SOUND-BAKE |
+| fire/sound-play-all | Terminal-only audio diagnostic: plays every supported file in assets/audio, sorted by filename | None |
+| fire/unlock | Release final lock | UNLOCK |
+| fire/reset-all | Reset all puzzles | RESET-ALL, hold 5 seconds |
 
 Fire panel button map:
 | Button | Pico GPIO | MQTT topic | Pi response | Main light feedback |
@@ -219,12 +88,14 @@ Fire panel button map:
 | UNLOCK | GP10 | escape/fire/unlock | Release final lock | Pot/lock flashing green |
 | RESET-ALL | GP11 | escape/fire/reset-all | Hold 5 seconds to reset all puzzles | Countdown flashes red, then all zones check status |
 
-Light state key:
-| Light state | Meaning |
-| --- | --- |
-| Solid green | Ready, reset, or idle/OK |
-| Flashing green | Active, playing, triggered, unlocked, or physical reset needed |
-| Flashing red | Checking, wrong, error, or reset countdown |
-| Alternating red/green | Reserved diagnostic/manual LED command: alternating-red-green |
-| Solid red | Offline/fault/manual LED command: solid-red |
+Fire panel status light map:
+Pico 7 has five status-light zones, not one light per button.
+
+| Light | Zone | Green GPIO | Red GPIO | Green Solid | Green Flashing | Red Flashing | Red/Green | Red Solid |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | Film / smart film | GP12 | GP13 | Ready/hidden | Reveal active | Checking/reset | Manual diagnostic | Offline/fault |
+| 2 | Sound | GP14 | GP15 | Ready | Audio playing | Wrong/checking | Manual diagnostic | Offline/fault |
+| 3 | Painting | GP16 | GP17 | Ready | Painting triggered | Checking/reset | Manual diagnostic | Offline/fault |
+| 4 | Color buttons | GP18 | GP19 | Ready/idle | Listening/active | Wrong/checking | Manual diagnostic | Offline/fault |
+| 5 | Oven / lock | GP20 | GP21 | Ready | Oven active/unlocked/reset needed | Checking/reset countdown | Manual diagnostic | Offline/fault |
 EOF
