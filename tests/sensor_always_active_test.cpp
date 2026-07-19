@@ -29,17 +29,20 @@ int main() {
     assert(pico4.find("ENABLE_OVEN_KNOB") == std::string::npos);
     assert(pico4.find("LEGACY_OVEN_ENABLE") == std::string::npos);
     assert(pico4.find("ovenEnabled") == std::string::npos);
+    assert(pico4.find("ovenArmed") != std::string::npos);
     assert(pico4.find("enabled=") == std::string::npos);
 
     assert(controller.find("ENABLE_COPPER_PUZZLE") == std::string::npos);
     assert(controller.find("ENABLE_COLOR_BUTTON_SEQUENCE") == std::string::npos);
     assert(controller.find("ENABLE_OVEN_KNOB") == std::string::npos);
     assert(controller.find("LEGACY_OVEN_ENABLE") == std::string::npos);
+    assert(controller.find("ARM_OVEN_POTENTIOMETER") != std::string::npos);
     assert(controller.find("color button sequence enabled") == std::string::npos);
-    assert(controller.find("oven knob enabled") == std::string::npos);
+    assert(controller.find("oven knob armed") != std::string::npos);
 
     assert(protocol.find("ENABLE_COPPER_PUZZLE") == std::string::npos);
     assert(protocol.find("ENABLE_COLOR_BUTTON_SEQUENCE") == std::string::npos);
     assert(protocol.find("ENABLE_OVEN_KNOB") == std::string::npos);
     assert(protocol.find("LEGACY_OVEN_ENABLE") == std::string::npos);
+    assert(protocol.find("ARM_OVEN_POTENTIOMETER") != std::string::npos);
 }

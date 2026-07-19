@@ -37,6 +37,7 @@ fi
 
 >"${tmp_file}"
 echo "Turn the oven knob slowly across its range for the next 8 seconds."
+publish "escape/cmd/pico4/arm_oven_potentiometer" "on"
 timeout 8 mosquitto_sub \
     -h "${MQTT_HOST}" \
     -v \

@@ -58,6 +58,7 @@ PubSubClient mqtt(wifiClient);
 
 bool ovenSolved = false;
 bool ovenNeedsPhysicalReset = false;
+bool ovenArmed = false;
 int ovenLastPublishedValue = -1;
 unsigned long smartFilmBuzzerOffAt = 0;
 unsigned long ovenTargetStableStart = 0;
@@ -66,6 +67,7 @@ unsigned long lastSensorTelemetry = 0;
 void resetOvenAndOutputs();
 void publishPostState();
 void publishStartupReport();
+void publishSensorTelemetry(bool forcePublish = false);
 
 void publishEvent(const char* topic, const char* payload) {
     Serial.print("Publishing event: ");
@@ -127,19 +129,24 @@ void checkOvenPotentiometer() {
     publishAndDisplayOvenValue(ovenValue);
     bool atTarget = ovenValueIsAtTarget(ovenValue, OVEN_TARGET_VALUE, OVEN_TARGET_TOLERANCE);
 
+    if (!ovenArmed) {
+        ovenTargetStableStart = 0;
+        return;
+    }
+
     if (ovenNeedsPhysicalReset) {
         if (!atTarget) {
             ovenNeedsPhysicalReset = false;
             ovenTargetStableStart = 0;
             publishPostState();
+            publishSensorTelemetry(true);
         }
         return;
     }
 
-    if (ovenSolved && !atTarget) {
-        ovenSolved = false;
+    if (ovenSolved) {
         ovenTargetStableStart = 0;
-        publishPostState();
+        return;
     }
 
     if (!ovenSolved && atTarget && ovenTargetStableStart == 0) {
@@ -153,8 +160,10 @@ void checkOvenPotentiometer() {
     if (!ovenSolved && atTarget && millis() - ovenTargetStableStart >= OVEN_TARGET_HOLD_MS) {
         ovenSolved = true;
         publishAndDisplayOvenValue(ovenValue, true);
+        publishPostState();
         publishEvent(EscapeTopic::OVEN_TARGET_REACHED, "oven target reached");
         setLock(true);
+        publishSensorTelemetry(true);
     }
 }
 
@@ -176,6 +185,18 @@ void handleMessage(char* topic, byte* payload, unsigned int length) {
         }
 
         publishEvent(EscapeTopic::SMART_FILM_READY, revealSmartFilm ? "transparent" : "opaque");
+    } else if (topicText == EscapeTopic::ARM_OVEN_POTENTIOMETER) {
+        ovenArmed = message != "off";
+        ovenTargetStableStart = 0;
+        ovenNeedsPhysicalReset = false;
+
+        if (!ovenArmed) {
+            ovenSolved = false;
+            setLock(false);
+        }
+
+        publishPostState();
+        publishSensorTelemetry(true);
     } else if (topicText == EscapeTopic::UNLOCK_ELECTROMAG_LOCK || topicText == EscapeTopic::LEGACY_LOCK_TRIGGER) {
         setLock(message != "off");
     } else if (topicText == EscapeTopic::STATUS_REQUEST || topicText == EscapeTopic::LEGACY_POST_QUERY) {
@@ -218,6 +239,7 @@ bool tryConnectMQTT(const char* broker) {
     for (int attempt = 0; attempt < MQTT_ATTEMPTS_PER_HOST && !mqtt.connected(); ++attempt) {
         if (mqtt.connect(MQTT_CLIENT_ID)) {
             mqtt.subscribe(EscapeTopic::REVEAL_SMART_FILM);
+            mqtt.subscribe(EscapeTopic::ARM_OVEN_POTENTIOMETER);
             mqtt.subscribe(EscapeTopic::UNLOCK_ELECTROMAG_LOCK);
             mqtt.subscribe(EscapeTopic::STATUS_REQUEST);
             mqtt.subscribe(EscapeTopic::RESET_PUZZLE);
@@ -253,8 +275,8 @@ void publishStartupReport() {
     publishEvent(EscapeTopic::PICO_STATUS_REPORT, EscapePicoStatus::PICO4_REPORT);
 }
 
-void publishSensorTelemetry() {
-    if (!mqtt.connected() || millis() - lastSensorTelemetry < SENSOR_TELEMETRY_MS) {
+void publishSensorTelemetry(bool forcePublish) {
+    if (!mqtt.connected() || (!forcePublish && millis() - lastSensorTelemetry < SENSOR_TELEMETRY_MS)) {
         return;
     }
 
@@ -272,6 +294,7 @@ void publishSensorTelemetry() {
     payload += ",oven_value=" + String(ovenValue);
     payload += ",solved=" + String(ovenSolved ? 1 : 0);
     payload += ",needs_reset=" + String(ovenNeedsPhysicalReset ? 1 : 0);
+    payload += ",oven_armed=" + String(ovenArmed ? 1 : 0);
     payload += ",smart_film=" + String(digitalRead(SMART_FILM_PIN));
     payload += ",smart_film_buzzer=" + String(digitalRead(SMART_FILM_BUZZER_PIN));
     payload += ",lock=" + String(digitalRead(LOCK_PIN));
@@ -280,8 +303,9 @@ void publishSensorTelemetry() {
 
 void resetOvenAndOutputs() {
     ovenSolved = false;
+    ovenArmed = false;
     int ovenValue = readOvenPotValue();
-    ovenNeedsPhysicalReset = ovenValueIsAtTarget(ovenValue, OVEN_TARGET_VALUE, OVEN_TARGET_TOLERANCE);
+    ovenNeedsPhysicalReset = false;
     ovenLastPublishedValue = -1;
     ovenTargetStableStart = 0;
     setLock(false);

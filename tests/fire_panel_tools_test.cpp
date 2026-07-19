@@ -25,6 +25,7 @@ int main() {
     const std::string testAudio = readText("tools/test-audio.sh");
     const std::string testPico4 = readText("tools/test-pico4.sh");
     const std::string testPico5 = readText("tools/test-pico5.sh");
+    const std::string pico4Readme = readText("pico4-smart-film-oven/include/README");
     const std::string platformio = readText("raspberry-pi-controller/platformio.ini");
     const std::string contactExample = readText("john-contact.env.example");
     const std::string pico7 = readText("pico7-fire-panel/src/main.cpp");
@@ -77,14 +78,21 @@ int main() {
     assert(readme.find("Fail-safe supervision") != std::string::npos);
     assert(readme.find("without a microphone") != std::string::npos);
     assert(readme.find("error_count") != std::string::npos);
+    assert(readme.find("oven potentiometer is inactive") != std::string::npos);
+    assert(readme.find("escape/cmd/pico4/arm_oven_potentiometer") != std::string::npos);
+    assert(readme.find("10 seconds") != std::string::npos);
 
     assert(testPico4.find("escape/cmd/pico4/reveal_smart_film") != std::string::npos);
+    assert(testPico4.find("escape/cmd/pico4/arm_oven_potentiometer") != std::string::npos);
     assert(testPico4.find("escape/pico4/smart_film_ready") != std::string::npos);
     assert(testPico4.find("transparent") != std::string::npos);
     assert(testPico4.find("Pico 4 acknowledged smart film") != std::string::npos);
     assert(testPico4.find("escape/telemetry/pico4/oven") != std::string::npos);
     assert(testPico4.find("Turn the oven knob") != std::string::npos);
     assert(testPico4.find("oven_raw range") != std::string::npos);
+    assert(pico4Readme.find("escape/cmd/pico4/arm_oven_potentiometer") != std::string::npos);
+    assert(pico4Readme.find("inactive until the Raspberry Pi arms it") != std::string::npos);
+    assert(pico4Readme.find("170 for the room reset") != std::string::npos);
 
     assert(testPico5.find("escape/pico5/color_sequence_error") != std::string::npos);
     assert(testPico5.find("try-again.wav") != std::string::npos);

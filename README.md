@@ -232,12 +232,12 @@ Pin numbers are GPIO numbers, not physical header pin numbers.
 
 ## Current Game Flow
 
-When powered and connected to MQTT, all active sensor Picos listen immediately:
+When powered and connected to MQTT, the sensor Picos report status immediately:
 
 1. Pico 2 waits for the puzzle piece placement.
 2. Pico 3 always listens for the picture rotation magnet sensor.
 3. Pico 5 listens for the color-button combination.
-4. Pico 4 listens to the oven potentiometer and reports oven telemetry.
+4. Pico 4 reports oven telemetry, but the oven potentiometer is inactive for solving until the Raspberry Pi arms it after the color code succeeds.
 
 Active room progression:
 
@@ -249,17 +249,21 @@ Active room progression:
 6. If the next button is wrong, Pico 5 immediately publishes `escape/pico5/color_sequence_error` and resets that attempt.
 7. The Raspberry Pi plays `try-again.wav` on the 1st, 4th, 7th, etc. wrong entry, and `buzzer.mp3` on the two wrong entries between those.
 8. Pico 5 publishes `escape/pico5/color_sequence_complete` immediately on the final correct press.
-9. Raspberry Pi queues `yeah-you-did-it.mp3`, then `bake_at_350.wav`; Pico 4's oven knob is already listening.
-10. If the oven is already at 350 when the room starts or resets, the fire panel's potentiometer status flashes green until the knob is moved away from 350.
-11. Player turns the oven knob to 350 and holds it there.
-12. Pico 4 publishes `escape/pico4/oven_target_reached`.
-13. Raspberry Pi tells Pico 4 to unlock the electromagnetic lock.
+9. Raspberry Pi queues `yeah-you-did-it.mp3`, then `bake_at_350.wav`, and sends `escape/cmd/pico4/arm_oven_potentiometer` so Pico 4 can start accepting the oven dial as an active puzzle input.
+10. Player turns the oven knob to 350 and holds it there.
+11. Pico 4 publishes `escape/pico4/oven_target_reached`.
+12. Raspberry Pi tells Pico 4 to unlock the electromagnetic lock.
+13. Once Pico 4 reports the electromagnetic lock open, the room is complete.
 
 The electromagnetic lock stays released (Pico 4 holds `GPIO 18` HIGH) until the
-room is reset, so the door remains open for the group. A fire-panel `reset-all`
-or the Pi reset button re-locks the door, clears Pico 2/3/5 solved latches,
-clears Pico 4's oven target latch, and clears transient controller state so the
-next group gets a clean run. Reset also plays one random activation/reset cue.
+room is reset, so the door remains open for the group. After the room has been
+complete for at least 10 seconds, turning the oven dial back down to 170 also
+resets the room. That low-dial reset re-locks the door, deactivates the oven
+potentiometer until the next correct color code, clears Pico 2/3/5 solved
+latches, clears Pico 4's oven target latch, and clears transient controller
+state so the next group gets a clean run. A fire-panel `reset-all` or the Pi
+reset button does the same immediately. Reset also plays one random
+activation/reset cue.
 If reset is performed while the copper piece is still placed or the picture
 magnet is still over the sensor, that Pico waits for the contact/magnet to leave
 before it can fire again; this prevents an immediate re-solve after reset.
@@ -349,7 +353,11 @@ GPIO 26 / ADC0 / physical pin 31 -> oven potentiometer wiper
 
 The oven dial reports a 170-440 degree range in 15-degree steps anchored at
 170. That gives the full knob more room to move while keeping 350 as an exact
-reachable value.
+reachable value. Pico 4 always publishes oven telemetry, but it ignores the
+350-degree solve condition until the Pi sends
+`escape/cmd/pico4/arm_oven_potentiometer` after the color buttons are solved.
+After the room is complete and 10 seconds have passed, returning the dial to
+170 resets the room.
 
 ### Pico 5: Color Buttons
 
@@ -576,6 +584,7 @@ Commands from the Pi:
 
 ```text
 escape/cmd/pico4/reveal_smart_film
+escape/cmd/pico4/arm_oven_potentiometer
 escape/cmd/pico4/unlock_electromag_lock
 escape/cmd/all/reset_puzzle
 escape/cmd/all/status_request
