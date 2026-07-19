@@ -21,6 +21,8 @@ fi
 fire/sound-pass
 sleep 1
 fire/sound-look
+sleep 1
+fire/sound-play-all
 
 echo
 echo "If direct audio worked but the fire commands did not, the controller service is not receiving or processing MQTT."

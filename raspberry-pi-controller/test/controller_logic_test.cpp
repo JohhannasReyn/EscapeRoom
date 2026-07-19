@@ -98,6 +98,7 @@ int main() {
     RecordingEffect colorSuccessFirstAudio;
     RecordingEffect colorSuccessSecondAudio;
     RecordingEffect roomCueAudio;
+    RecordingEffect playAllAudio;
     RecordingDisplay display;
     GameController controller(
         &paintingAudio,
@@ -108,7 +109,8 @@ int main() {
         &copperAudio,
         &colorSuccessFirstAudio,
         &colorSuccessSecondAudio,
-        &roomCueAudio
+        &roomCueAudio,
+        &playAllAudio
     );
     addActivePuzzles(controller);
 
@@ -351,6 +353,13 @@ int main() {
     assert(fireBakeLed.payload == "sound=playing");
     assert(colorSuccessSecondAudio.triggerCount == 2);
     assert(colorSuccessSecondAudio.lastPayload == "button");
+
+    assert(controller.handleMessage("escape/fire/sound-play-all", "button") == true);
+    MqttCommand firePlayAllLed = controller.takeNextPendingCommand();
+    assert(firePlayAllLed.topic == EscapeTopic::FIRE_PANEL_LED_COMMAND);
+    assert(firePlayAllLed.payload == "sound=playing");
+    assert(playAllAudio.triggerCount == 1);
+    assert(playAllAudio.lastPayload == "button");
 
     assert(controller.handleMessage(EscapeTopic::FIRE_UNLOCK, "button") == true);
     MqttCommand fireUnlockLed = controller.takeNextPendingCommand();

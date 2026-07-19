@@ -25,6 +25,15 @@ $tests = @(
         Includes = @("raspberry-pi-controller\src")
     },
     @{
+        Name = "directory_audio_effect_test"
+        Sources = @(
+            "tests\directory_audio_effect_test.cpp",
+            "raspberry-pi-controller\src\effects\DirectoryAudioEffect.cpp",
+            "raspberry-pi-controller\src\effects\AudioEffect.cpp"
+        )
+        Includes = @("raspberry-pi-controller\src")
+    },
+    @{
         Name = "cubby_led_layout_test"
         Sources = @("pico1-cubby-approach-leds\test\test_cubby_led_layout.cpp")
         Includes = @("pico1-cubby-approach-leds\src")

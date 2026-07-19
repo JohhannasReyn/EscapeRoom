@@ -63,6 +63,12 @@ run_test "random_effect_test" \
     --source "tests/random_effect_test.cpp" \
     --source "raspberry-pi-controller/src/effects/RandomEffect.cpp"
 
+run_test "directory_audio_effect_test" \
+    --include "raspberry-pi-controller/src" \
+    --source "tests/directory_audio_effect_test.cpp" \
+    --source "raspberry-pi-controller/src/effects/DirectoryAudioEffect.cpp" \
+    --source "raspberry-pi-controller/src/effects/AudioEffect.cpp"
+
 run_test "cubby_led_layout_test" \
     --include "pico1-cubby-approach-leds/src" \
     --source "pico1-cubby-approach-leds/test/test_cubby_led_layout.cpp"
