@@ -120,6 +120,19 @@ Audio requests are queued by the Raspberry Pi controller and played one at a
 time. This keeps MQTT messages, reset commands, and sensor events responsive
 even if several cues are triggered close together.
 
+Fail-safe supervision runs in the Raspberry Pi controller. When the Pi asks
+Pico 4 to reveal/hide smart film or unlock the final lock, it expects the
+matching Pico acknowledgement or telemetry. If the acknowledgement is missed,
+the Pi retries the command once, also sends the legacy backup topic, logs a
+`FAIL_SAFE` entry, and marks the related fire-panel light red if the backup
+still is not verified. Sensor telemetry can also recover missed copper,
+painting, color wrong-entry, color-complete, and oven-target events. Pico 5's
+button telemetry includes `error_count`, which lets the Pi play a missed
+try-again/buzzer cue without duplicating one that already arrived normally.
+Audio playback is retried through a fallback ALSA device if the software
+playback command fails, but without a microphone the Pi cannot prove that sound
+physically came out of the speaker.
+
 When a Pico connects to MQTT or receives a status request, it publishes a
 human-readable wiring report on `escape/status/pico`. The controller prints it
 as a `Pico wiring/status report`, for example:
@@ -360,8 +373,11 @@ immediately and resets the current attempt.
 
 Pico 5 also publishes immediate button telemetry after reset, after a wrong
 entry clears the current attempt, and after the sequence is solved. The payload
-includes `sequence_index` and `reset_count` so reset/rearm behavior can be
-checked from `tools/watch-mqtt.sh` or `tools/room-logs.sh`.
+includes `sequence_index`, `error_count`, and `reset_count` so reset/rearm
+behavior can be checked from `tools/watch-mqtt.sh` or `tools/room-logs.sh`.
+The Pi uses `error_count` as a fail-safe: if a wrong-code MQTT event is missed
+but telemetry shows the count increased, it plays the correct try-again/buzzer
+cue and logs a `FAIL_SAFE` recovery.
 
 Required ordered code:
 
@@ -460,6 +476,7 @@ Raw MQTT/debug:
 ```bash
 tools/watch-mqtt.sh
 tools/room-logs.sh
+tools/failsafe-status.sh
 ```
 
 Manual fire commands:

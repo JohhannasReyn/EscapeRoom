@@ -75,6 +75,7 @@ bool sequenceSolved = false;
 int totalPresses = 0;
 int sequenceIndex = 0;
 unsigned long resetCount = 0;
+unsigned long errorCount = 0;
 unsigned long lastPressAt = 0;
 unsigned long lastSensorTelemetry = 0;
 
@@ -94,6 +95,7 @@ void clearAttempt() {
 void resetSequence() {
     ++resetCount;
     sequenceSolved = false;
+    errorCount = 0;
     clearAttempt();
     lastPressAt = 0;
 
@@ -116,6 +118,7 @@ void publishEvent(const char* topic, const char* payload) {
 }
 
 void publishAttemptError(const char* reason) {
+    ++errorCount;
     publishEvent(EscapeTopic::COLOR_SEQUENCE_ERROR, reason);
     clearAttempt();
     lastPressAt = millis();
@@ -223,6 +226,7 @@ void publishSensorTelemetry(bool forcePublish) {
     String payload = "solved=" + String(sequenceSolved ? 1 : 0);
     payload += ",total_presses=" + String(totalPresses);
     payload += ",sequence_index=" + String(sequenceIndex);
+    payload += ",error_count=" + String(errorCount);
     payload += ",required_total=" + String(REQUIRED_TOTAL_PRESSES);
     payload += ",reset_count=" + String(resetCount);
 

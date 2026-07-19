@@ -25,15 +25,20 @@ int main() {
     assert(text.find("color button counts complete") == std::string::npos);
     assert(text.find("color button sequence complete") != std::string::npos);
     assert(text.find("unsigned long resetCount = 0") != std::string::npos);
+    assert(text.find("unsigned long errorCount = 0") != std::string::npos);
     assert(text.find("void publishSensorTelemetry(bool forcePublish = false)") != std::string::npos);
     assert(text.find("++resetCount") != std::string::npos);
+    assert(text.find("errorCount = 0") != std::string::npos);
+    assert(text.find("++errorCount") != std::string::npos);
     assert(text.find("sequence_index=") != std::string::npos);
+    assert(text.find("error_count=") != std::string::npos);
     assert(text.find("reset_count=") != std::string::npos);
     assert(text.find("!forcePublish && millis() - lastSensorTelemetry < SENSOR_TELEMETRY_MS") != std::string::npos);
     assert(text.find("publishSensorTelemetry(true)") < text.find("void publishEvent"));
 
     std::size_t publishAttemptErrorStart = text.find("void publishAttemptError");
     assert(publishAttemptErrorStart != std::string::npos);
+    assert(text.find("++errorCount", publishAttemptErrorStart) < text.find("publishEvent(EscapeTopic::COLOR_SEQUENCE_ERROR", publishAttemptErrorStart));
     std::size_t clearAttemptInError = text.find("clearAttempt();", publishAttemptErrorStart);
     std::size_t telemetryInError = text.find("publishSensorTelemetry(true)", publishAttemptErrorStart);
     assert(clearAttemptInError != std::string::npos);

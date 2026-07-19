@@ -29,6 +29,7 @@ int main() {
     const std::string contactExample = readText("john-contact.env.example");
     const std::string pico7 = readText("pico7-fire-panel/src/main.cpp");
     const std::string controller = readText("raspberry-pi-controller/src/GameController.cpp");
+    const std::string piMain = readText("raspberry-pi-controller/src/main.cpp");
     const std::string oldCrashAudioName = std::string("crashing_plates.") + "mp4";
 
     assert(rebase.find("chmod +x tools/*.sh") != std::string::npos);
@@ -46,6 +47,7 @@ int main() {
     assert(help.find("tools/send_to_john.sh") != std::string::npos);
     assert(help.find("tools/setup-drive-upload.sh") != std::string::npos);
     assert(help.find("tools/test-audio.sh") != std::string::npos);
+    assert(help.find("tools/failsafe-status.sh") != std::string::npos);
     assert(help.find("fire/sound-play-all") != std::string::npos);
     assert(help.find("Terminal-only audio diagnostic") != std::string::npos);
     assert(help.find("do not run it with source") != std::string::npos);
@@ -72,6 +74,9 @@ int main() {
     assert(readme.find("escape/fire/sound-play-all") != std::string::npos);
     assert(readme.find("crashing_plates.m4a") != std::string::npos);
     assert(readme.find(oldCrashAudioName) == std::string::npos);
+    assert(readme.find("Fail-safe supervision") != std::string::npos);
+    assert(readme.find("without a microphone") != std::string::npos);
+    assert(readme.find("error_count") != std::string::npos);
 
     assert(testPico4.find("escape/cmd/pico4/reveal_smart_film") != std::string::npos);
     assert(testPico4.find("escape/pico4/smart_film_ready") != std::string::npos);
@@ -85,6 +90,7 @@ int main() {
     assert(testPico5.find("try-again.wav") != std::string::npos);
     assert(testPico5.find("buzzer.mp3") != std::string::npos);
     assert(testPico5.find("escape/telemetry/pico5/buttons") != std::string::npos);
+    assert(testPico5.find("error_count") != std::string::npos);
 
     assert(connect.find("tools/play-audio.sh") != std::string::npos);
     assert(playAudio.find("ESCAPE_AUDIO_DEVICE") != std::string::npos);
@@ -96,6 +102,7 @@ int main() {
     assert(testAudio.find("fire/sound-pass") != std::string::npos);
     assert(testAudio.find("fire/sound-play-all") != std::string::npos);
     assert(testAudio.find("tools/room-logs.sh") != std::string::npos);
+    assert(readText("tools/failsafe-status.sh").find("FAIL_SAFE") != std::string::npos);
     assert(readText("fire/sound-play-all").find("\"sound-play-all\"") != std::string::npos);
     assert(platformio.find("look-behind-you.mp3") != std::string::npos);
     assert(platformio.find("crashing_plates.m4a") != std::string::npos);
@@ -154,4 +161,7 @@ int main() {
     }
 
     assert(controller.find("escape/fire/sound-play-all") != std::string::npos);
+    assert(piMain.find("processFailSafes(currentTimeMs())") != std::string::npos);
+    assert(piMain.find("watch_fail_safes") != std::string::npos);
+    assert(piMain.find("std::mutex controllerMutex") != std::string::npos);
 }

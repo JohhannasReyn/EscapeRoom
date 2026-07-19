@@ -6,12 +6,68 @@
 #include "PostState.h"
 
 #include <cctype>
+#include <algorithm>
 #include <iostream>
+#include <sstream>
 #include <stdexcept>
 #include <utility>
 
 namespace {
 inline constexpr const char* FIRE_SOUND_PLAY_ALL = "escape/fire/sound-play-all";
+inline constexpr unsigned long FAIL_SAFE_TIMEOUT_MS = 2000;
+
+std::string payloadValue(const std::string& payload, const std::string& key) {
+    std::size_t start = 0;
+
+    while (start <= payload.size()) {
+        std::size_t end = payload.find(',', start);
+        std::string part = payload.substr(start, end == std::string::npos ? std::string::npos : end - start);
+        std::size_t separator = part.find('=');
+
+        if (separator != std::string::npos && part.substr(0, separator) == key) {
+            return part.substr(separator + 1);
+        }
+
+        if (end == std::string::npos) {
+            break;
+        }
+
+        start = end + 1;
+    }
+
+    return "";
+}
+
+bool payloadHasValue(const std::string& payload, const std::string& key, const std::string& expectedValue) {
+    return payloadValue(payload, key) == expectedValue;
+}
+
+bool payloadLongValue(const std::string& payload, const std::string& key, long& value) {
+    std::string text = payloadValue(payload, key);
+    if (text.empty()) {
+        return false;
+    }
+
+    try {
+        std::size_t parsedLength = 0;
+        long parsedValue = std::stol(text, &parsedLength);
+
+        if (parsedLength != text.size()) {
+            return false;
+        }
+
+        value = parsedValue;
+        return true;
+    } catch (const std::exception&) {
+        return false;
+    }
+}
+
+bool isPicoColorErrorPayload(const std::string& payload) {
+    return payload == "incorrect color button entry" ||
+        payload == "color button attempt timed out";
+}
+
 }
 
 GameController::GameController(
@@ -42,12 +98,14 @@ void GameController::addPuzzle(std::unique_ptr<PuzzleModule> puzzle) {
     puzzles.push_back(std::move(puzzle));
 }
 
-bool GameController::handleMessage(const std::string& topic, const std::string& payload) {
-    if (handleFireCommand(topic, payload)) {
+bool GameController::handleMessage(const std::string& topic, const std::string& payload, unsigned long nowMs) {
+    bool observedFailSafe = observeFailSafe(topic, payload);
+
+    if (handleFireCommand(topic, payload, nowMs)) {
         return true;
     }
 
-    if (handleSensorTelemetry(topic, payload)) {
+    if (handleSensorTelemetry(topic, payload, nowMs)) {
         return true;
     }
 
@@ -59,7 +117,11 @@ bool GameController::handleMessage(const std::string& topic, const std::string& 
         return true;
     }
 
-    if (handleFlowEvent(topic, payload)) {
+    if (handleFlowEvent(topic, payload, nowMs)) {
+        return true;
+    }
+
+    if (observedFailSafe) {
         return true;
     }
 
@@ -75,7 +137,7 @@ bool GameController::handleMessage(const std::string& topic, const std::string& 
     return false;
 }
 
-bool GameController::handleFireCommand(const std::string& topic, const std::string& payload) {
+bool GameController::handleFireCommand(const std::string& topic, const std::string& payload, unsigned long nowMs) {
     if (topic == EscapeTopic::FIRE_STATUS) {
         queueFirePanelLedCommand("all", "checking");
         queueFirePanelLedCommand("sound", "ready");
@@ -88,6 +150,7 @@ bool GameController::handleFireCommand(const std::string& topic, const std::stri
         queueFirePanelLedCommand("film", "active");
         pendingCommands.push_back({EscapeTopic::REVEAL_SMART_FILM, "on"});
         pendingCommands.push_back({EscapeTopic::LEGACY_PDLC_ON, "on"});
+        watchSmartFilmReveal(nowMs);
         return true;
     }
 
@@ -95,6 +158,7 @@ bool GameController::handleFireCommand(const std::string& topic, const std::stri
         queueFirePanelLedCommand("film", "ready");
         pendingCommands.push_back({EscapeTopic::REVEAL_SMART_FILM, "off"});
         pendingCommands.push_back({EscapeTopic::LEGACY_PDLC_ON, "off"});
+        watchSmartFilmHide(nowMs);
         return true;
     }
 
@@ -152,6 +216,7 @@ bool GameController::handleFireCommand(const std::string& topic, const std::stri
         queueFirePanelLedCommand("pot", "active");
         pendingCommands.push_back({EscapeTopic::UNLOCK_ELECTROMAG_LOCK, "on"});
         pendingCommands.push_back({EscapeTopic::LEGACY_LOCK_TRIGGER, "on"});
+        watchLockUnlock(nowMs);
         return true;
     }
 
@@ -197,6 +262,63 @@ MqttCommand GameController::takeNextPendingCommand() {
     return command;
 }
 
+void GameController::processFailSafes(unsigned long nowMs) {
+    auto action = failSafes.begin();
+
+    while (action != failSafes.end()) {
+        if (nowMs < action->nextCheckAtMs) {
+            ++action;
+            continue;
+        }
+
+        if (action->fallbackRuns < action->maxFallbackRuns) {
+            std::ostringstream message;
+            message << "FAIL_SAFE retry " << (action->fallbackRuns + 1)
+                    << " for " << action->name
+                    << " after missing " << action->expectedTopic;
+            logFailSafe(message.str());
+
+            for (const MqttCommand& fallbackCommand : action->fallbackCommands) {
+                pendingCommands.push_back(fallbackCommand);
+            }
+
+            ++action->fallbackRuns;
+            ++failSafeRetries;
+            action->nextCheckAtMs = nowMs + action->timeoutMs;
+            ++action;
+            continue;
+        }
+
+        std::ostringstream message;
+        message << "FAIL_SAFE failure for " << action->name
+                << " after retry backup; returning to listening state";
+        logFailSafe(message.str());
+
+        if (!action->failureLedCommand.topic.empty()) {
+            pendingCommands.push_back(action->failureLedCommand);
+        }
+
+        ++failSafeFailures;
+        action = failSafes.erase(action);
+    }
+}
+
+std::size_t GameController::activeFailSafeCount() const {
+    return failSafes.size();
+}
+
+int GameController::failSafeRetryCount() const {
+    return failSafeRetries;
+}
+
+int GameController::failSafeFailureCount() const {
+    return failSafeFailures;
+}
+
+std::vector<std::string> GameController::failSafeLog() const {
+    return failSafeMessages;
+}
+
 int GameController::lastOvenDegrees() const {
     return ovenDegrees;
 }
@@ -232,6 +354,10 @@ void GameController::resetGameProgress() {
     state = RoomState::COPPER_PUZZLE_ACTIVE;
     ovenPhysicalResetSignaled = false;
     colorSequenceErrorCount = 0;
+    paintingTelemetryActive = false;
+    lastColorErrorTelemetryCount = -1;
+    pendingExplicitColorErrorTelemetryAcks = 0;
+    failSafes.clear();
     solvedTopics.clear();
 }
 
@@ -288,9 +414,86 @@ bool GameController::handlePostStateReport(const std::string& topic, const std::
     return true;
 }
 
-bool GameController::handleSensorTelemetry(const std::string& topic, const std::string& payload) {
+bool GameController::handleSensorTelemetry(const std::string& topic, const std::string& payload, unsigned long nowMs) {
     if (topic.rfind("escape/telemetry/", 0) != 0) {
         return false;
+    }
+
+    if (topic == "escape/telemetry/pico2/contacts") {
+        if (
+            payloadHasValue(payload, "copper", "0") &&
+            solvedTopics.find(EscapeTopic::COPPER_PUZZLE_COMPLETE) == solvedTopics.end()
+        ) {
+            logFailSafe("FAIL_SAFE telemetry fallback: copper puzzle contact is active but completion event was not seen");
+            handleFlowEvent(EscapeTopic::COPPER_PUZZLE_COMPLETE, "fail-safe telemetry fallback", nowMs);
+            markPuzzleSolved(EscapeTopic::COPPER_PUZZLE_COMPLETE);
+        }
+
+        return true;
+    }
+
+    if (topic == "escape/telemetry/pico3/painting_sensor") {
+        bool magnetPresent = payloadHasValue(payload, "magnet_present", "1") ||
+            payloadHasValue(payload, "painting_sensor", "0");
+
+        if (!magnetPresent) {
+            paintingTelemetryActive = false;
+            return true;
+        }
+
+        if (!paintingTelemetryActive) {
+            logFailSafe("FAIL_SAFE telemetry fallback: painting magnet is active but rotation event was not seen");
+            handleFlowEvent(EscapeTopic::PAINTING_ROTATION_COMPLETE, "fail-safe telemetry fallback", nowMs);
+            markPuzzleSolved(EscapeTopic::PAINTING_ROTATION_COMPLETE);
+        }
+
+        paintingTelemetryActive = true;
+        return true;
+    }
+
+    if (topic == "escape/telemetry/pico5/buttons") {
+        long telemetryErrorCount = 0;
+        if (payloadLongValue(payload, "error_count", telemetryErrorCount)) {
+            if (lastColorErrorTelemetryCount < 0 || telemetryErrorCount < lastColorErrorTelemetryCount) {
+                lastColorErrorTelemetryCount = telemetryErrorCount;
+                pendingExplicitColorErrorTelemetryAcks = 0;
+            } else if (telemetryErrorCount > lastColorErrorTelemetryCount) {
+                long errorDelta = telemetryErrorCount - lastColorErrorTelemetryCount;
+                long explicitAckCount = std::min<long>(errorDelta, pendingExplicitColorErrorTelemetryAcks);
+                pendingExplicitColorErrorTelemetryAcks -= static_cast<int>(explicitAckCount);
+
+                long missedErrorCount = errorDelta - explicitAckCount;
+                if (missedErrorCount > 0) {
+                    std::ostringstream message;
+                    message << "FAIL_SAFE telemetry fallback: recovered " << missedErrorCount
+                            << " missed color-button error event";
+                    if (missedErrorCount != 1) {
+                        message << "s";
+                    }
+                    logFailSafe(message.str());
+
+                    for (long i = 0; i < missedErrorCount; ++i) {
+                        triggerColorSequenceErrorCue("fail-safe telemetry fallback");
+                    }
+                }
+
+                lastColorErrorTelemetryCount = telemetryErrorCount;
+            }
+        }
+
+        if (
+            payloadHasValue(payload, "solved", "1") &&
+            currentState() != RoomState::OVEN_KNOB_ACTIVE &&
+            currentState() != RoomState::OVEN_TARGET_REACHED &&
+            currentState() != RoomState::ELECTROMAGNETIC_LOCK_RELEASED &&
+            currentState() != RoomState::ROOM_KEY_AVAILABLE
+        ) {
+            logFailSafe("FAIL_SAFE telemetry fallback: color sequence is solved but completion event was not seen");
+            handleFlowEvent(EscapeTopic::COLOR_SEQUENCE_COMPLETE, "fail-safe telemetry fallback", nowMs);
+            markPuzzleSolved(EscapeTopic::COLOR_SEQUENCE_COMPLETE);
+        }
+
+        return true;
     }
 
     if (topic != "escape/telemetry/pico4/oven") {
@@ -311,6 +514,13 @@ bool GameController::handleSensorTelemetry(const std::string& topic, const std::
         int telemetryOvenValue = std::stoi(valueText);
         bool atTarget = telemetryOvenValue >= 340 && telemetryOvenValue <= 360;
 
+        if (currentState() == RoomState::OVEN_KNOB_ACTIVE && atTarget) {
+            logFailSafe("FAIL_SAFE telemetry fallback: oven is at target but target-reached event was not seen");
+            handleFlowEvent(EscapeTopic::OVEN_TARGET_REACHED, "fail-safe telemetry fallback", nowMs);
+            markPuzzleSolved(EscapeTopic::OVEN_TARGET_REACHED);
+            return true;
+        }
+
         if (currentState() != RoomState::OVEN_KNOB_ACTIVE && atTarget && !ovenPhysicalResetSignaled) {
             queueFirePanelLedCommand("pot", "physical-reset");
             ovenPhysicalResetSignaled = true;
@@ -324,7 +534,7 @@ bool GameController::handleSensorTelemetry(const std::string& topic, const std::
     return true;
 }
 
-bool GameController::handleFlowEvent(const std::string& topic, const std::string& payload) {
+bool GameController::handleFlowEvent(const std::string& topic, const std::string& payload, unsigned long nowMs) {
     if (topic == EscapeTopic::CUBBY_APPROACH_DETECTED || topic == "escape/puzzle/stairs/triggered") {
         transitionTo(RoomState::CUBBY_APPROACH_DETECTED, topic);
         pendingCommands.push_back({EscapeTopic::ENABLE_CUBBY_LIGHT, "1"});
@@ -345,6 +555,7 @@ bool GameController::handleFlowEvent(const std::string& topic, const std::string
 
         pendingCommands.push_back({EscapeTopic::REVEAL_SMART_FILM, "on"});
         pendingCommands.push_back({EscapeTopic::LEGACY_PDLC_ON, "on"});
+        watchSmartFilmReveal(nowMs);
         queueFirePanelLedCommand("film", "active");
         transitionTo(RoomState::SMART_FILM_REVEALED, "smart film reveal command queued");
         queueFirePanelLedCommand("buttons", "active");
@@ -353,6 +564,7 @@ bool GameController::handleFlowEvent(const std::string& topic, const std::string
     }
 
     if (topic == EscapeTopic::PAINTING_ROTATION_COMPLETE) {
+        paintingTelemetryActive = true;
         transitionTo(RoomState::PAINTING_ROTATION_COMPLETE, topic);
         queueFirePanelLedCommand("picture", "triggered");
 
@@ -403,20 +615,10 @@ bool GameController::handleFlowEvent(const std::string& topic, const std::string
     }
 
     if (topic == EscapeTopic::COLOR_SEQUENCE_ERROR) {
-        queueFirePanelLedCommand("buttons", "wrong");
-        ++colorSequenceErrorCount;
-
-        Effect* selectedErrorEffect = colorSequenceErrorEffect;
-        if (colorFailureUsesTryAgainCue(colorSequenceErrorCount) && colorSequenceTryAgainEffect != nullptr) {
-            selectedErrorEffect = colorSequenceTryAgainEffect;
+        if (isPicoColorErrorPayload(payload)) {
+            ++pendingExplicitColorErrorTelemetryAcks;
         }
-
-        if (selectedErrorEffect != nullptr) {
-            selectedErrorEffect->trigger(payload);
-        } else {
-            std::cout << "Color sequence error audio effect not configured." << std::endl;
-        }
-
+        triggerColorSequenceErrorCue(payload);
         return true;
     }
 
@@ -424,6 +626,7 @@ bool GameController::handleFlowEvent(const std::string& topic, const std::string
         transitionTo(RoomState::OVEN_TARGET_REACHED, topic);
         pendingCommands.push_back({EscapeTopic::UNLOCK_ELECTROMAG_LOCK, "on"});
         pendingCommands.push_back({EscapeTopic::LEGACY_LOCK_TRIGGER, "on"});
+        watchLockUnlock(nowMs);
         queueFirePanelLedCommand("pot", "ready");
         transitionTo(RoomState::ELECTROMAGNETIC_LOCK_RELEASED, "oven target reached");
         return true;
@@ -465,6 +668,130 @@ bool GameController::handleOvenDegreesReport(const std::string& topic, const std
 
 void GameController::queueFirePanelLedCommand(const std::string& zone, const std::string& mode) {
     pendingCommands.push_back({EscapeTopic::FIRE_PANEL_LED_COMMAND, zone + "=" + mode});
+}
+
+void GameController::triggerColorSequenceErrorCue(const std::string& payload) {
+    queueFirePanelLedCommand("buttons", "wrong");
+    ++colorSequenceErrorCount;
+
+    Effect* selectedErrorEffect = colorSequenceErrorEffect;
+    if (colorFailureUsesTryAgainCue(colorSequenceErrorCount) && colorSequenceTryAgainEffect != nullptr) {
+        selectedErrorEffect = colorSequenceTryAgainEffect;
+    }
+
+    if (selectedErrorEffect != nullptr) {
+        selectedErrorEffect->trigger(payload);
+    } else {
+        std::cout << "Color sequence error audio effect not configured." << std::endl;
+    }
+}
+
+void GameController::watchSmartFilmReveal(unsigned long nowMs) {
+    failSafes.erase(
+        std::remove_if(failSafes.begin(), failSafes.end(), [](const FailSafeAction& action) {
+            return action.name == "smart film reveal";
+        }),
+        failSafes.end()
+    );
+
+    failSafes.push_back({
+        "smart film reveal",
+        EscapeTopic::SMART_FILM_READY,
+        "transparent",
+        {
+            {EscapeTopic::REVEAL_SMART_FILM, "on"},
+            {EscapeTopic::LEGACY_PDLC_ON, "on"},
+        },
+        {EscapeTopic::FIRE_PANEL_LED_COMMAND, "film=error"},
+        nowMs + FAIL_SAFE_TIMEOUT_MS,
+        FAIL_SAFE_TIMEOUT_MS,
+        0,
+        1,
+    });
+}
+
+void GameController::watchSmartFilmHide(unsigned long nowMs) {
+    failSafes.erase(
+        std::remove_if(failSafes.begin(), failSafes.end(), [](const FailSafeAction& action) {
+            return action.name == "smart film hide";
+        }),
+        failSafes.end()
+    );
+
+    failSafes.push_back({
+        "smart film hide",
+        EscapeTopic::SMART_FILM_READY,
+        "opaque",
+        {
+            {EscapeTopic::REVEAL_SMART_FILM, "off"},
+            {EscapeTopic::LEGACY_PDLC_ON, "off"},
+        },
+        {EscapeTopic::FIRE_PANEL_LED_COMMAND, "film=error"},
+        nowMs + FAIL_SAFE_TIMEOUT_MS,
+        FAIL_SAFE_TIMEOUT_MS,
+        0,
+        1,
+    });
+}
+
+void GameController::watchLockUnlock(unsigned long nowMs) {
+    failSafes.erase(
+        std::remove_if(failSafes.begin(), failSafes.end(), [](const FailSafeAction& action) {
+            return action.name == "lock unlock";
+        }),
+        failSafes.end()
+    );
+
+    failSafes.push_back({
+        "lock unlock",
+        EscapeTopic::ELECTROMAG_LOCK_UNLOCKED,
+        "",
+        {
+            {EscapeTopic::UNLOCK_ELECTROMAG_LOCK, "on"},
+            {EscapeTopic::LEGACY_LOCK_TRIGGER, "on"},
+        },
+        {EscapeTopic::FIRE_PANEL_LED_COMMAND, "pot=error"},
+        nowMs + FAIL_SAFE_TIMEOUT_MS,
+        FAIL_SAFE_TIMEOUT_MS,
+        0,
+        1,
+    });
+}
+
+bool GameController::observeFailSafe(const std::string& topic, const std::string& payload) {
+    bool observed = false;
+    auto action = failSafes.begin();
+
+    while (action != failSafes.end()) {
+        bool matched = topic == action->expectedTopic &&
+            (action->expectedPayloadFragment.empty() || payload.find(action->expectedPayloadFragment) != std::string::npos);
+
+        if (!matched && topic == "escape/telemetry/pico4/oven") {
+            matched =
+                (action->name == "smart film reveal" && payloadHasValue(payload, "smart_film", "1")) ||
+                (action->name == "smart film hide" && payloadHasValue(payload, "smart_film", "0")) ||
+                (action->name == "lock unlock" && payloadHasValue(payload, "lock", "1"));
+        }
+
+        if (matched) {
+            logFailSafe("FAIL_SAFE verified " + action->name + " from " + topic);
+            action = failSafes.erase(action);
+            observed = true;
+        } else {
+            ++action;
+        }
+    }
+
+    return observed;
+}
+
+void GameController::logFailSafe(const std::string& message) {
+    std::cout << message << std::endl;
+    failSafeMessages.push_back(message);
+
+    if (failSafeMessages.size() > 50) {
+        failSafeMessages.erase(failSafeMessages.begin());
+    }
 }
 
 void GameController::queueCommandsForTopic(const std::string& topic) {
