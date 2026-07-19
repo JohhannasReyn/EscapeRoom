@@ -15,13 +15,7 @@ fi
 echo "Wired audio output ready. Plug the speaker into the Raspberry Pi 3.5mm jack."
 
 if [ -f "${TEST_SOUND}" ]; then
-    if command -v ffplay >/dev/null 2>&1; then
-        ffplay -nodisp -autoexit -loglevel quiet "${TEST_SOUND}" >/dev/null 2>&1 || true
-    elif command -v pw-play >/dev/null 2>&1; then
-        pw-play "${TEST_SOUND}" >/dev/null 2>&1 || true
-    elif command -v aplay >/dev/null 2>&1; then
-        aplay "${TEST_SOUND}" >/dev/null 2>&1 || true
-    fi
+    "${PROJECT_ROOT}/tools/play-audio.sh" "${TEST_SOUND}" || true
 else
     echo "Test sound not found: ${TEST_SOUND}"
 fi

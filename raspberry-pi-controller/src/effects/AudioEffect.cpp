@@ -55,15 +55,16 @@ std::string audioDevice() {
 }
 
 std::string audioCommandForFile(const std::string& audioFile) {
-    bool useFfplay =
-        (audioFile.size() >= 4 && audioFile.substr(audioFile.size() - 4) == ".m4a") ||
-        (audioFile.size() >= 4 && audioFile.substr(audioFile.size() - 4) == ".mp3");
+    const std::string decodeAndPlay =
+        "ffmpeg -hide_banner -loglevel error -nostdin -i \"$1\" -f wav - | "
+        "aplay -q -D \"$2\" -";
 
-    if (useFfplay) {
-        return "ffplay -nodisp -autoexit -loglevel quiet -fflags nobuffer -flags low_delay -probesize 32 -analyzeduration 0 " + shellQuote(audioFile);
-    }
-
-    return "aplay -D " + shellQuote(audioDevice()) + " " + shellQuote(audioFile);
+    return "timeout --kill-after=2s 15s bash -o pipefail -c " +
+        shellQuote(decodeAndPlay) +
+        " _ " +
+        shellQuote(audioFile) +
+        " " +
+        shellQuote(audioDevice());
 }
 
 void audioWorkerLoop() {
@@ -82,6 +83,7 @@ void audioWorkerLoop() {
         }
 
         std::cout << "Playing queued audio: " << request.file << std::endl;
+        std::cout << "Audio command: " << request.command << std::endl;
         int result = std::system(request.command.c_str());
 
         if (result != 0) {
