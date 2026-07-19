@@ -84,7 +84,8 @@ GameController::GameController(
     Effect* colorSequenceSuccessFirstEffect,
     Effect* colorSequenceSuccessSecondEffect,
     Effect* roomCueEffect,
-    Effect* playAllAudioEffect
+    Effect* playAllAudioEffect,
+    Effect* finalVictoryEffect
 )
     : paintingCrashEffect(paintingCrashEffect),
       displayOutput(displayOutput),
@@ -95,7 +96,8 @@ GameController::GameController(
       colorSequenceSuccessFirstEffect(colorSequenceSuccessFirstEffect),
       colorSequenceSuccessSecondEffect(colorSequenceSuccessSecondEffect),
       roomCueEffect(roomCueEffect),
-      playAllAudioEffect(playAllAudioEffect) {
+      playAllAudioEffect(playAllAudioEffect),
+      finalVictoryEffect(finalVictoryEffect) {
 }
 
 void GameController::addPuzzle(std::unique_ptr<PuzzleModule> puzzle) {
@@ -648,6 +650,11 @@ bool GameController::handleFlowEvent(const std::string& topic, const std::string
     if (topic == EscapeTopic::ELECTROMAG_LOCK_UNLOCKED) {
         if (currentState() != RoomState::ROOM_KEY_AVAILABLE) {
             roomCompletedAtMs = nowMs;
+            if (finalVictoryEffect != nullptr) {
+                finalVictoryEffect->trigger(payload);
+            } else {
+                std::cout << "Final victory audio effect not configured." << std::endl;
+            }
         }
         transitionTo(RoomState::ROOM_KEY_AVAILABLE, topic);
         return true;

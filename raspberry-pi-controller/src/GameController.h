@@ -31,7 +31,8 @@ public:
         Effect* colorSequenceSuccessFirstEffect = nullptr,
         Effect* colorSequenceSuccessSecondEffect = nullptr,
         Effect* roomCueEffect = nullptr,
-        Effect* playAllAudioEffect = nullptr
+        Effect* playAllAudioEffect = nullptr,
+        Effect* finalVictoryEffect = nullptr
     );
 
     void addPuzzle(std::unique_ptr<PuzzleModule> puzzle);
@@ -109,6 +110,7 @@ private:
     Effect* colorSequenceSuccessSecondEffect = nullptr;
     Effect* roomCueEffect = nullptr;
     Effect* playAllAudioEffect = nullptr;
+    Effect* finalVictoryEffect = nullptr;
 };
 
 #endif
