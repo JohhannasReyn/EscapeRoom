@@ -99,4 +99,28 @@ Pico 7 has five status-light zones, not one light per button.
 | 3 | Painting | GP16 | GP17 | Ready | Painting triggered | Checking/reset | Manual diagnostic | Offline/fault |
 | 4 | Color buttons | GP18 | GP19 | Ready/idle | Listening/active | Wrong/checking | Manual diagnostic | Offline/fault |
 | 5 | Oven / lock | GP20 | GP21 | Ready | Oven active/unlocked/reset needed | Checking/reset countdown | Manual diagnostic | Offline/fault |
+
+Fire panel status light map:
+Pico 7 has five status-light zones, not one light per button.
+
+╭─────┬──────────┬────────────┬───────────────┬──────────────┬──────────┬─────────╮
+│Light│Zone      │Green Solid │Green Flashing │Red Flashing  │Red/Green │Red Solid│
+├─────┼──────────┼────────────┼───────────────┼──────────────┼──────────┼─────────┤
+│  1. │Smart Film│Ready/Hidden│Film Reveal/   │Checking/     │Manual    │Offline/ │
+│     │          │            │Active         │Reset         │Diagnostic│Fault    │
+├─────┼──────────┼────────────┼───────────────┼──────────────┼──────────┼─────────┤
+│  2. │Sound     │Ready       │Audio Playing  │Wrong-Code    │Manual    │Offline/ │
+│     │          │            │               │Sound/Checking│Diagnostic│Fault    │
+├─────┼──────────┼────────────┼───────────────┼──────────────┼──────────┼─────────┤
+│  3. │Painting  │Ready       │Painting       │Checking/     │Manual    │Offline/ │
+│     │          │            │ Triggered     │Reset         │Diagnostic│Fault    │
+├─────┼──────────┼────────────┼───────────────┼──────────────┼──────────┼─────────┤
+│  4. │Color     │Ready/Seq-  │Listening/     │Wrong Entry/  │Manual    │Offline/ │
+│     │Buttons   │uence idle  │ Active        │Checking      │Diagnostic│Fault    │
+├─────┼──────────┼────────────┼───────────────┼──────────────┼──────────┼─────────┤
+│  5. │Oven/Lock │Ready       │Oven active/   │Checking/     │Manual    │Offline/ │
+│     │          │            │Unlock/Physical│Reset         │Diagnostic│Fault    │
+│     │          │            │Reset Needed   │Countdown     │          │         │
+╰─────┴──────────┴────────────┴───────────────┴──────────────┴──────────┴─────────╯
+
 EOF

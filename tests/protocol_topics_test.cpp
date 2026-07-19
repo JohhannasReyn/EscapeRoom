@@ -14,6 +14,7 @@ int main() {
 
     assert(std::string(EscapeTopic::ENABLE_CUBBY_LIGHT) == "escape/cmd/pico1/enable_cubby_light");
     assert(std::string(EscapeTopic::REVEAL_SMART_FILM) == "escape/cmd/pico4/reveal_smart_film");
+    assert(std::string(EscapeTopic::ARM_OVEN_POTENTIOMETER) == "escape/cmd/pico4/arm_oven_potentiometer");
     assert(std::string(EscapeTopic::UNLOCK_ELECTROMAG_LOCK) == "escape/cmd/pico4/unlock_electromag_lock");
     assert(std::string(EscapeTopic::RESET_PUZZLE) == "escape/cmd/all/reset_puzzle");
     assert(std::string(EscapeTopic::STATUS_REQUEST) == "escape/cmd/all/status_request");

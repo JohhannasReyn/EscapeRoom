@@ -13,21 +13,25 @@ Main topics:
 - Publishes escape/pico4/electromag_lock_unlocked
 - Publishes escape/pico4/oven_error
 - Subscribes escape/cmd/pico4/reveal_smart_film
+- Subscribes escape/cmd/pico4/arm_oven_potentiometer
 - Subscribes escape/cmd/pico4/unlock_electromag_lock
 - Subscribes escape/cmd/all/status_request
 - Subscribes escape/cmd/all/reset_puzzle
 
+The oven potentiometer is inactive until the Raspberry Pi arms it with
+escape/cmd/pico4/arm_oven_potentiometer after the color button code is solved.
+
 The lock only releases after:
+- the oven potentiometer has been armed
 - potentiometer-derived value stays at 350 within tolerance for the configured hold time
 
 The potentiometer maps to a 170-440 degree oven range in 15-degree steps
 anchored at 170, so 350 remains an exact reachable value.
 
-After the oven reaches 350, the Pico re-arms when the potentiometer leaves the
-target tolerance window.
-
-If the oven is already at 350 on startup/reset, the Pico requires a physical
-reset by moving the knob away from 350 before it can solve.
+After the oven reaches 350, Pico 4 keeps the electromagnetic lock released
+until the room reset command arrives. The Raspberry Pi watches for the dial to
+return to 170 for the room reset, but only after the room has been complete for
+the configured safety delay.
 
 The small LED thermometer strip is not used in the current build. Pico 4 publishes
 the simulated oven temperature to MQTT for the Raspberry Pi controller and fire panel.

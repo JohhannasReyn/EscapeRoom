@@ -15,6 +15,10 @@
 namespace {
 inline constexpr const char* FIRE_SOUND_PLAY_ALL = "escape/fire/sound-play-all";
 inline constexpr unsigned long FAIL_SAFE_TIMEOUT_MS = 2000;
+inline constexpr unsigned long COMPLETED_ROOM_OVEN_RESET_DELAY_MS = 10000;
+inline constexpr int OVEN_TARGET_MIN_VALUE = 340;
+inline constexpr int OVEN_TARGET_MAX_VALUE = 360;
+inline constexpr int OVEN_RESET_LOW_VALUE = 170;
 
 std::string payloadValue(const std::string& payload, const std::string& key) {
     std::size_t start = 0;
@@ -352,9 +356,9 @@ void GameController::resetGameProgress() {
     // Clear transient flags and the state machine so a room reset re-arms the
     // full flow for the next group.
     state = RoomState::COPPER_PUZZLE_ACTIVE;
-    ovenPhysicalResetSignaled = false;
     colorSequenceErrorCount = 0;
     paintingTelemetryActive = false;
+    roomCompletedAtMs = 0;
     lastColorErrorTelemetryCount = -1;
     pendingExplicitColorErrorTelemetryAcks = 0;
     failSafes.clear();
@@ -500,35 +504,37 @@ bool GameController::handleSensorTelemetry(const std::string& topic, const std::
         return true;
     }
 
-    const std::string key = "oven_value=";
-    std::size_t start = payload.find(key);
-    if (start == std::string::npos) {
+    long telemetryOvenValue = 0;
+    if (!payloadLongValue(payload, "oven_value", telemetryOvenValue)) {
         return true;
     }
 
-    start += key.size();
-    std::size_t end = payload.find(',', start);
-    std::string valueText = payload.substr(start, end == std::string::npos ? std::string::npos : end - start);
+    bool atTarget = telemetryOvenValue >= OVEN_TARGET_MIN_VALUE && telemetryOvenValue <= OVEN_TARGET_MAX_VALUE;
+    bool atResetLow = telemetryOvenValue <= OVEN_RESET_LOW_VALUE;
 
-    try {
-        int telemetryOvenValue = std::stoi(valueText);
-        bool atTarget = telemetryOvenValue >= 340 && telemetryOvenValue <= 360;
+    if (
+        currentState() == RoomState::ROOM_KEY_AVAILABLE &&
+        roomCompletedAtMs != 0 &&
+        nowMs >= roomCompletedAtMs + COMPLETED_ROOM_OVEN_RESET_DELAY_MS &&
+        atResetLow
+    ) {
+        resetRoomFromCompletedOvenDial(nowMs);
+        return true;
+    }
 
-        if (currentState() == RoomState::OVEN_KNOB_ACTIVE && atTarget) {
-            logFailSafe("FAIL_SAFE telemetry fallback: oven is at target but target-reached event was not seen");
-            handleFlowEvent(EscapeTopic::OVEN_TARGET_REACHED, "fail-safe telemetry fallback", nowMs);
-            markPuzzleSolved(EscapeTopic::OVEN_TARGET_REACHED);
-            return true;
-        }
+    if (
+        currentState() == RoomState::ELECTROMAGNETIC_LOCK_RELEASED &&
+        payloadHasValue(payload, "lock", "1")
+    ) {
+        handleFlowEvent(EscapeTopic::ELECTROMAG_LOCK_UNLOCKED, "fail-safe telemetry verified lock", nowMs);
+        return true;
+    }
 
-        if (currentState() != RoomState::OVEN_KNOB_ACTIVE && atTarget && !ovenPhysicalResetSignaled) {
-            queueFirePanelLedCommand("pot", "physical-reset");
-            ovenPhysicalResetSignaled = true;
-        } else if (!atTarget && ovenPhysicalResetSignaled && currentState() != RoomState::OVEN_KNOB_ACTIVE) {
-            queueFirePanelLedCommand("pot", "ready");
-            ovenPhysicalResetSignaled = false;
-        }
-    } catch (const std::exception&) {
+    if (currentState() == RoomState::OVEN_KNOB_ACTIVE && atTarget) {
+        logFailSafe("FAIL_SAFE telemetry fallback: oven is at target but target-reached event was not seen");
+        handleFlowEvent(EscapeTopic::OVEN_TARGET_REACHED, "fail-safe telemetry fallback", nowMs);
+        markPuzzleSolved(EscapeTopic::OVEN_TARGET_REACHED);
+        return true;
     }
 
     return true;
@@ -609,8 +615,10 @@ bool GameController::handleFlowEvent(const std::string& topic, const std::string
         }
 
         transitionTo(RoomState::DISPLAY_BAKE_350, "display bake message requested");
+        pendingCommands.push_back({EscapeTopic::ARM_OVEN_POTENTIOMETER, "on"});
+        watchOvenArm(nowMs);
         queueFirePanelLedCommand("pot", "active");
-        transitionTo(RoomState::OVEN_KNOB_ACTIVE, "oven knob already listening");
+        transitionTo(RoomState::OVEN_KNOB_ACTIVE, "oven knob armed");
         return true;
     }
 
@@ -623,6 +631,11 @@ bool GameController::handleFlowEvent(const std::string& topic, const std::string
     }
 
     if (topic == EscapeTopic::OVEN_TARGET_REACHED || topic == "escape/puzzle/oven/solved") {
+        if (currentState() != RoomState::OVEN_KNOB_ACTIVE) {
+            logFailSafe("FAIL_SAFE ignored oven target while oven potentiometer is inactive");
+            return true;
+        }
+
         transitionTo(RoomState::OVEN_TARGET_REACHED, topic);
         pendingCommands.push_back({EscapeTopic::UNLOCK_ELECTROMAG_LOCK, "on"});
         pendingCommands.push_back({EscapeTopic::LEGACY_LOCK_TRIGGER, "on"});
@@ -633,6 +646,9 @@ bool GameController::handleFlowEvent(const std::string& topic, const std::string
     }
 
     if (topic == EscapeTopic::ELECTROMAG_LOCK_UNLOCKED) {
+        if (currentState() != RoomState::ROOM_KEY_AVAILABLE) {
+            roomCompletedAtMs = nowMs;
+        }
         transitionTo(RoomState::ROOM_KEY_AVAILABLE, topic);
         return true;
     }
@@ -686,6 +702,18 @@ void GameController::triggerColorSequenceErrorCue(const std::string& payload) {
     }
 }
 
+void GameController::resetRoomFromCompletedOvenDial(unsigned long nowMs) {
+    (void)nowMs;
+    logFailSafe("FAIL_SAFE completed-room reset: oven dial returned to 170 after completion threshold");
+    triggerRoomCue("room reset");
+    resetGameProgress();
+    queueFirePanelLedCommand("all", "checking");
+    pendingCommands.push_back({EscapeTopic::RESET_PUZZLE, "reset"});
+    pendingCommands.push_back({EscapeTopic::LEGACY_GAME_RESET, "reset"});
+    pendingCommands.push_back({EscapeTopic::STATUS_REQUEST, "status"});
+    queueGameReadyCommands();
+}
+
 void GameController::watchSmartFilmReveal(unsigned long nowMs) {
     failSafes.erase(
         std::remove_if(failSafes.begin(), failSafes.end(), [](const FailSafeAction& action) {
@@ -727,6 +755,29 @@ void GameController::watchSmartFilmHide(unsigned long nowMs) {
             {EscapeTopic::LEGACY_PDLC_ON, "off"},
         },
         {EscapeTopic::FIRE_PANEL_LED_COMMAND, "film=error"},
+        nowMs + FAIL_SAFE_TIMEOUT_MS,
+        FAIL_SAFE_TIMEOUT_MS,
+        0,
+        1,
+    });
+}
+
+void GameController::watchOvenArm(unsigned long nowMs) {
+    failSafes.erase(
+        std::remove_if(failSafes.begin(), failSafes.end(), [](const FailSafeAction& action) {
+            return action.name == "oven potentiometer arm";
+        }),
+        failSafes.end()
+    );
+
+    failSafes.push_back({
+        "oven potentiometer arm",
+        "escape/telemetry/pico4/oven",
+        "oven_armed=1",
+        {
+            {EscapeTopic::ARM_OVEN_POTENTIOMETER, "on"},
+        },
+        {EscapeTopic::FIRE_PANEL_LED_COMMAND, "pot=error"},
         nowMs + FAIL_SAFE_TIMEOUT_MS,
         FAIL_SAFE_TIMEOUT_MS,
         0,

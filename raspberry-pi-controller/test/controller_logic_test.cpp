@@ -76,6 +76,16 @@ void addActivePuzzles(GameController& controller) {
     controller.addPuzzle(std::make_unique<ElectromagUnlockedPuzzle>());
 }
 
+bool failSafeLogContains(const GameController& controller, const std::string& text) {
+    for (const std::string& entry : controller.failSafeLog()) {
+        if (entry.find(text) != std::string::npos) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 int main() {
     assert(RESET_TOPIC == "escape/game/reset");
     assert(RESET_BUTTON_GPIO == 23);
@@ -216,10 +226,11 @@ int main() {
         controller.takeNextPendingCommand();
     }
 
-    assert(controller.handleMessage("escape/telemetry/pico4/oven", "oven_raw=2867,oven_value=350,solved=0,smart_film=0,smart_film_buzzer=0,lock=0") == true);
-    MqttCommand physicalResetLed = controller.takeNextPendingCommand();
-    assert(physicalResetLed.topic == EscapeTopic::FIRE_PANEL_LED_COMMAND);
-    assert(physicalResetLed.payload == "pot=physical-reset");
+    assert(controller.handleMessage("escape/telemetry/pico4/oven", "oven_raw=2867,oven_value=350,solved=0,oven_armed=0,smart_film=0,smart_film_buzzer=0,lock=0") == true);
+    assert(controller.pendingCommandCount() == 0);
+    assert(controller.handleMessage(EscapeTopic::OVEN_TARGET_REACHED, "stale oven target", 250) == true);
+    assert(controller.currentState() == RoomState::COLOR_BUTTON_SEQUENCE_ACTIVE);
+    assert(controller.pendingCommandCount() == 0);
     assert(controller.handleMessage("escape/telemetry/pico3/painting_sensor", "painting_sensor=1,triggered=0,trigger_count=0") == true);
     assert(controller.handleMessage("escape/telemetry/pico5/buttons", "red=0,green=0,yellow=0,blue=0,solved=0") == true);
     assert(controller.pendingCommandCount() == 0);
@@ -321,10 +332,14 @@ int main() {
     assert(manualColorWrongAudio.lastPayload == "fail-safe telemetry fallback");
 
     assert(fallbackController.handleMessage(EscapeTopic::COLOR_SEQUENCE_COMPLETE, "buttons", 500) == true);
+    bool fallbackSawArmOven = false;
     while (fallbackController.pendingCommandCount() > 0) {
-        fallbackController.takeNextPendingCommand();
+        MqttCommand command = fallbackController.takeNextPendingCommand();
+        fallbackSawArmOven = fallbackSawArmOven ||
+            (command.topic == EscapeTopic::ARM_OVEN_POTENTIOMETER && command.payload == "on");
     }
-    assert(fallbackController.handleMessage("escape/telemetry/pico4/oven", "oven_raw=2867,oven_value=350,solved=1,smart_film=1,smart_film_buzzer=0,lock=0", 600) == true);
+    assert(fallbackSawArmOven == true);
+    assert(fallbackController.handleMessage("escape/telemetry/pico4/oven", "oven_raw=2867,oven_value=350,solved=1,oven_armed=1,smart_film=1,smart_film_buzzer=0,lock=0", 600) == true);
     bool fallbackSawUnlock = false;
     bool fallbackSawLegacyUnlock = false;
     while (fallbackController.pendingCommandCount() > 0) {
@@ -359,12 +374,17 @@ int main() {
     assert(colorSuccessSecondAudio.lastPayload == "buttons");
     assert(controller.currentState() == RoomState::OVEN_KNOB_ACTIVE);
     bool sawPotActive = false;
+    bool sawArmOven = false;
     while (controller.pendingCommandCount() > 0) {
         MqttCommand command = controller.takeNextPendingCommand();
         sawPotActive = sawPotActive ||
             (command.topic == EscapeTopic::FIRE_PANEL_LED_COMMAND && command.payload == "pot=active");
+        sawArmOven = sawArmOven ||
+            (command.topic == EscapeTopic::ARM_OVEN_POTENTIOMETER && command.payload == "on");
     }
     assert(sawPotActive == true);
+    assert(sawArmOven == true);
+    assert(controller.handleMessage("escape/telemetry/pico4/oven", "oven_raw=2048,oven_value=305,solved=0,oven_armed=1,smart_film=1,smart_film_buzzer=0,lock=0", 7000) == true);
 
     assert(controller.handleMessage(EscapeTopic::OVEN_POSITION_UPDATE, "370") == true);
     assert(controller.lastOvenDegrees() == 370);
@@ -375,7 +395,7 @@ int main() {
     assert(controller.handleMessage(EscapeTopic::OVEN_POSITION_UPDATE, "120abc") == true);
     assert(controller.lastOvenDegrees() == 500);
 
-    assert(controller.handleMessage(EscapeTopic::OVEN_TARGET_REACHED, "350") == true);
+    assert(controller.handleMessage(EscapeTopic::OVEN_TARGET_REACHED, "350", 8000) == true);
     assert(controller.currentState() == RoomState::ELECTROMAGNETIC_LOCK_RELEASED);
     bool sawUnlock = false;
     bool sawLegacyUnlock = false;
@@ -387,8 +407,102 @@ int main() {
     assert(sawUnlock == true);
     assert(sawLegacyUnlock == true);
 
-    assert(controller.handleMessage(EscapeTopic::ELECTROMAG_LOCK_UNLOCKED, "open") == true);
+    assert(controller.handleMessage(EscapeTopic::ELECTROMAG_LOCK_UNLOCKED, "open", 8500) == true);
     assert(controller.currentState() == RoomState::ROOM_KEY_AVAILABLE);
+
+    RecordingEffect resetGateRoomCueAudio;
+    GameController resetGateController(
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        &resetGateRoomCueAudio
+    );
+    addActivePuzzles(resetGateController);
+    assert(resetGateController.handleMessage(EscapeTopic::OVEN_TARGET_REACHED, "stale before code", 1000) == true);
+    assert(resetGateController.currentState() == RoomState::COPPER_PUZZLE_ACTIVE);
+    assert(resetGateController.pendingCommandCount() == 0);
+    assert(failSafeLogContains(resetGateController, "FAIL_SAFE ignored oven target while oven potentiometer is inactive") == true);
+    assert(resetGateController.handleMessage(EscapeTopic::COLOR_SEQUENCE_COMPLETE, "buttons", 2000) == true);
+    while (resetGateController.pendingCommandCount() > 0) {
+        resetGateController.takeNextPendingCommand();
+    }
+    assert(resetGateController.currentState() == RoomState::OVEN_KNOB_ACTIVE);
+    assert(resetGateController.handleMessage(EscapeTopic::OVEN_TARGET_REACHED, "350", 3000) == true);
+    while (resetGateController.pendingCommandCount() > 0) {
+        resetGateController.takeNextPendingCommand();
+    }
+    assert(resetGateController.currentState() == RoomState::ELECTROMAGNETIC_LOCK_RELEASED);
+    assert(resetGateController.handleMessage(EscapeTopic::ELECTROMAG_LOCK_UNLOCKED, "open", 3500) == true);
+    assert(resetGateController.currentState() == RoomState::ROOM_KEY_AVAILABLE);
+    assert(resetGateController.handleMessage("escape/telemetry/pico4/oven", "oven_raw=0,oven_value=170,solved=1,oven_armed=1,smart_film=1,smart_film_buzzer=0,lock=1", 12000) == true);
+    assert(resetGateController.currentState() == RoomState::ROOM_KEY_AVAILABLE);
+    assert(resetGateRoomCueAudio.triggerCount == 0);
+    assert(resetGateController.pendingCommandCount() == 0);
+    assert(resetGateController.handleMessage("escape/telemetry/pico4/oven", "oven_raw=0,oven_value=170,solved=1,oven_armed=1,smart_film=1,smart_film_buzzer=0,lock=1", 13600) == true);
+    assert(resetGateController.currentState() == RoomState::COPPER_PUZZLE_ACTIVE);
+    assert(resetGateRoomCueAudio.triggerCount == 1);
+    bool sawResetPuzzleFromDial = false;
+    bool sawLegacyResetFromDial = false;
+    bool sawStatusFromDial = false;
+    while (resetGateController.pendingCommandCount() > 0) {
+        MqttCommand command = resetGateController.takeNextPendingCommand();
+        sawResetPuzzleFromDial = sawResetPuzzleFromDial || command.topic == EscapeTopic::RESET_PUZZLE;
+        sawLegacyResetFromDial = sawLegacyResetFromDial || command.topic == EscapeTopic::LEGACY_GAME_RESET;
+        sawStatusFromDial = sawStatusFromDial || command.topic == EscapeTopic::STATUS_REQUEST;
+    }
+    assert(sawResetPuzzleFromDial == true);
+    assert(sawLegacyResetFromDial == true);
+    assert(sawStatusFromDial == true);
+    assert(failSafeLogContains(resetGateController, "FAIL_SAFE completed-room reset") == true);
+
+    GameController armVerifyController;
+    addActivePuzzles(armVerifyController);
+    assert(armVerifyController.handleMessage(EscapeTopic::COLOR_SEQUENCE_COMPLETE, "buttons", 1000) == true);
+    bool armVerifySawInitialArm = false;
+    while (armVerifyController.pendingCommandCount() > 0) {
+        MqttCommand command = armVerifyController.takeNextPendingCommand();
+        armVerifySawInitialArm = armVerifySawInitialArm ||
+            (command.topic == EscapeTopic::ARM_OVEN_POTENTIOMETER && command.payload == "on");
+    }
+    assert(armVerifySawInitialArm == true);
+    assert(armVerifyController.activeFailSafeCount() == 1);
+    armVerifyController.processFailSafes(3201);
+    MqttCommand retryArmCommand = armVerifyController.takeNextPendingCommand();
+    assert(retryArmCommand.topic == EscapeTopic::ARM_OVEN_POTENTIOMETER);
+    assert(retryArmCommand.payload == "on");
+    assert(armVerifyController.failSafeRetryCount() == 1);
+    assert(failSafeLogContains(armVerifyController, "FAIL_SAFE retry 1 for oven potentiometer arm") == true);
+    assert(armVerifyController.handleMessage("escape/telemetry/pico4/oven", "oven_raw=2048,oven_value=305,solved=0,oven_armed=1,smart_film=1,smart_film_buzzer=0,lock=0", 3400) == true);
+    assert(armVerifyController.activeFailSafeCount() == 0);
+    assert(failSafeLogContains(armVerifyController, "FAIL_SAFE verified oven potentiometer arm") == true);
+
+    GameController armFailureController;
+    addActivePuzzles(armFailureController);
+    assert(armFailureController.handleMessage(EscapeTopic::COLOR_SEQUENCE_COMPLETE, "buttons", 4000) == true);
+    while (armFailureController.pendingCommandCount() > 0) {
+        armFailureController.takeNextPendingCommand();
+    }
+    assert(armFailureController.activeFailSafeCount() == 1);
+    armFailureController.processFailSafes(6201);
+    MqttCommand failedArmRetry = armFailureController.takeNextPendingCommand();
+    assert(failedArmRetry.topic == EscapeTopic::ARM_OVEN_POTENTIOMETER);
+    assert(failedArmRetry.payload == "on");
+    armFailureController.processFailSafes(8402);
+    bool sawArmFailureLed = false;
+    while (armFailureController.pendingCommandCount() > 0) {
+        MqttCommand command = armFailureController.takeNextPendingCommand();
+        sawArmFailureLed = sawArmFailureLed ||
+            (command.topic == EscapeTopic::FIRE_PANEL_LED_COMMAND && command.payload == "pot=error");
+    }
+    assert(sawArmFailureLed == true);
+    assert(armFailureController.failSafeFailureCount() == 1);
+    assert(armFailureController.activeFailSafeCount() == 0);
+    assert(failSafeLogContains(armFailureController, "FAIL_SAFE failure for oven potentiometer arm") == true);
 
     assert(controller.handleMessage(EscapeTopic::FIRE_STATUS, "button") == true);
     MqttCommand fireStatusLedAll = controller.takeNextPendingCommand();

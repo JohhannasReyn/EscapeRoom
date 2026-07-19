@@ -63,9 +63,11 @@ private:
     void queueFirePanelLedCommand(const std::string& zone, const std::string& mode);
     void watchSmartFilmReveal(unsigned long nowMs);
     void watchSmartFilmHide(unsigned long nowMs);
+    void watchOvenArm(unsigned long nowMs);
     void watchLockUnlock(unsigned long nowMs);
     bool observeFailSafe(const std::string& topic, const std::string& payload);
     void triggerColorSequenceErrorCue(const std::string& payload);
+    void resetRoomFromCompletedOvenDial(unsigned long nowMs);
     void logFailSafe(const std::string& message);
     void queueCommandsForTopic(const std::string& topic);
     void markPuzzleSolved(const std::string& topic);
@@ -90,8 +92,8 @@ private:
     std::set<std::string> solvedTopics;
     RoomState state = RoomState::COPPER_PUZZLE_ACTIVE;
     int ovenDegrees = 0;
-    bool ovenPhysicalResetSignaled = false;
     bool paintingTelemetryActive = false;
+    unsigned long roomCompletedAtMs = 0;
     int colorSequenceErrorCount = 0;
     long lastColorErrorTelemetryCount = -1;
     int pendingExplicitColorErrorTelemetryAcks = 0;
