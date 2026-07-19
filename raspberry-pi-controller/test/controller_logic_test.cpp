@@ -224,6 +224,117 @@ int main() {
     assert(controller.handleMessage("escape/telemetry/pico5/buttons", "red=0,green=0,yellow=0,blue=0,solved=0") == true);
     assert(controller.pendingCommandCount() == 0);
 
+    RecordingEffect fallbackPaintingAudio;
+    RecordingEffect fallbackWrongCodeAudio;
+    RecordingEffect fallbackTryAgainAudio;
+    RecordingEffect fallbackBakeBuzzer;
+    RecordingEffect fallbackCopperAudio;
+    RecordingEffect fallbackColorSuccessFirstAudio;
+    RecordingEffect fallbackColorSuccessSecondAudio;
+    RecordingEffect fallbackRoomCueAudio;
+    RecordingEffect fallbackPlayAllAudio;
+    RecordingDisplay fallbackDisplay;
+    GameController fallbackController(
+        &fallbackPaintingAudio,
+        &fallbackDisplay,
+        &fallbackWrongCodeAudio,
+        &fallbackTryAgainAudio,
+        &fallbackBakeBuzzer,
+        &fallbackCopperAudio,
+        &fallbackColorSuccessFirstAudio,
+        &fallbackColorSuccessSecondAudio,
+        &fallbackRoomCueAudio,
+        &fallbackPlayAllAudio
+    );
+    addActivePuzzles(fallbackController);
+
+    assert(fallbackController.handleMessage("escape/telemetry/pico2/contacts", "copper=0,copper_solved=1,needs_reset=0", 100) == true);
+    assert(fallbackCopperAudio.triggerCount == 1);
+    bool fallbackSawSmartFilm = false;
+    bool fallbackSawLegacyFilm = false;
+    while (fallbackController.pendingCommandCount() > 0) {
+        MqttCommand command = fallbackController.takeNextPendingCommand();
+        fallbackSawSmartFilm = fallbackSawSmartFilm || command.topic == EscapeTopic::REVEAL_SMART_FILM;
+        fallbackSawLegacyFilm = fallbackSawLegacyFilm || command.topic == EscapeTopic::LEGACY_PDLC_ON;
+    }
+    assert(fallbackSawSmartFilm == true);
+    assert(fallbackSawLegacyFilm == true);
+
+    assert(fallbackController.handleMessage("escape/telemetry/pico3/painting_sensor", "painting_sensor=0,magnet_present=1,triggered=1,needs_reset=0,trigger_count=1", 200) == true);
+    assert(fallbackPaintingAudio.triggerCount == 1);
+    while (fallbackController.pendingCommandCount() > 0) {
+        fallbackController.takeNextPendingCommand();
+    }
+
+    assert(fallbackController.handleMessage(EscapeTopic::PAINTING_ROTATION_COMPLETE, "explicit picture", 300) == true);
+    assert(fallbackPaintingAudio.triggerCount == 2);
+    while (fallbackController.pendingCommandCount() > 0) {
+        fallbackController.takeNextPendingCommand();
+    }
+    assert(fallbackController.handleMessage("escape/telemetry/pico3/painting_sensor", "painting_sensor=0,magnet_present=1,triggered=1,needs_reset=0,trigger_count=2", 350) == true);
+    assert(fallbackPaintingAudio.triggerCount == 2);
+    assert(fallbackController.handleMessage("escape/telemetry/pico3/painting_sensor", "painting_sensor=1,magnet_present=0,triggered=0,needs_reset=0,trigger_count=2", 400) == true);
+
+    assert(fallbackController.handleMessage("escape/telemetry/pico5/buttons", "solved=0,total_presses=0,sequence_index=0,error_count=0", 425) == true);
+    assert(fallbackTryAgainAudio.triggerCount == 0);
+    assert(fallbackWrongCodeAudio.triggerCount == 0);
+    assert(fallbackController.handleMessage("escape/telemetry/pico5/buttons", "solved=0,total_presses=0,sequence_index=0,error_count=1", 450) == true);
+    assert(fallbackTryAgainAudio.triggerCount == 1);
+    assert(fallbackTryAgainAudio.lastPayload == "fail-safe telemetry fallback");
+    assert(fallbackWrongCodeAudio.triggerCount == 0);
+    while (fallbackController.pendingCommandCount() > 0) {
+        fallbackController.takeNextPendingCommand();
+    }
+    assert(fallbackController.handleMessage(EscapeTopic::COLOR_SEQUENCE_ERROR, "incorrect color button entry", 475) == true);
+    assert(fallbackWrongCodeAudio.triggerCount == 1);
+    assert(fallbackWrongCodeAudio.lastPayload == "incorrect color button entry");
+    while (fallbackController.pendingCommandCount() > 0) {
+        fallbackController.takeNextPendingCommand();
+    }
+    assert(fallbackController.handleMessage("escape/telemetry/pico5/buttons", "solved=0,total_presses=0,sequence_index=0,error_count=2", 500) == true);
+    assert(fallbackTryAgainAudio.triggerCount == 1);
+    assert(fallbackWrongCodeAudio.triggerCount == 1);
+    assert(fallbackController.handleMessage("escape/telemetry/pico5/buttons", "solved=0,total_presses=0,sequence_index=0,error_count=4", 525) == true);
+    assert(fallbackTryAgainAudio.triggerCount == 2);
+    assert(fallbackWrongCodeAudio.triggerCount == 2);
+    while (fallbackController.pendingCommandCount() > 0) {
+        fallbackController.takeNextPendingCommand();
+    }
+
+    RecordingEffect manualColorWrongAudio;
+    RecordingEffect manualColorTryAgainAudio;
+    GameController manualColorController(
+        nullptr,
+        nullptr,
+        &manualColorWrongAudio,
+        &manualColorTryAgainAudio
+    );
+    addActivePuzzles(manualColorController);
+    assert(manualColorController.handleMessage("escape/telemetry/pico5/buttons", "solved=0,total_presses=0,sequence_index=0,error_count=0", 100) == true);
+    assert(manualColorController.handleMessage(EscapeTopic::COLOR_SEQUENCE_ERROR, "manual wrong-code test", 125) == true);
+    assert(manualColorTryAgainAudio.triggerCount == 1);
+    while (manualColorController.pendingCommandCount() > 0) {
+        manualColorController.takeNextPendingCommand();
+    }
+    assert(manualColorController.handleMessage("escape/telemetry/pico5/buttons", "solved=0,total_presses=0,sequence_index=0,error_count=1", 150) == true);
+    assert(manualColorWrongAudio.triggerCount == 1);
+    assert(manualColorWrongAudio.lastPayload == "fail-safe telemetry fallback");
+
+    assert(fallbackController.handleMessage(EscapeTopic::COLOR_SEQUENCE_COMPLETE, "buttons", 500) == true);
+    while (fallbackController.pendingCommandCount() > 0) {
+        fallbackController.takeNextPendingCommand();
+    }
+    assert(fallbackController.handleMessage("escape/telemetry/pico4/oven", "oven_raw=2867,oven_value=350,solved=1,smart_film=1,smart_film_buzzer=0,lock=0", 600) == true);
+    bool fallbackSawUnlock = false;
+    bool fallbackSawLegacyUnlock = false;
+    while (fallbackController.pendingCommandCount() > 0) {
+        MqttCommand command = fallbackController.takeNextPendingCommand();
+        fallbackSawUnlock = fallbackSawUnlock || command.topic == EscapeTopic::UNLOCK_ELECTROMAG_LOCK;
+        fallbackSawLegacyUnlock = fallbackSawLegacyUnlock || command.topic == EscapeTopic::LEGACY_LOCK_TRIGGER;
+    }
+    assert(fallbackSawUnlock == true);
+    assert(fallbackSawLegacyUnlock == true);
+
     std::vector<std::string> successEventOrder;
     display.eventLog = &successEventOrder;
     display.eventName = "display";
@@ -293,7 +404,7 @@ int main() {
         controller.takeNextPendingCommand();
     }
 
-    assert(controller.handleMessage(EscapeTopic::FIRE_FILM_ON, "button") == true);
+    assert(controller.handleMessage(EscapeTopic::FIRE_FILM_ON, "button", 1000) == true);
     MqttCommand fireFilmOnLed = controller.takeNextPendingCommand();
     assert(fireFilmOnLed.topic == EscapeTopic::FIRE_PANEL_LED_COMMAND);
     assert(fireFilmOnLed.payload == "film=active");
@@ -303,8 +414,19 @@ int main() {
     MqttCommand fireLegacyFilmOn = controller.takeNextPendingCommand();
     assert(fireLegacyFilmOn.topic == EscapeTopic::LEGACY_PDLC_ON);
     assert(fireLegacyFilmOn.payload == "on");
+    assert(controller.activeFailSafeCount() == 1);
+    controller.processFailSafes(3201);
+    MqttCommand retryFilmOn = controller.takeNextPendingCommand();
+    assert(retryFilmOn.topic == EscapeTopic::REVEAL_SMART_FILM);
+    assert(retryFilmOn.payload == "on");
+    MqttCommand retryLegacyFilmOn = controller.takeNextPendingCommand();
+    assert(retryLegacyFilmOn.topic == EscapeTopic::LEGACY_PDLC_ON);
+    assert(retryLegacyFilmOn.payload == "on");
+    assert(controller.failSafeRetryCount() == 1);
+    assert(controller.handleMessage(EscapeTopic::SMART_FILM_READY, "transparent", 3400) == true);
+    assert(controller.activeFailSafeCount() == 0);
 
-    assert(controller.handleMessage(EscapeTopic::FIRE_FILM_OFF, "button") == true);
+    assert(controller.handleMessage(EscapeTopic::FIRE_FILM_OFF, "button", 4000) == true);
     MqttCommand fireFilmOffLed = controller.takeNextPendingCommand();
     assert(fireFilmOffLed.topic == EscapeTopic::FIRE_PANEL_LED_COMMAND);
     assert(fireFilmOffLed.payload == "film=ready");
@@ -314,6 +436,7 @@ int main() {
     MqttCommand fireLegacyFilmOff = controller.takeNextPendingCommand();
     assert(fireLegacyFilmOff.topic == EscapeTopic::LEGACY_PDLC_ON);
     assert(fireLegacyFilmOff.payload == "off");
+    assert(controller.handleMessage(EscapeTopic::SMART_FILM_READY, "opaque", 4200) == true);
 
     assert(controller.handleMessage(EscapeTopic::FIRE_SOUND_LOOK, "button") == true);
     MqttCommand fireLookLed = controller.takeNextPendingCommand();
@@ -361,7 +484,7 @@ int main() {
     assert(playAllAudio.triggerCount == 1);
     assert(playAllAudio.lastPayload == "button");
 
-    assert(controller.handleMessage(EscapeTopic::FIRE_UNLOCK, "button") == true);
+    assert(controller.handleMessage(EscapeTopic::FIRE_UNLOCK, "button", 5000) == true);
     MqttCommand fireUnlockLed = controller.takeNextPendingCommand();
     assert(fireUnlockLed.topic == EscapeTopic::FIRE_PANEL_LED_COMMAND);
     assert(fireUnlockLed.payload == "pot=active");
@@ -371,6 +494,23 @@ int main() {
     MqttCommand fireLegacyUnlock = controller.takeNextPendingCommand();
     assert(fireLegacyUnlock.topic == EscapeTopic::LEGACY_LOCK_TRIGGER);
     assert(fireLegacyUnlock.payload == "on");
+    assert(controller.activeFailSafeCount() >= 1);
+    controller.processFailSafes(7201);
+    MqttCommand retryUnlock = controller.takeNextPendingCommand();
+    assert(retryUnlock.topic == EscapeTopic::UNLOCK_ELECTROMAG_LOCK);
+    assert(retryUnlock.payload == "on");
+    MqttCommand retryLegacyUnlock = controller.takeNextPendingCommand();
+    assert(retryLegacyUnlock.topic == EscapeTopic::LEGACY_LOCK_TRIGGER);
+    assert(retryLegacyUnlock.payload == "on");
+    controller.processFailSafes(9502);
+    bool sawUnlockFailureLed = false;
+    while (controller.pendingCommandCount() > 0) {
+        MqttCommand command = controller.takeNextPendingCommand();
+        sawUnlockFailureLed = sawUnlockFailureLed ||
+            (command.topic == EscapeTopic::FIRE_PANEL_LED_COMMAND && command.payload == "pot=error");
+    }
+    assert(sawUnlockFailureLed == true);
+    assert(controller.failSafeFailureCount() >= 1);
 
     assert(controller.handleMessage(EscapeTopic::FIRE_RESET_ALL, "button") == true);
     assert(roomCueAudio.triggerCount == 1);

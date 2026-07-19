@@ -12,6 +12,7 @@
 namespace {
 struct AudioRequest {
     std::string command;
+    std::string fallbackCommand;
     std::string file;
     std::string payload;
 };
@@ -54,7 +55,7 @@ std::string audioDevice() {
     return "plughw:CARD=Headphones,DEV=0";
 }
 
-std::string audioCommandForFile(const std::string& audioFile) {
+std::string audioCommandForFileAndDevice(const std::string& audioFile, const std::string& device) {
     const std::string decodeAndPlay =
         "ffmpeg -hide_banner -loglevel error -nostdin -i \"$1\" -f wav - | "
         "aplay -q -D \"$2\" -";
@@ -64,7 +65,19 @@ std::string audioCommandForFile(const std::string& audioFile) {
         " _ " +
         shellQuote(audioFile) +
         " " +
-        shellQuote(audioDevice());
+        shellQuote(device);
+}
+
+std::string audioCommandForFile(const std::string& audioFile) {
+    return audioCommandForFileAndDevice(audioFile, audioDevice());
+}
+
+std::string audioFallbackCommandForFile(const std::string& audioFile) {
+    if (audioDevice() == "default") {
+        return "";
+    }
+
+    return audioCommandForFileAndDevice(audioFile, "default");
 }
 
 void audioWorkerLoop() {
@@ -86,10 +99,28 @@ void audioWorkerLoop() {
         std::cout << "Audio command: " << request.command << std::endl;
         int result = std::system(request.command.c_str());
 
-        if (result != 0) {
-            std::cout << "Audio command returned non-zero result: " << result << std::endl;
-            std::cout << "If no sound played, verify the 3.5mm speaker is powered, plugged in, and selected as the Pi audio output." << std::endl;
+        if (result == 0) {
+            std::cout << "Audio playback command completed: " << request.file << std::endl;
+            continue;
         }
+
+        std::cout << "FAIL_SAFE audio playback failed for " << request.file
+                  << " with result " << result << "." << std::endl;
+
+        if (!request.fallbackCommand.empty()) {
+            std::cout << "Retrying audio through fallback device: default" << std::endl;
+            int fallbackResult = std::system(request.fallbackCommand.c_str());
+
+            if (fallbackResult == 0) {
+                std::cout << "Audio playback command completed through fallback device: " << request.file << std::endl;
+                continue;
+            }
+
+            std::cout << "FAIL_SAFE audio fallback failed for " << request.file
+                      << " with result " << fallbackResult << "." << std::endl;
+        }
+
+        std::cout << "If no sound played, verify the 3.5mm speaker is powered, plugged in, and selected as the Pi audio output." << std::endl;
     }
 }
 
@@ -122,11 +153,11 @@ void AudioEffect::trigger(const std::string& payload) {
 
     std::ifstream file(audioFile);
     if (!file.good()) {
-        std::cout << "Audio file missing: " << audioFile << std::endl;
+        std::cout << "FAIL_SAFE audio file missing: " << audioFile << std::endl;
         return;
     }
 
-    enqueueAudio({audioCommandForFile(audioFile), audioFile, payload});
+    enqueueAudio({audioCommandForFile(audioFile), audioFallbackCommandForFile(audioFile), audioFile, payload});
     std::cout << "Queued audio: " << audioFile << std::endl;
 }
 

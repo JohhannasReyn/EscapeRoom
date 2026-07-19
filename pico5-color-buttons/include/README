@@ -26,6 +26,11 @@ publishes escape/pico5/color_sequence_error and clears the current attempt.
 The Raspberry Pi plays try-again.wav on the 1st, 4th, 7th, etc. wrong entry
 and buzzer.mp3 on the two wrong entries between those.
 
+Pico 5 also includes error_count in escape/telemetry/pico5/buttons. The count
+resets when the puzzle resets and increments before each wrong-code event is
+published, so the Raspberry Pi can recover a missed wrong-code sound from
+telemetry without replaying events that were already received normally.
+
 Required ordered code:
 - R R R
 - G G G G

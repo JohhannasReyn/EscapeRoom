@@ -31,6 +31,9 @@ int main() {
     assert(text.find("std::thread(audioWorkerLoop).detach()") != std::string::npos);
     assert(text.find("enqueueAudio") != std::string::npos);
     assert(text.find("Queued audio:") != std::string::npos);
+    assert(text.find("FAIL_SAFE audio playback failed") != std::string::npos);
+    assert(text.find("Retrying audio through fallback device") != std::string::npos);
+    assert(text.find("Audio playback command completed") != std::string::npos);
     assert(text.find("cmd += \" &\"") == std::string::npos);
     assert(text.find("playInBackground") == std::string::npos);
 

@@ -43,6 +43,11 @@ fi
 
 if grep -q "^escape/telemetry/pico5/buttons " "${tmp_file}"; then
     echo "ok: Pico 5 button telemetry is visible."
+    if grep -q "error_count=" "${tmp_file}"; then
+        echo "ok: Pico 5 telemetry includes error_count for fail-safe wrong-code recovery."
+    else
+        echo "issue: Pico 5 telemetry did not include error_count. Reflash Pico 5 with the latest firmware."
+    fi
 else
     echo "issue: Pico 5 telemetry was not observed. Check Pico 5 power/WiFi/MQTT."
 fi

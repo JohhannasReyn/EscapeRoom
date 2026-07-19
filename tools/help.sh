@@ -55,6 +55,7 @@ Checks and logs:
 | Volume | tools/set-volume.sh -v 50 | Also available: tools/volume-up.sh and tools/volume-down.sh |
 | Service status | tools/room-status.sh | Shows whether the room service is running |
 | Room logs | tools/room-logs.sh | Watches controller service logs |
+| Fail-safe log | tools/failsafe-status.sh | Shows recent FAIL_SAFE retries, backups, and failures |
 | Raw MQTT | tools/watch-mqtt.sh | Watches all escape-room MQTT traffic |
 | Button-order log | tools/capture-fire-panel-buttons.sh | Saves the observed physical fire-panel button order |
 | Send log | tools/setup-drive-upload.sh then tools/send_to_john.sh | Configures Drive once, then uploads the newest button-order log |

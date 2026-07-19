@@ -20,6 +20,7 @@
 #include <iostream>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <thread>
 #include <vector>
@@ -38,6 +39,16 @@ static const int POST_ALL_GREEN_MS = 1200;
 #ifndef PI_BAKE_BUZZER_MS
 #define PI_BAKE_BUZZER_MS 350
 #endif
+
+struct ControllerRuntime {
+    GameController* controller;
+    std::mutex* controllerMutex;
+};
+
+unsigned long currentTimeMs() {
+    auto now = std::chrono::steady_clock::now().time_since_epoch();
+    return static_cast<unsigned long>(std::chrono::duration_cast<std::chrono::milliseconds>(now).count());
+}
 
 std::string get_home_dir() {
     const char* home = std::getenv("HOME");
@@ -173,8 +184,20 @@ void handle_reset_button_value(
     }
 }
 
+void watch_fail_safes(struct mosquitto* mosq, ControllerRuntime& runtime, std::atomic<bool>& running) {
+    while (running.load()) {
+        if (runtime.controller != nullptr && runtime.controllerMutex != nullptr) {
+            std::lock_guard<std::mutex> lock(*runtime.controllerMutex);
+            runtime.controller->processFailSafes(currentTimeMs());
+            publish_pending_commands(mosq, *runtime.controller);
+        }
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(250));
+    }
+}
+
 #if defined(LIBGPIOD_V2) || (defined(GPIOD_VERSION_MAJOR) && GPIOD_VERSION_MAJOR >= 2)
-void watch_reset_button(struct mosquitto* mosq, GameController& controller, std::atomic<bool>& running) {
+void watch_reset_button(struct mosquitto* mosq, GameController& controller, std::mutex& controllerMutex, std::atomic<bool>& running) {
     struct gpiod_chip* chip = gpiod_chip_open(GPIO_CHIP_PATH);
 
     if (chip == nullptr) {
@@ -244,13 +267,16 @@ void watch_reset_button(struct mosquitto* mosq, GameController& controller, std:
             continue;
         }
 
-        handle_reset_button_value(
-            value == GPIOD_LINE_VALUE_INACTIVE ? 0 : 1,
-            heldMs,
-            resetPublishedForPress,
-            mosq,
-            controller
-        );
+        {
+            std::lock_guard<std::mutex> lock(controllerMutex);
+            handle_reset_button_value(
+                value == GPIOD_LINE_VALUE_INACTIVE ? 0 : 1,
+                heldMs,
+                resetPublishedForPress,
+                mosq,
+                controller
+            );
+        }
 
         std::this_thread::sleep_for(std::chrono::milliseconds(RESET_POLL_MS));
     }
@@ -259,7 +285,7 @@ void watch_reset_button(struct mosquitto* mosq, GameController& controller, std:
     gpiod_chip_close(chip);
 }
 #else
-void watch_reset_button(struct mosquitto* mosq, GameController& controller, std::atomic<bool>& running) {
+void watch_reset_button(struct mosquitto* mosq, GameController& controller, std::mutex& controllerMutex, std::atomic<bool>& running) {
     struct gpiod_chip* chip = gpiod_chip_open_by_name(GPIO_CHIP_NAME);
 
     if (chip == nullptr) {
@@ -302,7 +328,10 @@ void watch_reset_button(struct mosquitto* mosq, GameController& controller, std:
             continue;
         }
 
-        handle_reset_button_value(value, heldMs, resetPublishedForPress, mosq, controller);
+        {
+            std::lock_guard<std::mutex> lock(controllerMutex);
+            handle_reset_button_value(value, heldMs, resetPublishedForPress, mosq, controller);
+        }
 
         std::this_thread::sleep_for(std::chrono::milliseconds(RESET_POLL_MS));
     }
@@ -316,14 +345,21 @@ void on_connect(struct mosquitto* mosq, void* userdata, int rc) {
     if (rc == 0) {
         std::cout << "Connected to MQTT broker." << std::endl;
 
-        auto* controller = static_cast<GameController*>(userdata);
+        auto* runtime = static_cast<ControllerRuntime*>(userdata);
+        auto* controller = runtime == nullptr ? nullptr : runtime->controller;
 
         if (controller == nullptr) {
             std::cout << "No game controller attached; cannot subscribe to puzzle topics." << std::endl;
             return;
         }
 
-        for (const auto& topic : controller->topics()) {
+        std::vector<std::string> topics;
+        {
+            std::lock_guard<std::mutex> lock(*runtime->controllerMutex);
+            topics = controller->topics();
+        }
+
+        for (const auto& topic : topics) {
             int sub_rc = mosquitto_subscribe(mosq, nullptr, topic.c_str(), 0);
 
             if (sub_rc == MOSQ_ERR_SUCCESS) {
@@ -373,9 +409,12 @@ void on_connect(struct mosquitto* mosq, void* userdata, int rc) {
             std::cout << "Subscribe failed for fire panel commands. Error code: " << fire_rc << std::endl;
         }
 
-        controller->queuePostQueryCommand();
-        controller->queueGameReadyCommands();
-        publish_pending_commands(mosq, *controller);
+        {
+            std::lock_guard<std::mutex> lock(*runtime->controllerMutex);
+            controller->queuePostQueryCommand();
+            controller->queueGameReadyCommands();
+            publish_pending_commands(mosq, *controller);
+        }
     } else {
         std::cout << "MQTT connection failed. Code: " << rc << std::endl;
     }
@@ -423,10 +462,13 @@ void on_message(struct mosquitto* mosq, void* userdata, const struct mosquitto_m
         return;
     }
 
-    auto* controller = static_cast<GameController*>(userdata);
+    auto* runtime = static_cast<ControllerRuntime*>(userdata);
+    auto* controller = runtime == nullptr ? nullptr : runtime->controller;
 
     if (controller != nullptr) {
-        controller->handleMessage(topic, payload);
+        std::lock_guard<std::mutex> lock(*runtime->controllerMutex);
+        controller->handleMessage(topic, payload, currentTimeMs());
+        controller->processFailSafes(currentTimeMs());
         publish_pending_commands(mosq, *controller);
     }
 
@@ -507,7 +549,9 @@ int main() {
 
     mosquitto_lib_init();
 
-    mosquitto* mosq = mosquitto_new(CLIENT_ID, true, &controller);
+    std::mutex controllerMutex;
+    ControllerRuntime runtime{&controller, &controllerMutex};
+    mosquitto* mosq = mosquitto_new(CLIENT_ID, true, &runtime);
 
     if (mosq == nullptr) {
         std::cerr << "Failed to create Mosquitto client." << std::endl;
@@ -539,11 +583,16 @@ int main() {
     std::cout << "Waiting for puzzle events..." << std::endl;
 
     std::atomic<bool> running(true);
-    std::thread resetButtonThread(watch_reset_button, mosq, std::ref(controller), std::ref(running));
+    std::thread resetButtonThread(watch_reset_button, mosq, std::ref(controller), std::ref(controllerMutex), std::ref(running));
+    std::thread failSafeThread(watch_fail_safes, mosq, std::ref(runtime), std::ref(running));
 
     rc = mosquitto_loop_forever(mosq, -1, 1);
 
     running.store(false);
+
+    if (failSafeThread.joinable()) {
+        failSafeThread.join();
+    }
 
     if (resetButtonThread.joinable()) {
         resetButtonThread.join();
