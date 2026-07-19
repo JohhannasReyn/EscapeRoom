@@ -4,6 +4,7 @@
 #include "GameController.h"
 #include "ResetControl.h"
 #include "effects/AudioEffect.h"
+#include "effects/DirectoryAudioEffect.h"
 #include "effects/DisplayOutput.h"
 #include "effects/GpioBuzzerEffect.h"
 #include "effects/RandomEffect.h"
@@ -15,6 +16,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
+#include <filesystem>
 #include <iostream>
 #include <map>
 #include <memory>
@@ -68,6 +70,24 @@ std::string get_project_asset_file(const std::string& fileName) {
     }
 
     return get_home_dir() + "/escape-room/assets/audio/" + fileName;
+}
+
+std::string get_project_audio_dir() {
+    const std::string candidates[] = {
+        get_home_dir() + "/escape-room/assets/audio",
+        "/home/admin/escape-room/assets/audio",
+        "./assets/audio",
+        "../assets/audio"
+    };
+
+    for (const auto& candidate : candidates) {
+        std::error_code error;
+        if (std::filesystem::is_directory(candidate, error)) {
+            return candidate;
+        }
+    }
+
+    return get_home_dir() + "/escape-room/assets/audio";
 }
 
 void publish_reset_topic(struct mosquitto* mosq, const char* topic) {
@@ -440,6 +460,7 @@ int main() {
     AudioEffect checkOvenAudio(get_project_asset_file("check-the-oven.wav"));
     AudioEffect yeahYouDidItAudio(get_project_asset_file("yeah-you-did-it.mp3"));
     AudioEffect bakeAt350Audio(get_project_asset_file("bake_at_350.wav"));
+    DirectoryAudioEffect playAllAudio(get_project_audio_dir());
     GpioBuzzerEffect bakeAttentionBuzzer(PI_BAKE_BUZZER_GPIO, PI_BAKE_BUZZER_MS);
     DisplayOutput display;
 
@@ -452,7 +473,8 @@ int main() {
         &checkOvenAudio,
         &yeahYouDidItAudio,
         &bakeAt350Audio,
-        &roomCueAudio
+        &roomCueAudio,
+        &playAllAudio
     );
     controller.addPuzzle(std::make_unique<CopperPuzzle>());
     controller.addPuzzle(std::make_unique<PaintingRotationPuzzle>());
@@ -470,6 +492,7 @@ int main() {
     std::cout << "Copper-complete audio: " << checkOvenAudio.file() << std::endl;
     std::cout << "Color success audio 1: " << yeahYouDidItAudio.file() << std::endl;
     std::cout << "Color success audio 2: " << bakeAt350Audio.file() << std::endl;
+    std::cout << "Play-all audio directory: " << get_project_audio_dir() << std::endl;
     std::cout << "Room reset random audio choices:" << std::endl;
     for (const std::unique_ptr<AudioEffect>& roomCueAudioPlayer : roomCueAudioPlayers) {
         std::cout << "  " << roomCueAudioPlayer->file() << std::endl;

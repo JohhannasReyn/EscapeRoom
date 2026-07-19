@@ -10,6 +10,10 @@
 #include <stdexcept>
 #include <utility>
 
+namespace {
+inline constexpr const char* FIRE_SOUND_PLAY_ALL = "escape/fire/sound-play-all";
+}
+
 GameController::GameController(
     Effect* paintingCrashEffect,
     DisplayOutput* displayOutput,
@@ -19,7 +23,8 @@ GameController::GameController(
     Effect* copperCompleteEffect,
     Effect* colorSequenceSuccessFirstEffect,
     Effect* colorSequenceSuccessSecondEffect,
-    Effect* roomCueEffect
+    Effect* roomCueEffect,
+    Effect* playAllAudioEffect
 )
     : paintingCrashEffect(paintingCrashEffect),
       displayOutput(displayOutput),
@@ -29,7 +34,8 @@ GameController::GameController(
       copperCompleteEffect(copperCompleteEffect),
       colorSequenceSuccessFirstEffect(colorSequenceSuccessFirstEffect),
       colorSequenceSuccessSecondEffect(colorSequenceSuccessSecondEffect),
-      roomCueEffect(roomCueEffect) {
+      roomCueEffect(roomCueEffect),
+      playAllAudioEffect(playAllAudioEffect) {
 }
 
 void GameController::addPuzzle(std::unique_ptr<PuzzleModule> puzzle) {
@@ -128,6 +134,16 @@ bool GameController::handleFireCommand(const std::string& topic, const std::stri
         queueFirePanelLedCommand("sound", "playing");
         if (colorSequenceSuccessSecondEffect != nullptr) {
             colorSequenceSuccessSecondEffect->trigger(payload);
+        }
+        return true;
+    }
+
+    if (topic == FIRE_SOUND_PLAY_ALL) {
+        queueFirePanelLedCommand("sound", "playing");
+        if (playAllAudioEffect != nullptr) {
+            playAllAudioEffect->trigger(payload);
+        } else {
+            std::cout << "Play-all audio effect not configured." << std::endl;
         }
         return true;
     }

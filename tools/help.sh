@@ -195,6 +195,10 @@ Fire panel fallbacks:
   fire/sound-bake
     Play bake-at-350 audio.
 
+  fire/sound-play-all
+    Terminal-only audio diagnostic. Plays every supported file in assets/audio,
+    sorted by filename. This is not mapped to a physical fire-panel button.
+
   fire/unlock
     Release final lock.
 

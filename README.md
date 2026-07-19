@@ -112,9 +112,9 @@ tools/start.sh
 
 The controller prints puzzle events and telemetry changes only. Repeated identical telemetry is suppressed to keep the terminal readable.
 
-When the controller connects to MQTT, and whenever a room reset is performed,
-the Raspberry Pi randomly plays one activation/reset cue from
-`assets/audio/`.
+Whenever a room reset is performed, the Raspberry Pi randomly plays one
+activation/reset cue from `assets/audio/`. It does not play a startup cue just
+because the controller connected to MQTT.
 
 Audio requests are queued by the Raspberry Pi controller and played one at a
 time. This keeps MQTT messages, reset commands, and sensor events responsive
@@ -473,11 +473,17 @@ fire/sound-crash
 fire/sound-fail
 fire/sound-pass
 fire/sound-bake
+fire/sound-play-all
 fire/unlock
 fire/reset-all
 ```
 
-WAV cues default to the Raspberry Pi 3.5mm jack ALSA device:
+`fire/sound-play-all` is a terminal-only diagnostic command. It asks the Pi
+controller to scan `assets/audio` at that moment and play every supported audio
+file it finds, sorted by filename. The physical Pico 7 fire panel does not have
+a spare button for this command.
+
+Audio cues default to the Raspberry Pi 3.5mm jack ALSA device:
 
 ```text
 plughw:CARD=Headphones,DEV=0
@@ -570,6 +576,7 @@ escape/fire/sound-crash
 escape/fire/sound-fail
 escape/fire/sound-pass
 escape/fire/sound-bake
+escape/fire/sound-play-all
 escape/fire/unlock
 escape/fire/reset-all
 ```
