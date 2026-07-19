@@ -18,11 +18,13 @@ int main() {
     piMainBuffer << piMainSource.rdbuf();
     const std::string piMain = piMainBuffer.str();
 
-    assert(text.find("ffplay -nodisp -autoexit -loglevel quiet") != std::string::npos);
-    assert(text.find("-fflags nobuffer") != std::string::npos);
-    assert(text.find("-flags low_delay") != std::string::npos);
-    assert(text.find("-probesize 32") != std::string::npos);
-    assert(text.find("-analyzeduration 0") != std::string::npos);
+    assert(text.find("timeout --kill-after=2s 15s") != std::string::npos);
+    assert(text.find("bash -o pipefail -c") != std::string::npos);
+    assert(text.find("ffmpeg -hide_banner -loglevel error -nostdin") != std::string::npos);
+    assert(text.find("-i \\\"$1\\\" -f wav -") != std::string::npos);
+    assert(text.find("aplay -q -D \\\"$2\\\" -") != std::string::npos);
+    assert(text.find("audioCommandForFile") != std::string::npos);
+    assert(text.find("ffplay") == std::string::npos);
     assert(text.find("std::condition_variable") != std::string::npos);
     assert(text.find("std::deque<AudioRequest>") != std::string::npos);
     assert(text.find("audioWorkerLoop") != std::string::npos);

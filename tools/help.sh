@@ -41,6 +41,11 @@ Start here on the Raspberry Pi:
   tools/connect.sh
     Tests the wired speaker through the Raspberry Pi 3.5mm jack.
 
+  tools/test-audio.sh
+    Plays audio directly through the Pi speaker, then sends fire/sound-pass and
+    fire/sound-look through MQTT so you can tell whether the problem is the
+    speaker/audio backend or the controller service.
+
   tools/pair.sh
     Bluetooth is retired. This prints the wired-audio guidance.
 
@@ -111,7 +116,9 @@ Audio:
     Decreases volume by 10%.
 
   The room controller queues audio and plays one cue at a time so MQTT sensor
-  messages and reset commands stay responsive during sound playback.
+  messages and reset commands stay responsive during sound playback. Every cue
+  is decoded by ffmpeg and sent to the configured wired ALSA device with a
+  timeout so one failed cue cannot block the next one.
 
 Room service helpers:
   tools/setup-room.sh

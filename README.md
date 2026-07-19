@@ -402,6 +402,7 @@ Wired speaker:
 
 ```bash
 tools/connect.sh
+tools/test-audio.sh
 tools/set-volume.sh -v 50
 tools/volume-up.sh
 tools/volume-down.sh
@@ -505,7 +506,15 @@ assets/audio/its-time-for-some-baking-and-escaping-lets-go.wav
 
 All audio cues are serialized through one controller playback worker. That
 means quick repeated triggers should not block MQTT/reset handling or cause two
-audio players to fight over the Pi speaker device.
+audio players to fight over the Pi speaker device. The controller decodes every
+cue with `ffmpeg`, sends it to the configured wired ALSA device with `aplay`,
+and times out a stuck playback so later cues can still fire.
+
+To separate speaker/backend problems from controller/MQTT problems, run:
+
+```bash
+tools/test-audio.sh
+```
 
 The physical fire-panel reset button must be held for 5 seconds. During the hold,
 the five red LEDs flash one at a time as a countdown; after reset fires, all five

@@ -20,6 +20,9 @@ int main() {
     const std::string capture = readText("tools/capture-fire-panel-buttons.sh");
     const std::string send = readText("tools/send_to_john.sh");
     const std::string setupDrive = readText("tools/setup-drive-upload.sh");
+    const std::string connect = readText("tools/connect.sh");
+    const std::string playAudio = readText("tools/play-audio.sh");
+    const std::string testAudio = readText("tools/test-audio.sh");
     const std::string testPico4 = readText("tools/test-pico4.sh");
     const std::string testPico5 = readText("tools/test-pico5.sh");
     const std::string contactExample = readText("john-contact.env.example");
@@ -40,6 +43,7 @@ int main() {
     assert(help.find("tools/capture-fire-panel-buttons.sh") != std::string::npos);
     assert(help.find("tools/send_to_john.sh") != std::string::npos);
     assert(help.find("tools/setup-drive-upload.sh") != std::string::npos);
+    assert(help.find("tools/test-audio.sh") != std::string::npos);
     assert(help.find("do not run it with source") != std::string::npos);
     assert(help.find("Fire panel button map") != std::string::npos);
     assert(help.find("| STATUS | GP2 | escape/fire/status |") != std::string::npos);
@@ -65,6 +69,16 @@ int main() {
     assert(testPico5.find("try-again.wav") != std::string::npos);
     assert(testPico5.find("buzzer.mp3") != std::string::npos);
     assert(testPico5.find("escape/telemetry/pico5/buttons") != std::string::npos);
+
+    assert(connect.find("tools/play-audio.sh") != std::string::npos);
+    assert(playAudio.find("ESCAPE_AUDIO_DEVICE") != std::string::npos);
+    assert(playAudio.find("ffmpeg -hide_banner -loglevel error -nostdin -i") != std::string::npos);
+    assert(playAudio.find("aplay -q -D") != std::string::npos);
+    assert(playAudio.find("timeout --kill-after=2s 15s") != std::string::npos);
+    assert(playAudio.find("bash -o pipefail -c") != std::string::npos);
+    assert(testAudio.find("tools/play-audio.sh") != std::string::npos);
+    assert(testAudio.find("fire/sound-pass") != std::string::npos);
+    assert(testAudio.find("tools/room-logs.sh") != std::string::npos);
 
     assert(capture.find("fire-panel-button-order") != std::string::npos);
     assert(capture.find("Press the button labeled STATUS") != std::string::npos);
