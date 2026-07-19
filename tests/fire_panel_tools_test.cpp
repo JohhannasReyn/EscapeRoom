@@ -52,8 +52,16 @@ int main() {
     assert(help.find("Fire panel button map") != std::string::npos);
     assert(help.find("| STATUS | GP2 | escape/fire/status |") != std::string::npos);
     assert(help.find("| RESET-ALL | GP11 | escape/fire/reset-all |") != std::string::npos);
-    assert(help.find("Light state key") != std::string::npos);
-    assert(help.find("Alternating red/green") != std::string::npos);
+    assert(help.find("Fire panel status light map") != std::string::npos);
+    assert(help.find("| 1 | Film / smart film | GP12 | GP13 | Ready/hidden | Reveal active | Checking/reset | Manual diagnostic | Offline/fault |") != std::string::npos);
+    assert(help.find("| 2 | Sound | GP14 | GP15 | Ready | Audio playing | Wrong/checking | Manual diagnostic | Offline/fault |") != std::string::npos);
+    assert(help.find("| 3 | Painting | GP16 | GP17 | Ready | Painting triggered | Checking/reset | Manual diagnostic | Offline/fault |") != std::string::npos);
+    assert(help.find("| 4 | Color buttons | GP18 | GP19 | Ready/idle | Listening/active | Wrong/checking | Manual diagnostic | Offline/fault |") != std::string::npos);
+    assert(help.find("| 5 | Oven / lock | GP20 | GP21 | Ready | Oven active/unlocked/reset needed | Checking/reset countdown | Manual diagnostic | Offline/fault |") != std::string::npos);
+    assert(help.find("Pico 7 has five status-light zones") != std::string::npos);
+    assert(help.find("tools/pair.sh") == std::string::npos);
+    assert(help.find("Internal helpers") == std::string::npos);
+    assert(help.find("john-contact.env.example") == std::string::npos);
 
     const std::string readme = readText("README.md");
     assert(readme.find("tools/rebase.sh") != std::string::npos);
